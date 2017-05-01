@@ -1,0 +1,21 @@
+<html style="background-color: black; color: white;">
+<head>
+  <script src="../dist/sfjs.js"></script>
+  <script src="../dist/test.js"></script>
+</head>
+
+Select file to decrypt:
+<input type="file" id="plaintext" name="files[]" multiple />
+
+<script>
+
+  function handlePlaintextSelect(evt) {
+    var files = evt.target.files;
+    SFTest.decryptFiles(files, function(data){
+    })
+  }
+
+  document.getElementById('plaintext').addEventListener('change', handlePlaintextSelect, false);
+
+</script>
+</html>
