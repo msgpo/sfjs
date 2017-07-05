@@ -138,33 +138,23 @@ var SFAbstractCrypto = function () {
       return result;
     }
   }, {
-    key: 'generateKeysFromMasterKey',
-    value: function generateKeysFromMasterKey(mk) {
-      console.log("From crpyot.js", SFJS, SFJS.crypto);
-      var encryptionKey = SFJS.crypto.hmac256(mk, CryptoJS.enc.Utf8.parse("e").toString(CryptoJS.enc.Hex));
-      var authKey = SFJS.crypto.hmac256(mk, CryptoJS.enc.Utf8.parse("a").toString(CryptoJS.enc.Hex));
-      return { mk: mk, encryptionKey: encryptionKey, authKey: authKey };
-    }
-  }, {
     key: 'computeEncryptionKeysForUser',
     value: function computeEncryptionKeysForUser() {
       var _ref2 = arguments.length > 0 && arguments[0] !== undefined ? arguments[0] : {},
           password = _ref2.password,
           pw_salt = _ref2.pw_salt,
-          pw_func = _ref2.pw_func,
-          pw_alg = _ref2.pw_alg,
-          pw_cost = _ref2.pw_cost,
-          pw_key_size = _ref2.pw_key_size;
+          pw_cost = _ref2.pw_cost;
 
       var callback = arguments[1];
 
-      this.generateSymmetricKeyPair({ password: password, pw_salt: pw_salt,
-        pw_func: pw_func, pw_alg: pw_alg, pw_cost: pw_cost, pw_key_size: pw_key_size }, function (keys) {
-        var pw = keys[0];
-        var mk = keys[1];
-
-        callback(_.merge({ pw: pw, mk: mk }, this.generateKeysFromMasterKey(mk)));
+      this.generateSymmetricKeyPair({ password: password, pw_salt: pw_salt, pw_cost: pw_cost }, function (keys) {
+        callback({ pw: keys[0], mk: keys[1], ak: keys[2] });
       }.bind(this));
+    }
+  }, {
+    key: 'calculateVerificationTag',
+    value: function calculateVerificationTag(cost, salt, ak) {
+      return SFJS.crypto.hmac256([cost, salt].join(":"), ak);
     }
   }, {
     key: 'generateInitialEncryptionKeysForUser',
@@ -175,20 +165,13 @@ var SFAbstractCrypto = function () {
 
       var callback = arguments[1];
 
-      var defaults = this.defaultPasswordGenerationParams();
-      var pw_func = defaults.pw_func,
-          pw_alg = defaults.pw_alg,
-          pw_key_size = defaults.pw_key_size,
-          pw_cost = defaults.pw_cost;
-
+      var pw_cost = this.defaultPasswordGenerationCost();
       var pw_nonce = this.generateRandomKey(512);
-      var pw_salt = this.sha1(email + "SN" + pw_nonce);
-      _.merge(defaults, { pw_salt: pw_salt, pw_nonce: pw_nonce });
-      this.generateSymmetricKeyPair(_.merge({ email: email, password: password, pw_salt: pw_salt }, defaults), function (keys) {
-        var pw = keys[0];
-        var mk = keys[1];
-
-        callback(_.merge({ pw: pw, mk: mk }, this.generateKeysFromMasterKey(mk)), defaults);
+      var pw_salt = this.sha1([email, pw_nonce].join(":"));
+      this.generateSymmetricKeyPair({ email: email, password: password, pw_salt: pw_salt, pw_cost: pw_cost }, function (keys) {
+        var ak = keys[2];
+        var pw_auth = this.calculateVerificationTag(pw_cost, pw_salt, ak);
+        callback({ pw: keys[0], mk: keys[1], ak: ak }, { pw_auth: pw_auth, pw_salt: pw_salt, pw_cost: pw_cost });
       }.bind(this));
     }
   }]);
@@ -216,34 +199,23 @@ var SFCryptoJS = function (_SFAbstractCrypto) {
       var _ref4 = arguments.length > 0 && arguments[0] !== undefined ? arguments[0] : {},
           password = _ref4.password,
           pw_salt = _ref4.pw_salt,
-          pw_func = _ref4.pw_func,
-          pw_alg = _ref4.pw_alg,
-          pw_cost = _ref4.pw_cost,
-          pw_key_size = _ref4.pw_key_size;
+          pw_cost = _ref4.pw_cost;
 
       var callback = arguments[1];
 
-      var algMapping = {
-        "sha256": CryptoJS.algo.SHA256,
-        "sha512": CryptoJS.algo.SHA512
-      };
-      var fnMapping = {
-        "pbkdf2": CryptoJS.PBKDF2
-      };
-
-      var alg = algMapping[pw_alg];
-      var kdf = fnMapping[pw_func];
-      var output = kdf(password, pw_salt, { keySize: pw_key_size / 32, hasher: alg, iterations: pw_cost }).toString();
+      var output = CryptoJS.PBKDF2(password, pw_salt, { keySize: 768 / 32, hasher: CryptoJS.algo.SHA512, iterations: pw_cost }).toString();
 
       var outputLength = output.length;
-      var firstHalf = output.slice(0, outputLength / 2);
-      var secondHalf = output.slice(outputLength / 2, outputLength);
-      callback([firstHalf, secondHalf]);
+      var splitLength = outputLength / 3;
+      var firstThird = output.slice(0, splitLength);
+      var secondThird = output.slice(splitLength, splitLength * 2);
+      var thirdThird = output.slice(splitLength * 2, splitLength * 3);
+      callback([firstThird, secondThird, thirdThird]);
     }
   }, {
-    key: 'defaultPasswordGenerationParams',
-    value: function defaultPasswordGenerationParams() {
-      return { pw_func: "pbkdf2", pw_alg: "sha512", pw_key_size: 512, pw_cost: 3000 };
+    key: 'defaultPasswordGenerationCost',
+    value: function defaultPasswordGenerationCost() {
+      return 3000;
     }
   }]);
 
@@ -263,14 +235,14 @@ var SFCryptoWeb = function (_SFAbstractCrypto2) {
   }
 
   _createClass(SFCryptoWeb, [{
-    key: 'defaultPasswordGenerationParams',
+    key: 'defaultPasswordGenerationCost',
 
 
     /**
     Overrides
     */
-    value: function defaultPasswordGenerationParams() {
-      return { pw_func: "pbkdf2", pw_alg: "sha512", pw_key_size: 512, pw_cost: 5000 };
+    value: function defaultPasswordGenerationCost() {
+      return 10000;
     }
 
     /** Generates two deterministic keys based on one input */
@@ -281,18 +253,17 @@ var SFCryptoWeb = function (_SFAbstractCrypto2) {
       var _ref5 = arguments.length > 0 && arguments[0] !== undefined ? arguments[0] : {},
           password = _ref5.password,
           pw_salt = _ref5.pw_salt,
-          pw_func = _ref5.pw_func,
-          pw_alg = _ref5.pw_alg,
-          pw_cost = _ref5.pw_cost,
-          pw_key_size = _ref5.pw_key_size;
+          pw_cost = _ref5.pw_cost;
 
       var callback = arguments[1];
 
-      this.stretchPassword({ password: password, pw_func: pw_func, pw_alg: pw_alg, pw_salt: pw_salt, pw_cost: pw_cost, pw_key_size: pw_key_size }, function (output) {
+      this.stretchPassword({ password: password, pw_salt: pw_salt, pw_cost: pw_cost }, function (output) {
         var outputLength = output.length;
-        var firstHalf = output.slice(0, outputLength / 2);
-        var secondHalf = output.slice(outputLength / 2, outputLength);
-        callback([firstHalf, secondHalf]);
+        var splitLength = outputLength / 3;
+        var firstThird = output.slice(0, splitLength);
+        var secondThird = output.slice(splitLength, splitLength * 2);
+        var thirdThird = output.slice(splitLength * 2, splitLength * 3);
+        callback([firstThird, secondThird, thirdThird]);
       });
     }
 
@@ -306,15 +277,12 @@ var SFCryptoWeb = function (_SFAbstractCrypto2) {
       var _ref6 = arguments.length > 0 && arguments[0] !== undefined ? arguments[0] : {},
           password = _ref6.password,
           pw_salt = _ref6.pw_salt,
-          pw_cost = _ref6.pw_cost,
-          pw_func = _ref6.pw_func,
-          pw_alg = _ref6.pw_alg,
-          pw_key_size = _ref6.pw_key_size;
+          pw_cost = _ref6.pw_cost;
 
       var callback = arguments[1];
 
 
-      this.webCryptoImportKey(password, pw_func, function (key) {
+      this.webCryptoImportKey(password, function (key) {
 
         if (!key) {
           console.log("Key is null, unable to continue");
@@ -322,7 +290,7 @@ var SFCryptoWeb = function (_SFAbstractCrypto2) {
           return;
         }
 
-        this.webCryptoDeriveBits({ key: key, pw_func: pw_func, pw_alg: pw_alg, pw_salt: pw_salt, pw_cost: pw_cost, pw_key_size: pw_key_size }, function (key) {
+        this.webCryptoDeriveBits({ key: key, pw_salt: pw_salt, pw_cost: pw_cost }, function (key) {
           if (!key) {
             callback(null);
             return;
@@ -334,8 +302,8 @@ var SFCryptoWeb = function (_SFAbstractCrypto2) {
     }
   }, {
     key: 'webCryptoImportKey',
-    value: function webCryptoImportKey(input, pw_func, callback) {
-      subtleCrypto.importKey("raw", this.stringToArrayBuffer(input), { name: pw_func.toUpperCase() }, false, ["deriveBits"]).then(function (key) {
+    value: function webCryptoImportKey(input, callback) {
+      subtleCrypto.importKey("raw", this.stringToArrayBuffer(input), { name: "PBKDF2" }, false, ["deriveBits"]).then(function (key) {
         callback(key);
       }).catch(function (err) {
         console.error(err);
@@ -347,25 +315,17 @@ var SFCryptoWeb = function (_SFAbstractCrypto2) {
     value: function webCryptoDeriveBits() {
       var _ref7 = arguments.length > 0 && arguments[0] !== undefined ? arguments[0] : {},
           key = _ref7.key,
-          pw_func = _ref7.pw_func,
-          pw_alg = _ref7.pw_alg,
           pw_salt = _ref7.pw_salt,
-          pw_cost = _ref7.pw_cost,
-          pw_key_size = _ref7.pw_key_size;
+          pw_cost = _ref7.pw_cost;
 
       var callback = arguments[1];
 
-      var algMapping = {
-        "sha256": "SHA-256",
-        "sha512": "SHA-512"
-      };
-      var alg = algMapping[pw_alg];
       subtleCrypto.deriveBits({
-        "name": pw_func.toUpperCase(),
+        "name": "PBKDF2",
         salt: this.stringToArrayBuffer(pw_salt),
         iterations: pw_cost,
-        hash: { name: alg }
-      }, key, pw_key_size).then(function (bits) {
+        hash: { name: "SHA-512" }
+      }, key, 768).then(function (bits) {
         var key = this.arrayBufferToHexString(new Uint8Array(bits));
         callback(key);
       }.bind(this)).catch(function (err) {
@@ -377,6 +337,7 @@ var SFCryptoWeb = function (_SFAbstractCrypto2) {
     key: 'stringToArrayBuffer',
     value: function stringToArrayBuffer(string) {
       // not available on Edge/IE
+
       if (window.TextEncoder) {
         var encoder = new TextEncoder("utf-8");
         var result = encoder.encode(string);
@@ -421,7 +382,7 @@ var SFItemTransformer = function () {
 
   _createClass(SFItemTransformer, null, [{
     key: '_private_encryptString',
-    value: function _private_encryptString(string, encryptionKey, authKey, version) {
+    value: function _private_encryptString(string, encryptionKey, authKey, uuid, version) {
       var fullCiphertext, contentCiphertext;
       if (version === "001") {
         contentCiphertext = SFJS.crypto.encryptText(string, encryptionKey, null);
@@ -429,9 +390,9 @@ var SFItemTransformer = function () {
       } else {
         var iv = SFJS.crypto.generateRandomKey(128);
         contentCiphertext = SFJS.crypto.encryptText(string, encryptionKey, iv);
-        var ciphertextToAuth = [version, iv, contentCiphertext].join(":");
+        var ciphertextToAuth = [version, uuid, iv, contentCiphertext].join(":");
         var authHash = SFJS.crypto.hmac256(ciphertextToAuth, authKey);
-        fullCiphertext = [version, authHash, iv, contentCiphertext].join(":");
+        fullCiphertext = [version, authHash, uuid, iv, contentCiphertext].join(":");
       }
 
       return fullCiphertext;
@@ -439,29 +400,31 @@ var SFItemTransformer = function () {
   }, {
     key: 'encryptItem',
     value: function encryptItem(item, keys, version) {
+      var params = {};
       // encrypt item key
       var item_key = SFJS.crypto.generateRandomEncryptionKey();
       if (version === "001") {
         // legacy
-        item.enc_item_key = SFJS.crypto.encryptText(item_key, keys.mk, null);
+        params.enc_item_key = SFJS.crypto.encryptText(item_key, keys.mk, null);
       } else {
-        item.enc_item_key = this._private_encryptString(item_key, keys.encryptionKey, keys.authKey, version);
+        params.enc_item_key = this._private_encryptString(item_key, keys.mk, keys.ak, item.uuid, version);
       }
 
       // encrypt content
       var ek = SFJS.crypto.firstHalfOfKey(item_key);
       var ak = SFJS.crypto.secondHalfOfKey(item_key);
-      var ciphertext = this._private_encryptString(JSON.stringify(item.createContentJSONFromProperties()), ek, ak, version);
+      var ciphertext = this._private_encryptString(JSON.stringify(item.createContentJSONFromProperties()), ek, ak, item.uuid, version);
       if (version === "001") {
         var authHash = SFJS.crypto.hmac256(ciphertext, ak);
-        item.auth_hash = authHash;
+        params.auth_hash = authHash;
       }
 
-      item.content = ciphertext;
+      params.content = ciphertext;
+      return params;
     }
   }, {
     key: 'encryptionComponentsFromString',
-    value: function encryptionComponentsFromString(string, baseKey, encryptionKey, authKey) {
+    value: function encryptionComponentsFromString(string, encryptionKey, authKey) {
       var encryptionVersion = string.substring(0, 3);
       if (encryptionVersion === "001") {
         return {
@@ -470,7 +433,7 @@ var SFItemTransformer = function () {
           ciphertextToAuth: string,
           iv: null,
           authHash: null,
-          encryptionKey: baseKey,
+          encryptionKey: encryptionKey,
           authKey: authKey
         };
       } else {
@@ -478,9 +441,10 @@ var SFItemTransformer = function () {
         return {
           encryptionVersion: components[0],
           authHash: components[1],
-          iv: components[2],
-          contentCiphertext: components[3],
-          ciphertextToAuth: [components[0], components[2], components[3]].join(":"),
+          uuid: components[2],
+          iv: components[3],
+          contentCiphertext: components[4],
+          ciphertextToAuth: [components[0], components[2], components[3], components[4]].join(":"),
           encryptionKey: encryptionKey,
           authKey: authKey
         };
@@ -497,21 +461,41 @@ var SFItemTransformer = function () {
         encryptedItemKey = "001" + encryptedItemKey;
         requiresAuth = false;
       }
-      var keyParams = this.encryptionComponentsFromString(encryptedItemKey, keys.mk, keys.encryptionKey, keys.authKey);
+      var keyParams = this.encryptionComponentsFromString(encryptedItemKey, keys.mk, keys.ak);
+
+      // return if uuid in auth hash does not match item uuid. Signs of tampering.
+      if (keyParams.uuid && keyParams.uuid !== item.uuid) {
+        item.errorDecrypting = true;
+        return;
+      }
+
       var item_key = SFJS.crypto.decryptText(keyParams, requiresAuth);
 
       if (!item_key) {
+        item.errorDecrypting = true;
         return;
       }
 
       // decrypt content
       var ek = SFJS.crypto.firstHalfOfKey(item_key);
       var ak = SFJS.crypto.secondHalfOfKey(item_key);
-      var itemParams = this.encryptionComponentsFromString(item.content, ek, ek, ak);
+      var itemParams = this.encryptionComponentsFromString(item.content, ek, ak);
+
+      // return if uuid in auth hash does not match item uuid. Signs of tampering.
+      if (itemParams.uuid && itemParams.uuid !== item.uuid) {
+        item.errorDecrypting = true;
+        return;
+      }
+
       if (!itemParams.authHash) {
+        // legacy 001
         itemParams.authHash = item.auth_hash;
       }
+
       var content = SFJS.crypto.decryptText(itemParams, true);
+      if (!content) {
+        item.errorDecrypting = true;
+      }
       item.content = content;
     }
   }, {
@@ -540,6 +524,7 @@ var SFItemTransformer = function () {
                 item.content = SFJS.crypto.base64Decode(item.content.substring(3, item.content.length));
               }
             } catch (e) {
+              item.errorDecrypting = true;
               if (throws) {
                 throw e;
               }
@@ -580,7 +565,7 @@ var Item = function () {
     this.observers = [];
 
     if (!this.uuid) {
-      this.uuid = Neeto.crypto.generateUUID();
+      this.uuid = SFJS.crypto.generateUUID();
     }
   }
 
@@ -712,6 +697,11 @@ var Item = function () {
     value: function allReferencedObjects() {
       // must override
       return [];
+    }
+  }, {
+    key: 'doNotEncrypt',
+    value: function doNotEncrypt() {
+      return false;
     }
   }, {
     key: 'contentObject',
