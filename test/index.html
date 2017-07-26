@@ -1,21 +1,231 @@
-<html style="background-color: black; color: white;">
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html>
 <head>
+  <meta content="text/html; charset=UTF-8" http-equiv="Content-Type"/>
+  <meta charset="UTF-8"/>
   <script src="../dist/sfjs.js"></script>
-  <script src="../dist/test.js"></script>
 </head>
 
-Select file to decrypt:
-<input type="file" id="plaintext" name="files[]" multiple />
+<style>
+  body {
+    font-family: sans-serif;
+    margin: 30px;
+  }
+
+  li {
+    margin-bottom: 10px;
+  }
+
+  #password {
+    height: 25px;
+    padding-left: 6px;
+    width: 220px;
+  }
+
+</style>
+
+<body>
+
+  <h1>Decrypt your Standard Notes files </h1>
+
+  <div>
+    <p>Use this offline tool to decrypt your encrypted Standard Notes backup file(s).</p>
+    <p>Any issues? Send an email to <a href="mailto:hello@standardnotes.org">hello@standardnotes.org</a>.
+  </div>
+
+  <div style="margin-top: 30px;">
+    <ol>
+      <li>
+        Choose files to decrypt:
+        <input type="file" id="chooser" name="files[]" multiple />
+      </li>
+
+      <li>
+        <input type="password" id="password" placeholder="Enter Password" autocomplete="off" />
+      </li>
+
+      <li>
+        <button onclick="downloadAsImportFile()">Download as decrypted import file</button>
+        or
+        <button onclick="downloadAsPlain()">Download as plaintext files</button>
+      </li>
+    </ol>
+  </div>
+
+  <div style="color: gray;">
+    <h4 style="margin-top: 150px; margin-bottom: 0;">If you configured backups <i>before</i> May 1, 2017, read below:</h4>
+    <p style="font-size: 15px;">
+      On Monday, May 1, 2017, the Dropbox extension as well as the Google Drive extension were updated to include a missing parameter from the archive files.
+      This parameter is required in order to convert your password into your encryption key. If you configured your sync adapter before this date,
+      please perform these steps to update your files:
+    </p>
+    <ol>
+      <li>
+        Open your Standard File dashboard, and navigate to "Sync Adapters".
+      </li>
+      <li>
+        Press "Perform Initial Sync" on relevant adapter.
+      </li>
+    </ol>
+  </div>
+
+</body>
 
 <script>
 
-  function handlePlaintextSelect(evt) {
-    var files = evt.target.files;
-    SFTest.decryptFiles(files, function(data){
-    })
+  var files;
+  function handleFileSelect(evt) {
+    files = evt.target.files;
   }
 
-  document.getElementById('plaintext').addEventListener('change', handlePlaintextSelect, false);
+  function downloadAsImportFile() {
+    if(!files) {
+      alert("You must select a file first.");
+      return;
+    }
+    try {
+      decryptFiles(files, function(data){
+        downloadData(data, "decrypted-sn-data.txt", true);
+      })
+    } catch (e) {
+      alert("An error occurred while trying to decrypt your data. Ensure your password is correct and try again.");
+    }
+  }
 
+  function downloadAsPlain() {
+    if(!files) {
+      alert("You must select a file first.");
+      return;
+    }
+
+    try {
+      decryptFiles(files, function(data){
+        downloadPlaintextDataZip(data, "decrypted-notes-archive");
+      })
+    } catch (e) {
+      alert("An error occurred while trying to decrypt your data. Ensure your password is correct and try again.");
+    }
+  }
+
+  function decryptFiles(files, completion) {
+    var password = document.getElementById("password").value;
+    if(!password) {
+      alert("Enter the account password used to encrypt these files.");
+      return;
+    }
+    var auth_params, keys;
+
+    var index = 0;
+    var processedData = [];
+
+    var readNext = function() {
+      var file = files[index];
+      index++;
+      var reader = new FileReader();
+
+      reader.onload = function(e) {
+
+        var data = JSON.parse(e.target.result);
+
+        var onKeyReady = function() {
+
+          for(var item of data.items) {
+            try {
+              SFItemTransformer.decryptItem(item, keys);
+              item.content = JSON.parse(item.content);
+            } catch(error) {
+              alert("Unable to decrypt contents. Ensure your password is correct and try again.");
+              console.error("Error decrypting:", error);
+              return;
+            }
+            delete item.auth_params;
+            processedData.push(item);
+          }
+
+          if(index < files.length) {
+            readNext();
+          } else {
+            completion({items: processedData});
+          }
+
+        }
+
+        if(!auth_params) {
+          auth_params = data.auth_params;
+          if(!auth_params || !auth_params.pw_cost) {
+            alert("Invalid file selected. Ensure you have selected the right file and try again.");
+            return;
+          }
+          _.merge(auth_params, {password: password});
+          SFJS.crypto.computeEncryptionKeysForUser(auth_params, function(result){
+            keys = result;
+            onKeyReady();
+          })
+        } else {
+          onKeyReady();
+        }
+      }.bind(this)
+
+      reader.readAsText(file);
+
+    }.bind(this);
+
+    readNext();
+  }
+
+  function downloadData(data, filename, json) {
+    var textFile = null;
+    var makeTextFile = function (text) {
+      var data = new Blob([text], {type: 'text/json'});
+
+      // If we are replacing a previously generated file we need to
+      // manually revoke the object URL to avoid memory leaks.
+      if (textFile !== null) {
+        window.URL.revokeObjectURL(textFile);
+      }
+
+      textFile = window.URL.createObjectURL(data);
+
+      // returns a URL you can use as a href
+      return textFile;
+    }
+
+    if(json) {
+      data = JSON.stringify(data, null, 2 /* pretty print */);
+    }
+    var file = makeTextFile(data);
+
+    var link = document.createElement('a');
+    link.setAttribute('download', filename);
+    link.href = file;
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+  }
+
+  function downloadPlaintextDataZip(data, filename) {
+    var zip = new JSZip();
+    for(var item of data.items) {
+      var name;
+      var contents;
+
+      if(item.content_type == "Note" || item.content_type == "Tag") {
+        name = item.content.title;
+        contents = item.content.text;
+      } else {
+        name = item.content_type;
+        contents = JSON.stringify(item.content);
+      }
+      name +=  "-" + item.uuid.split("-")[0] + ".txt";
+      zip.file(name, contents);
+    }
+    zip.generateAsync({type:"blob"})
+    .then(function(content) {
+        downloadData(content, filename + ".zip");
+    });
+  }
+
+  document.getElementById('chooser').addEventListener('change', handleFileSelect, false);
 </script>
+
 </html>
