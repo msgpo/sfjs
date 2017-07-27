@@ -615,6 +615,10 @@ var SFItemTransformer = function () {
     key: 'decryptItem',
     value: function decryptItem(item, keys) {
 
+      if (!item.content) {
+        return;
+      }
+
       if ((item.content.startsWith("001") || item.content.startsWith("002")) && item.enc_item_key) {
         // is encrypted, continue to below
       } else {

@@ -52,23 +52,6 @@
     </ol>
   </div>
 
-  <div style="color: gray;">
-    <h4 style="margin-top: 150px; margin-bottom: 0;">If you configured backups <i>before</i> May 1, 2017, read below:</h4>
-    <p style="font-size: 15px;">
-      On Monday, May 1, 2017, the Dropbox extension as well as the Google Drive extension were updated to include a missing parameter from the archive files.
-      This parameter is required in order to convert your password into your encryption key. If you configured your sync adapter before this date,
-      please perform these steps to update your files:
-    </p>
-    <ol>
-      <li>
-        Open your Standard File dashboard, and navigate to "Sync Adapters".
-      </li>
-      <li>
-        Press "Perform Initial Sync" on relevant adapter.
-      </li>
-    </ol>
-  </div>
-
 </body>
 
 <script>
@@ -127,6 +110,9 @@
 
         var data = JSON.parse(e.target.result);
 
+        var showErrorAlert = false;
+        var errorCount = 0;
+
         var onKeyReady = function() {
 
           for(var item of data.items) {
@@ -134,9 +120,10 @@
               SFItemTransformer.decryptItem(item, keys);
               item.content = JSON.parse(item.content);
             } catch(error) {
-              alert("Unable to decrypt contents. Ensure your password is correct and try again.");
+              showErrorAlert = true;
+              errorCount++;
               console.error("Error decrypting:", error);
-              return;
+              continue;
             }
             delete item.auth_params;
             processedData.push(item);
@@ -146,6 +133,9 @@
             readNext();
           } else {
             completion({items: processedData});
+            if(showErrorAlert) {
+              alert(errorCount === data.items.length ? "Unable to decrypt contents. Ensure your password is correct and try again." : "Some items were not decrypted.");
+            }
           }
 
         }
