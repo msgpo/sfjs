@@ -125,11 +125,6 @@ var SFAbstractCrypto = function () {
       return CryptoJS.SHA256(text).toString();
     }
   }, {
-    key: 'sha1',
-    value: function sha1(text) {
-      return CryptoJS.SHA1(text).toString();
-    }
-  }, {
     key: 'hmac256',
     value: function hmac256(message, key) {
       var keyData = CryptoJS.enc.Hex.parse(key);
@@ -152,11 +147,6 @@ var SFAbstractCrypto = function () {
       }.bind(this));
     }
   }, {
-    key: 'calculateVerificationTag',
-    value: function calculateVerificationTag(cost, salt, ak) {
-      return SFJS.crypto.hmac256([cost, salt].join(":"), ak);
-    }
-  }, {
     key: 'generateInitialEncryptionKeysForUser',
     value: function generateInitialEncryptionKeysForUser() {
       var _ref3 = arguments.length > 0 && arguments[0] !== undefined ? arguments[0] : {},
@@ -167,11 +157,9 @@ var SFAbstractCrypto = function () {
 
       var pw_cost = this.defaultPasswordGenerationCost();
       var pw_nonce = this.generateRandomKey(512);
-      var pw_salt = this.sha1([email, pw_nonce].join(":"));
+      var pw_salt = this.sha256([email, pw_nonce].join(":"));
       this.generateSymmetricKeyPair({ email: email, password: password, pw_salt: pw_salt, pw_cost: pw_cost }, function (keys) {
-        var ak = keys[2];
-        var pw_auth = this.calculateVerificationTag(pw_cost, pw_salt, ak);
-        callback({ pw: keys[0], mk: keys[1], ak: ak }, { pw_auth: pw_auth, pw_salt: pw_salt, pw_cost: pw_cost });
+        callback({ pw: keys[0], mk: keys[1], ak: keys[2] }, { pw_salt: pw_salt, pw_cost: pw_cost });
       }.bind(this));
     }
   }]);
@@ -242,7 +230,7 @@ var SFCryptoWeb = function (_SFAbstractCrypto2) {
     Overrides
     */
     value: function defaultPasswordGenerationCost() {
-      return 10000;
+      return 101000;
     }
 
     /** Generates two deterministic keys based on one input */
