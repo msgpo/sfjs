@@ -13,9 +13,8 @@ var SFTest = function () {
   _createClass(SFTest, [{
     key: "decryptFiles",
     value: function decryptFiles(files, completion) {
-
       var mk = "<master key>";
-      var keys = SFJS.crypto.generateKeysFromMasterKey(mk);
+      var keys = SFJS.crypto.computeEncryptionKeysForUser(mk);
 
       var index = 0;
       var processedData = [];

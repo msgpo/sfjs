@@ -10,14 +10,6 @@ module.exports = function(grunt) {
           spawn: false,
         },
       },
-
-      test: {
-        files: ['test/**/*.js'],
-        tasks: ['babel:test', 'browserify:test'],
-        options: {
-          spawn: false,
-        },
-      },
     },
 
     concat: {
@@ -58,11 +50,6 @@ module.exports = function(grunt) {
         }
       },
 
-      test: {
-        files: {
-          'dist/test.js': 'test/test.js'
-        }
-      }
     },
 
     browserify: {
@@ -71,12 +58,6 @@ module.exports = function(grunt) {
           'dist/transpiled.js': 'dist/transpiled.js'
         }
       },
-
-      test: {
-        files: {
-          'dist/test.js': 'dist/test.js'
-        }
-      }
     },
 
      uglify: {
@@ -94,5 +75,5 @@ module.exports = function(grunt) {
   grunt.loadNpmTasks('grunt-browserify');
   grunt.loadNpmTasks('grunt-contrib-concat');
 
-  grunt.registerTask('default', ['concat:lib', 'babel', 'browserify', 'concat:vendor', 'concat:dist', 'uglify', 'babel:test', 'browserify:test']);
+  grunt.registerTask('default', ['concat:lib', 'babel', 'browserify', 'concat:vendor', 'concat:dist', 'uglify']);
 };
