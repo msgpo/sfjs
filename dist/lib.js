@@ -281,7 +281,7 @@ export { SFCryptoWeb }
     return fullCiphertext;
   }
 
-  static encryptItem(item, keys, version) {
+  static encryptItem(item, keys, version = "002") {
     var params = {};
     // encrypt item key
     var item_key = SFJS.crypto.generateRandomEncryptionKey();
@@ -333,6 +333,18 @@ export { SFCryptoWeb }
   }
 
   static decryptItem(item, keys) {
+
+    if((item.content.startsWith("001") || item.content.startsWith("002")) && item.enc_item_key) {
+      // is encrypted, continue to below
+    } else {
+      // is base64 encoded
+      try {
+        item.content = JSON.parse(SFJS.crypto.base64Decode(item.content.substring(3, item.content.length)));
+      } catch (e) {}
+
+      return;
+    }
+
     // decrypt encrypted key
     var encryptedItemKey = item.enc_item_key;
     var requiresAuth = true;
@@ -345,6 +357,7 @@ export { SFCryptoWeb }
 
     // return if uuid in auth hash does not match item uuid. Signs of tampering.
     if(keyParams.uuid && keyParams.uuid !== item.uuid) {
+      if(!item.errorDecrypting) { item.errorDecryptingValueChanged = true;}
       item.errorDecrypting = true;
       return;
     }
@@ -352,6 +365,7 @@ export { SFCryptoWeb }
     var item_key = SFJS.crypto.decryptText(keyParams, requiresAuth);
 
     if(!item_key) {
+      if(!item.errorDecrypting) { item.errorDecryptingValueChanged = true;}
       item.errorDecrypting = true;
       return;
     }
@@ -363,6 +377,7 @@ export { SFCryptoWeb }
 
     // return if uuid in auth hash does not match item uuid. Signs of tampering.
     if(itemParams.uuid && itemParams.uuid !== item.uuid) {
+      if(!item.errorDecrypting) { item.errorDecryptingValueChanged = true;}
       item.errorDecrypting = true;
       return;
     }
@@ -374,33 +389,36 @@ export { SFCryptoWeb }
 
     var content = SFJS.crypto.decryptText(itemParams, true);
     if(!content) {
+      if(!item.errorDecrypting) { item.errorDecryptingValueChanged = true;}
       item.errorDecrypting = true;
+    } else {
+      if(item.errorDecrypting == true) { item.errorDecryptingValueChanged = true;}
+       // Content should only be set if it was successfully decrypted, and should otherwise remain unchanged.
+      item.errorDecrypting = false;
+      item.content = content;
     }
-    item.content = content;
   }
 
   static decryptMultipleItems(items, keys, throws) {
     for (var item of items) {
-     if(item.deleted == true) {
+
+     // 4/15/18: Adding item.content == null clause. We still want to decrypt deleted items incase
+     // they were marked as dirty but not yet synced. Not yet sure why we had this requirement.
+     if(item.deleted == true && item.content == null) {
        continue;
      }
 
      var isString = typeof item.content === 'string' || item.content instanceof String;
      if(isString) {
        try {
-         if((item.content.startsWith("001") || item.content.startsWith("002")) && item.enc_item_key) {
-           // is encrypted
-           this.decryptItem(item, keys);
-         } else {
-           // is base64 encoded
-           item.content = SFJS.crypto.base64Decode(item.content.substring(3, item.content.length))
-         }
+         this.decryptItem(item, keys);
        } catch (e) {
+         if(!item.errorDecrypting) { item.errorDecryptingValueChanged = true;}
          item.errorDecrypting = true;
          if(throws) {
            throw e;
          }
-         console.log("Error decrypting item", item, e);
+         console.error("Error decrypting item", item, e);
          continue;
        }
      }
