@@ -166,8 +166,6 @@ Object.defineProperty(exports, "__esModule", {
   value: true
 });
 
-var _typeof = typeof Symbol === "function" && typeof Symbol.iterator === "symbol" ? function (obj) { return typeof obj; } : function (obj) { return obj && typeof Symbol === "function" && obj.constructor === Symbol && obj !== Symbol.prototype ? "symbol" : typeof obj; };
-
 var _createClass = function () { function defineProperties(target, props) { for (var i = 0; i < props.length; i++) { var descriptor = props[i]; descriptor.enumerable = descriptor.enumerable || false; descriptor.configurable = true; if ("value" in descriptor) descriptor.writable = true; Object.defineProperty(target, descriptor.key, descriptor); } } return function (Constructor, protoProps, staticProps) { if (protoProps) defineProperties(Constructor.prototype, protoProps); if (staticProps) defineProperties(Constructor, staticProps); return Constructor; }; }();
 
 function _possibleConstructorReturn(self, call) { if (!self) { throw new ReferenceError("this hasn't been initialised - super() hasn't been called"); } return call && (typeof call === "object" || typeof call === "function") ? call : self; }
@@ -605,6 +603,11 @@ var SFItemTransformer = function () {
     key: 'decryptItem',
     value: function decryptItem(item, keys) {
 
+      if (typeof item.content != "string") {
+        // Content is already an object, can't do anything with it.
+        return;
+      }
+
       if ((item.content.startsWith("001") || item.content.startsWith("002")) && item.enc_item_key) {
         // is encrypted, continue to below
       } else {
@@ -736,187 +739,6 @@ var SFItemTransformer = function () {
 
 window.SFItemTransformer = SFItemTransformer;
 exports.SFItemTransformer = SFItemTransformer;
-
-var Item = function () {
-  function Item(json_obj) {
-    _classCallCheck(this, Item);
-
-    this.updateFromJSON(json_obj);
-
-    this.observers = [];
-
-    if (!this.uuid) {
-      this.uuid = SFJS.crypto.generateUUID();
-    }
-  }
-
-  _createClass(Item, [{
-    key: 'updateFromJSON',
-    value: function updateFromJSON(json) {
-      _.merge(this, json);
-
-      this.created_at = this.created_at ? new Date(this.created_at) : new Date();
-      this.updated_at = this.updated_at ? new Date(this.updated_at) : new Date();
-
-      if (json.content) {
-        this.mapContentToLocalProperties(this.contentObject);
-      }
-    }
-  }, {
-    key: 'setDirty',
-    value: function setDirty(dirty) {
-      this.dirty = dirty;
-
-      if (dirty) {
-        this.notifyObserversOfChange();
-      }
-    }
-  }, {
-    key: 'markAllReferencesDirty',
-    value: function markAllReferencesDirty() {
-      this.allReferencedObjects().forEach(function (reference) {
-        reference.setDirty(true);
-      });
-    }
-  }, {
-    key: 'addObserver',
-    value: function addObserver(observer, callback) {
-      if (!_.find(this.observers, observer)) {
-        this.observers.push({ observer: observer, callback: callback });
-      }
-    }
-  }, {
-    key: 'removeObserver',
-    value: function removeObserver(observer) {
-      _.remove(this.observers, { observer: observer });
-    }
-  }, {
-    key: 'notifyObserversOfChange',
-    value: function notifyObserversOfChange() {
-      var _iteratorNormalCompletion2 = true;
-      var _didIteratorError2 = false;
-      var _iteratorError2 = undefined;
-
-      try {
-        for (var _iterator2 = this.observers[Symbol.iterator](), _step2; !(_iteratorNormalCompletion2 = (_step2 = _iterator2.next()).done); _iteratorNormalCompletion2 = true) {
-          var observer = _step2.value;
-
-          observer.callback(this);
-        }
-      } catch (err) {
-        _didIteratorError2 = true;
-        _iteratorError2 = err;
-      } finally {
-        try {
-          if (!_iteratorNormalCompletion2 && _iterator2.return) {
-            _iterator2.return();
-          }
-        } finally {
-          if (_didIteratorError2) {
-            throw _iteratorError2;
-          }
-        }
-      }
-    }
-  }, {
-    key: 'mapContentToLocalProperties',
-    value: function mapContentToLocalProperties(contentObj) {}
-  }, {
-    key: 'createContentJSONFromProperties',
-    value: function createContentJSONFromProperties() {
-      return this.structureParams();
-    }
-  }, {
-    key: 'referenceParams',
-    value: function referenceParams() {
-      // must override
-    }
-  }, {
-    key: 'structureParams',
-    value: function structureParams() {
-      return { references: this.referenceParams() };
-    }
-  }, {
-    key: 'addItemAsRelationship',
-    value: function addItemAsRelationship(item) {
-      // must override
-    }
-  }, {
-    key: 'removeItemAsRelationship',
-    value: function removeItemAsRelationship(item) {
-      // must override
-    }
-  }, {
-    key: 'isBeingRemovedLocally',
-    value: function isBeingRemovedLocally() {}
-  }, {
-    key: 'removeAllRelationships',
-    value: function removeAllRelationships() {
-      // must override
-      this.setDirty(true);
-    }
-  }, {
-    key: 'locallyClearAllReferences',
-    value: function locallyClearAllReferences() {}
-  }, {
-    key: 'mergeMetadataFromItem',
-    value: function mergeMetadataFromItem(item) {
-      _.merge(this, _.omit(item, ["content"]));
-    }
-  }, {
-    key: 'informReferencesOfUUIDChange',
-    value: function informReferencesOfUUIDChange(oldUUID, newUUID) {
-      // optional override
-    }
-  }, {
-    key: 'potentialItemOfInterestHasChangedItsUUID',
-    value: function potentialItemOfInterestHasChangedItsUUID(newItem, oldUUID, newUUID) {
-      // optional override
-    }
-  }, {
-    key: 'allReferencedObjects',
-    value: function allReferencedObjects() {
-      // must override
-      return [];
-    }
-  }, {
-    key: 'doNotEncrypt',
-    value: function doNotEncrypt() {
-      return false;
-    }
-  }, {
-    key: 'contentObject',
-    get: function get() {
-      if (!this.content) {
-        return {};
-      }
-
-      if (this.content !== null && _typeof(this.content) === 'object') {
-        // this is the case when mapping localStorage content, in which case the content is already parsed
-        return this.content;
-      }
-
-      try {
-        return JSON.parse(this.content);
-      } catch (e) {
-        console.log("Error parsing json", e);
-        return {};
-      }
-    }
-  }], [{
-    key: 'sortItemsByDate',
-    value: function sortItemsByDate(items) {
-      items.sort(function (a, b) {
-        return new Date(b.created_at) - new Date(a.created_at);
-      });
-    }
-  }]);
-
-  return Item;
-}();
-
-window.Item = Item;
-exports.Item = Item;
 
 var StandardFile = function StandardFile() {
   _classCallCheck(this, StandardFile);
