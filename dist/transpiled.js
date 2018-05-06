@@ -131,6 +131,19 @@ var SFAbstractCrypto = function () {
       return result;
     }
   }, {
+    key: 'supportsPasswordDerivationCost',
+    value: function supportsPasswordDerivationCost(cost) {
+      // some passwords are created on platforms with stronger pbkdf2 capabilities, like iOS,
+      // which CryptoJS can't handle here (WebCrypto can however).
+      // if user has high password cost and is using browser that doesn't support WebCrypto,
+      // we want to tell them that they can't login with this browser.
+      if (cost > 5000) {
+        return this instanceof SFCryptoWeb;
+      } else {
+        return true;
+      }
+    }
+  }, {
     key: 'computeEncryptionKeysForUser',
     value: function computeEncryptionKeysForUser() {
       var _ref2 = arguments.length > 0 && arguments[0] !== undefined ? arguments[0] : {},
