@@ -3,7 +3,7 @@
 class SFAbstractCrypto {
 
   version() {
-    return "3";
+    return "003";
   }
 
   generateRandomKey(bits) {
@@ -111,12 +111,12 @@ class SFAbstractCrypto {
     return {
       "001" : 3000,
       "002" : 3000,
-      "3" : 100000
+      "003" : 110000
     }[version];
   }
 
   defaultPasswordGenerationCost() {
-    return 100000;
+    return 110000;
   }
 
   generateSalt(identifier, nonce) {
@@ -125,12 +125,12 @@ class SFAbstractCrypto {
 
   computeEncryptionKeysForUser(password, authParams, callback) {
     var pw_salt;
-    if(authParams.version == "3") {
+    if(authParams.version == "003") {
       // Salt is computed from identifier + pw_nonce from server
       pw_salt = this.generateSalt(authParams.identifier, authParams.pw_nonce);
     } else {
       // Salt is returned from server
-      pw_salt == authParams.pw_salt;
+      pw_salt = authParams.pw_salt;
     }
     this.generateSymmetricKeyPair({password: password, pw_salt: pw_salt, pw_cost: authParams.pw_cost}, (keys) => {
       let userKeys = {pw: keys[0], mk: keys[1], ak: keys[2]};
@@ -308,7 +308,7 @@ export { SFCryptoWeb }
     return fullCiphertext;
   }
 
-  static encryptItem(item, keys, version = "3") {
+  static encryptItem(item, keys, version = "003") {
     var params = {};
     // encrypt item key
     var item_key = SFJS.crypto.generateRandomEncryptionKey();
@@ -384,7 +384,7 @@ export { SFCryptoWeb }
     // decrypt encrypted key
     var encryptedItemKey = item.enc_item_key;
     var requiresAuth = true;
-    if(!encryptedItemKey.startsWith("002") && !encryptedItemKey.startsWith("3:")) {
+    if(!encryptedItemKey.startsWith("002") && !encryptedItemKey.startsWith("003")) {
       // legacy encryption type, has no prefix
       encryptedItemKey = "001" + encryptedItemKey;
       requiresAuth = false;

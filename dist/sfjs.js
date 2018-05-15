@@ -184,7 +184,7 @@ var SFAbstractCrypto = function () {
   _createClass(SFAbstractCrypto, [{
     key: 'version',
     value: function version() {
-      return "3";
+      return "003";
     }
   }, {
     key: 'generateRandomKey',
@@ -315,13 +315,13 @@ var SFAbstractCrypto = function () {
       return {
         "001": 3000,
         "002": 3000,
-        "3": 100000
+        "003": 110000
       }[version];
     }
   }, {
     key: 'defaultPasswordGenerationCost',
     value: function defaultPasswordGenerationCost() {
-      return 100000;
+      return 110000;
     }
   }, {
     key: 'generateSalt',
@@ -332,12 +332,12 @@ var SFAbstractCrypto = function () {
     key: 'computeEncryptionKeysForUser',
     value: function computeEncryptionKeysForUser(password, authParams, callback) {
       var pw_salt;
-      if (authParams.version == "3") {
+      if (authParams.version == "003") {
         // Salt is computed from identifier + pw_nonce from server
         pw_salt = this.generateSalt(authParams.identifier, authParams.pw_nonce);
       } else {
         // Salt is returned from server
-        pw_salt == authParams.pw_salt;
+        pw_salt = authParams.pw_salt;
       }
       this.generateSymmetricKeyPair({ password: password, pw_salt: pw_salt, pw_cost: authParams.pw_cost }, function (keys) {
         var userKeys = { pw: keys[0], mk: keys[1], ak: keys[2] };
@@ -575,7 +575,7 @@ var SFItemTransformer = function () {
   }, {
     key: 'encryptItem',
     value: function encryptItem(item, keys) {
-      var version = arguments.length > 2 && arguments[2] !== undefined ? arguments[2] : "3";
+      var version = arguments.length > 2 && arguments[2] !== undefined ? arguments[2] : "003";
 
       var params = {};
       // encrypt item key
@@ -654,7 +654,7 @@ var SFItemTransformer = function () {
       // decrypt encrypted key
       var encryptedItemKey = item.enc_item_key;
       var requiresAuth = true;
-      if (!encryptedItemKey.startsWith("002") && !encryptedItemKey.startsWith("3:")) {
+      if (!encryptedItemKey.startsWith("002") && !encryptedItemKey.startsWith("003")) {
         // legacy encryption type, has no prefix
         encryptedItemKey = "001" + encryptedItemKey;
         requiresAuth = false;
