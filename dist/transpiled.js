@@ -21,6 +21,11 @@ var SFAbstractCrypto = function () {
   }
 
   _createClass(SFAbstractCrypto, [{
+    key: 'version',
+    value: function version() {
+      return "3";
+    }
+  }, {
     key: 'generateRandomKey',
     value: function generateRandomKey(bits) {
       return CryptoJS.lib.WordArray.random(bits / 8).toString();
@@ -144,34 +149,55 @@ var SFAbstractCrypto = function () {
       }
     }
   }, {
-    key: 'computeEncryptionKeysForUser',
-    value: function computeEncryptionKeysForUser() {
-      var _ref2 = arguments.length > 0 && arguments[0] !== undefined ? arguments[0] : {},
-          password = _ref2.password,
-          pw_salt = _ref2.pw_salt,
-          pw_cost = _ref2.pw_cost;
-
-      var callback = arguments[1];
-
-      this.generateSymmetricKeyPair({ password: password, pw_salt: pw_salt, pw_cost: pw_cost }, function (keys) {
-        callback({ pw: keys[0], mk: keys[1], ak: keys[2] });
-      }.bind(this));
+    key: 'costMinimumForVersion',
+    value: function costMinimumForVersion(version) {
+      return {
+        "001": 3000,
+        "002": 3000,
+        "3": 100000
+      }[version];
     }
   }, {
+    key: 'defaultPasswordGenerationCost',
+    value: function defaultPasswordGenerationCost() {
+      return 100000;
+    }
+  }, {
+    key: 'generateSalt',
+    value: function generateSalt(identifier, nonce) {
+      return this.sha256([identifier, "SF", nonce].join(":"));
+    }
+  }, {
+    key: 'computeEncryptionKeysForUser',
+    value: function computeEncryptionKeysForUser(password, authParams, callback) {
+      var pw_salt;
+      if (authParams.version == "3") {
+        // Salt is computed from identifier + pw_nonce from server
+        pw_salt = this.generateSalt(authParams.identifier, authParams.pw_nonce);
+      } else {
+        // Salt is returned from server
+        pw_salt == authParams.pw_salt;
+      }
+      this.generateSymmetricKeyPair({ password: password, pw_salt: pw_salt, pw_cost: authParams.pw_cost }, function (keys) {
+        var userKeys = { pw: keys[0], mk: keys[1], ak: keys[2] };
+        callback(userKeys);
+      });
+    }
+
+    // Unlike computeEncryptionKeysForUser, this method always uses the latest SF Version
+
+  }, {
     key: 'generateInitialEncryptionKeysForUser',
-    value: function generateInitialEncryptionKeysForUser() {
-      var _ref3 = arguments.length > 0 && arguments[0] !== undefined ? arguments[0] : {},
-          email = _ref3.email,
-          password = _ref3.password;
-
-      var callback = arguments[1];
-
+    value: function generateInitialEncryptionKeysForUser(identifier, password, callback) {
+      var version = this.version();
       var pw_cost = this.defaultPasswordGenerationCost();
-      var pw_nonce = this.generateRandomKey(512);
-      var pw_salt = this.sha256([email, pw_nonce].join(":"));
-      this.generateSymmetricKeyPair({ email: email, password: password, pw_salt: pw_salt, pw_cost: pw_cost }, function (keys) {
-        callback({ pw: keys[0], mk: keys[1], ak: keys[2] }, { pw_salt: pw_salt, pw_cost: pw_cost });
-      }.bind(this));
+      var pw_nonce = this.generateRandomKey(256);
+      var pw_salt = this.generateSalt(identifier, pw_nonce);
+      this.generateSymmetricKeyPair({ password: password, pw_salt: pw_salt, pw_cost: pw_cost }, function (keys) {
+        var authParams = { pw_nonce: pw_nonce, pw_cost: pw_cost, identifier: identifier, version: version };
+        var userKeys = { pw: keys[0], mk: keys[1], ak: keys[2] };
+        callback(userKeys, authParams);
+      });
     }
   }]);
 
@@ -195,10 +221,10 @@ var SFCryptoJS = function (_SFAbstractCrypto) {
 
     /** Generates two deterministic keys based on one input */
     value: function generateSymmetricKeyPair() {
-      var _ref4 = arguments.length > 0 && arguments[0] !== undefined ? arguments[0] : {},
-          password = _ref4.password,
-          pw_salt = _ref4.pw_salt,
-          pw_cost = _ref4.pw_cost;
+      var _ref2 = arguments.length > 0 && arguments[0] !== undefined ? arguments[0] : {},
+          password = _ref2.password,
+          pw_salt = _ref2.pw_salt,
+          pw_cost = _ref2.pw_cost;
 
       var callback = arguments[1];
 
@@ -210,11 +236,6 @@ var SFCryptoJS = function (_SFAbstractCrypto) {
       var secondThird = output.slice(splitLength, splitLength * 2);
       var thirdThird = output.slice(splitLength * 2, splitLength * 3);
       callback([firstThird, secondThird, thirdThird]);
-    }
-  }, {
-    key: 'defaultPasswordGenerationCost',
-    value: function defaultPasswordGenerationCost() {
-      return 3000;
     }
   }]);
 
@@ -234,25 +255,19 @@ var SFCryptoWeb = function (_SFAbstractCrypto2) {
   }
 
   _createClass(SFCryptoWeb, [{
-    key: 'defaultPasswordGenerationCost',
+    key: 'generateSymmetricKeyPair',
 
 
     /**
     Overrides
     */
-    value: function defaultPasswordGenerationCost() {
-      return 101000;
-    }
 
     /** Generates two deterministic keys based on one input */
-
-  }, {
-    key: 'generateSymmetricKeyPair',
     value: function generateSymmetricKeyPair() {
-      var _ref5 = arguments.length > 0 && arguments[0] !== undefined ? arguments[0] : {},
-          password = _ref5.password,
-          pw_salt = _ref5.pw_salt,
-          pw_cost = _ref5.pw_cost;
+      var _ref3 = arguments.length > 0 && arguments[0] !== undefined ? arguments[0] : {},
+          password = _ref3.password,
+          pw_salt = _ref3.pw_salt,
+          pw_cost = _ref3.pw_cost;
 
       var callback = arguments[1];
 
@@ -273,10 +288,10 @@ var SFCryptoWeb = function (_SFAbstractCrypto2) {
   }, {
     key: 'stretchPassword',
     value: function stretchPassword() {
-      var _ref6 = arguments.length > 0 && arguments[0] !== undefined ? arguments[0] : {},
-          password = _ref6.password,
-          pw_salt = _ref6.pw_salt,
-          pw_cost = _ref6.pw_cost;
+      var _ref4 = arguments.length > 0 && arguments[0] !== undefined ? arguments[0] : {},
+          password = _ref4.password,
+          pw_salt = _ref4.pw_salt,
+          pw_cost = _ref4.pw_cost;
 
       var callback = arguments[1];
 
@@ -312,10 +327,10 @@ var SFCryptoWeb = function (_SFAbstractCrypto2) {
   }, {
     key: 'webCryptoDeriveBits',
     value: function webCryptoDeriveBits() {
-      var _ref7 = arguments.length > 0 && arguments[0] !== undefined ? arguments[0] : {},
-          key = _ref7.key,
-          pw_salt = _ref7.pw_salt,
-          pw_cost = _ref7.pw_cost;
+      var _ref5 = arguments.length > 0 && arguments[0] !== undefined ? arguments[0] : {},
+          key = _ref5.key,
+          pw_salt = _ref5.pw_salt,
+          pw_cost = _ref5.pw_cost;
 
       var callback = arguments[1];
 
@@ -399,7 +414,7 @@ var SFItemTransformer = function () {
   }, {
     key: 'encryptItem',
     value: function encryptItem(item, keys) {
-      var version = arguments.length > 2 && arguments[2] !== undefined ? arguments[2] : "002";
+      var version = arguments.length > 2 && arguments[2] !== undefined ? arguments[2] : "3";
 
       var params = {};
       // encrypt item key
@@ -460,9 +475,7 @@ var SFItemTransformer = function () {
         return;
       }
 
-      if ((item.content.startsWith("001") || item.content.startsWith("002")) && item.enc_item_key) {
-        // is encrypted, continue to below
-      } else {
+      if (item.content.startsWith("000")) {
         // is base64 encoded
         try {
           item.content = JSON.parse(SFJS.crypto.base64Decode(item.content.substring(3, item.content.length)));
@@ -471,10 +484,16 @@ var SFItemTransformer = function () {
         return;
       }
 
+      if (!item.enc_item_key) {
+        // This needs to be here to continue, return otherwise
+        console.log("Missing item encryption key, skipping decryption.");
+        return;
+      }
+
       // decrypt encrypted key
       var encryptedItemKey = item.enc_item_key;
       var requiresAuth = true;
-      if (encryptedItemKey.startsWith("002") === false) {
+      if (!encryptedItemKey.startsWith("002") && !encryptedItemKey.startsWith("3:")) {
         // legacy encryption type, has no prefix
         encryptedItemKey = "001" + encryptedItemKey;
         requiresAuth = false;

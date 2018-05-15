@@ -2,6 +2,10 @@
 
 class SFAbstractCrypto {
 
+  version() {
+    return "3";
+  }
+
   generateRandomKey(bits) {
     return CryptoJS.lib.WordArray.random(bits/8).toString();
   }
@@ -103,19 +107,48 @@ class SFAbstractCrypto {
     }
   }
 
-  computeEncryptionKeysForUser({password, pw_salt, pw_cost} = {}, callback) {
-     this.generateSymmetricKeyPair({password: password, pw_salt: pw_salt, pw_cost: pw_cost}, function(keys){
-         callback({pw: keys[0], mk: keys[1], ak: keys[2]});
-       }.bind(this));
+  costMinimumForVersion(version) {
+    return {
+      "001" : 3000,
+      "002" : 3000,
+      "3" : 100000
+    }[version];
+  }
+
+  defaultPasswordGenerationCost() {
+    return 100000;
+  }
+
+  generateSalt(identifier, nonce) {
+    return this.sha256([identifier, "SF", nonce].join(":"));
+  }
+
+  computeEncryptionKeysForUser(password, authParams, callback) {
+    var pw_salt;
+    if(authParams.version == "3") {
+      // Salt is computed from identifier + pw_nonce from server
+      pw_salt = this.generateSalt(authParams.identifier, authParams.pw_nonce);
+    } else {
+      // Salt is returned from server
+      pw_salt == authParams.pw_salt;
+    }
+    this.generateSymmetricKeyPair({password: password, pw_salt: pw_salt, pw_cost: authParams.pw_cost}, (keys) => {
+      let userKeys = {pw: keys[0], mk: keys[1], ak: keys[2]};
+      callback(userKeys);
+     });
    }
 
-  generateInitialEncryptionKeysForUser({email, password} = {}, callback) {
+   // Unlike computeEncryptionKeysForUser, this method always uses the latest SF Version
+  generateInitialEncryptionKeysForUser(identifier, password, callback) {
+    let version = this.version();
     var pw_cost = this.defaultPasswordGenerationCost();
-    var pw_nonce = this.generateRandomKey(512);
-    var pw_salt = this.sha256([email, pw_nonce].join(":"));
-    this.generateSymmetricKeyPair({email: email, password: password, pw_salt: pw_salt, pw_cost: pw_cost}, function(keys){
-      callback({pw: keys[0], mk: keys[1], ak: keys[2]}, {pw_salt: pw_salt, pw_cost: pw_cost});
-    }.bind(this));
+    var pw_nonce = this.generateRandomKey(256);
+    var pw_salt = this.generateSalt(identifier, pw_nonce);
+    this.generateSymmetricKeyPair({password: password, pw_salt: pw_salt, pw_cost: pw_cost}, (keys) => {
+      let authParams = {pw_nonce: pw_nonce, pw_cost: pw_cost, identifier: identifier, version: version};
+      let userKeys = {pw: keys[0], mk: keys[1], ak: keys[2]};
+      callback(userKeys, authParams);
+    });
   }
 
 }
@@ -134,11 +167,6 @@ export { SFAbstractCrypto }
     var thirdThird = output.slice(splitLength * 2, splitLength * 3);
     callback([firstThird, secondThird, thirdThird])
   }
-
-  defaultPasswordGenerationCost() {
-    return 3000;
-  }
-  
  }
 
 
@@ -150,9 +178,6 @@ class SFCryptoWeb extends SFAbstractCrypto {
   /**
   Overrides
   */
-  defaultPasswordGenerationCost() {
-    return 101000;
-  }
 
   /** Generates two deterministic keys based on one input */
   generateSymmetricKeyPair({password, pw_salt, pw_cost} = {}, callback) {
@@ -283,7 +308,7 @@ export { SFCryptoWeb }
     return fullCiphertext;
   }
 
-  static encryptItem(item, keys, version = "002") {
+  static encryptItem(item, keys, version = "3") {
     var params = {};
     // encrypt item key
     var item_key = SFJS.crypto.generateRandomEncryptionKey();
@@ -341,9 +366,7 @@ export { SFCryptoWeb }
       return;
     }
 
-    if((item.content.startsWith("001") || item.content.startsWith("002")) && item.enc_item_key) {
-      // is encrypted, continue to below
-    } else {
+    if(item.content.startsWith("000")) {
       // is base64 encoded
       try {
         item.content = JSON.parse(SFJS.crypto.base64Decode(item.content.substring(3, item.content.length)));
@@ -352,10 +375,16 @@ export { SFCryptoWeb }
       return;
     }
 
+    if(!item.enc_item_key) {
+      // This needs to be here to continue, return otherwise
+      console.log("Missing item encryption key, skipping decryption.");
+      return;
+    }
+
     // decrypt encrypted key
     var encryptedItemKey = item.enc_item_key;
     var requiresAuth = true;
-    if(encryptedItemKey.startsWith("002") === false) {
+    if(!encryptedItemKey.startsWith("002") && !encryptedItemKey.startsWith("3:")) {
       // legacy encryption type, has no prefix
       encryptedItemKey = "001" + encryptedItemKey;
       requiresAuth = false;
