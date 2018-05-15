@@ -339,8 +339,8 @@ var SFAbstractCrypto = function () {
     }
   }, {
     key: 'generateSalt',
-    value: function generateSalt(identifier, nonce) {
-      return this.sha256([identifier, "SF", nonce].join(":"));
+    value: function generateSalt(identifier, version, cost, nonce) {
+      return this.sha256([identifier, "SF", version, cost, nonce].join(":"));
     }
   }, {
     key: 'computeEncryptionKeysForUser',
@@ -348,7 +348,7 @@ var SFAbstractCrypto = function () {
       var pw_salt;
       if (authParams.version == "003") {
         // Salt is computed from identifier + pw_nonce from server
-        pw_salt = this.generateSalt(authParams.identifier, authParams.pw_nonce);
+        pw_salt = this.generateSalt(authParams.identifier, authParams.version, authParams.pw_cost, authParams.pw_nonce);
       } else {
         // Salt is returned from server
         pw_salt = authParams.pw_salt;
@@ -367,7 +367,7 @@ var SFAbstractCrypto = function () {
       var version = this.version();
       var pw_cost = this.defaultPasswordGenerationCost();
       var pw_nonce = this.generateRandomKey(256);
-      var pw_salt = this.generateSalt(identifier, pw_nonce);
+      var pw_salt = this.generateSalt(identifier, version, pw_cost, pw_nonce);
       this.generateSymmetricKeyPair({ password: password, pw_salt: pw_salt, pw_cost: pw_cost }, function (keys) {
         var authParams = { pw_nonce: pw_nonce, pw_cost: pw_cost, identifier: identifier, version: version };
         var userKeys = { pw: keys[0], mk: keys[1], ak: keys[2] };
