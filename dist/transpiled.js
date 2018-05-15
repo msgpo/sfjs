@@ -148,6 +148,20 @@ var SFAbstractCrypto = function () {
         return true;
       }
     }
+
+    // Returns the versions that this library supports technically.
+
+  }, {
+    key: 'supportedVersions',
+    value: function supportedVersions() {
+      return ["001", "002", "003"];
+    }
+  }, {
+    key: 'isVersionNewerThanLibraryVersion',
+    value: function isVersionNewerThanLibraryVersion(version) {
+      var libraryVersion = this.version();
+      return parseInt(version) > parseInt(libraryVersion);
+    }
   }, {
     key: 'costMinimumForVersion',
     value: function costMinimumForVersion(version) {
@@ -160,7 +174,7 @@ var SFAbstractCrypto = function () {
   }, {
     key: 'defaultPasswordGenerationCost',
     value: function defaultPasswordGenerationCost() {
-      return 110000;
+      return this.costMinimumForVersion(this.version());
     }
   }, {
     key: 'generateSalt',

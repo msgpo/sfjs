@@ -107,6 +107,16 @@ class SFAbstractCrypto {
     }
   }
 
+  // Returns the versions that this library supports technically.
+  supportedVersions() {
+    return ["001", "002", "003"];
+  }
+
+  isVersionNewerThanLibraryVersion(version) {
+    var libraryVersion = this.version();
+    return parseInt(version) > parseInt(libraryVersion);
+  }
+
   costMinimumForVersion(version) {
     return {
       "001" : 3000,
@@ -116,7 +126,7 @@ class SFAbstractCrypto {
   }
 
   defaultPasswordGenerationCost() {
-    return 110000;
+    return this.costMinimumForVersion(this.version());
   }
 
   generateSalt(identifier, nonce) {
