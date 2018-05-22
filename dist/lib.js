@@ -1,16 +1,13 @@
 /* Abstract class. Instantiate an instance of either SFCryptoJS (uses cryptojs) or SFCryptoWeb (uses web crypto) */
 
-class SFAbstractCrypto {
+export class SFAbstractCrypto {
 
-  version() {
-    return "003";
-  }
+  /*
+  Our WebCrypto implementation only offers PBKDf2, so any other encryption
+  and key generation functions must use CryptoJS in this abstract implementation.
+  */
 
-  generateRandomKey(bits) {
-    return CryptoJS.lib.WordArray.random(bits/8).toString();
-  }
-
-  generateUUID() {
+  generateUUIDSync() {
     var crypto = window.crypto || window.msCrypto;
     if(crypto) {
       var buf = new Uint32Array(4);
@@ -36,14 +33,14 @@ class SFAbstractCrypto {
     }
   }
 
-  decryptText({ciphertextToAuth, contentCiphertext, encryptionKey, iv, authHash, authKey} = {}, requiresAuth) {
+  async decryptText({ciphertextToAuth, contentCiphertext, encryptionKey, iv, authHash, authKey} = {}, requiresAuth) {
     if(requiresAuth && !authHash) {
       console.error("Auth hash is required.");
       return;
     }
 
     if(authHash) {
-      var localAuthHash = SFJS.crypto.hmac256(ciphertextToAuth, authKey);
+      var localAuthHash = await this.hmac256(ciphertextToAuth, authKey);
       if(authHash !== localAuthHash) {
         console.error("Auth hash does not match, returning null.");
         return null;
@@ -55,213 +52,158 @@ class SFAbstractCrypto {
     return decrypted.toString(CryptoJS.enc.Utf8);
   }
 
-  encryptText(text, key, iv) {
+  async encryptText(text, key, iv) {
     var keyData = CryptoJS.enc.Hex.parse(key);
     var ivData  = CryptoJS.enc.Hex.parse(iv || "");
     var encrypted = CryptoJS.AES.encrypt(text, keyData, { iv: ivData,  mode: CryptoJS.mode.CBC, padding: CryptoJS.pad.Pkcs7 });
     return encrypted.toString();
   }
 
-  generateRandomEncryptionKey() {
-    var salt = SFJS.crypto.generateRandomKey(512);
-    var passphrase = SFJS.crypto.generateRandomKey(512);
-    return CryptoJS.PBKDF2(passphrase, salt, { keySize: 512/32 }).toString();
+  async generateRandomKey(bits) {
+    return CryptoJS.lib.WordArray.random(bits/8).toString();
   }
 
-  firstHalfOfKey(key) {
+  async generateRandomEncryptionKey() {
+    var salt = await this.generateRandomKey(512);
+    var passphrase = await this.generateRandomKey(512);
+    return this.sha256(passphrase + salt);
+  }
+
+  async firstHalfOfKey(key) {
     return key.substring(0, key.length/2);
   }
 
-  secondHalfOfKey(key) {
+  async secondHalfOfKey(key) {
     return key.substring(key.length/2, key.length);
   }
 
-  base64(text) {
+  async base64(text) {
     return window.btoa(text);
   }
 
-  base64Decode(base64String) {
+  async base64Decode(base64String) {
     return window.atob(base64String);
   }
 
-  sha256(text) {
+  async sha256(text) {
     return CryptoJS.SHA256(text).toString();
   }
 
-  hmac256(message, key) {
+  async hmac256(message, key) {
     var keyData = CryptoJS.enc.Hex.parse(key);
     var messageData = CryptoJS.enc.Utf8.parse(message);
     var result = CryptoJS.HmacSHA256(messageData, keyData).toString();
     return result;
   }
 
-  supportsPasswordDerivationCost(cost) {
-    // some passwords are created on platforms with stronger pbkdf2 capabilities, like iOS,
-    // which CryptoJS can't handle here (WebCrypto can however).
-    // if user has high password cost and is using browser that doesn't support WebCrypto,
-    // we want to tell them that they can't login with this browser.
-    if(cost > 5000) {
-      return this instanceof SFCryptoWeb;
-    } else {
-      return true;
-    }
+  async generateSalt(identifier, version, cost, nonce) {
+    var result = await this.sha256([identifier, "SF", version, cost, nonce].join(":"));
+    return result;
   }
-
-  // Returns the versions that this library supports technically.
-  supportedVersions() {
-    return ["001", "002", "003"];
-  }
-
-  isVersionNewerThanLibraryVersion(version) {
-    var libraryVersion = this.version();
-    return parseInt(version) > parseInt(libraryVersion);
-  }
-
-  costMinimumForVersion(version) {
-    return {
-      "001" : 3000,
-      "002" : 3000,
-      "003" : 110000
-    }[version];
-  }
-
-  defaultPasswordGenerationCost() {
-    return this.costMinimumForVersion(this.version());
-  }
-
-  generateSalt(identifier, version, cost, nonce) {
-    return this.sha256([identifier, "SF", version, cost, nonce].join(":"));
-  }
-
-  computeEncryptionKeysForUser(password, authParams, callback) {
-    var pw_salt;
-    if(authParams.version == "003") {
-      // Salt is computed from identifier + pw_nonce from server
-      pw_salt = this.generateSalt(authParams.identifier, authParams.version, authParams.pw_cost, authParams.pw_nonce);
-    } else {
-      // Salt is returned from server
-      pw_salt = authParams.pw_salt;
-    }
-    this.generateSymmetricKeyPair({password: password, pw_salt: pw_salt, pw_cost: authParams.pw_cost}, (keys) => {
-      let userKeys = {pw: keys[0], mk: keys[1], ak: keys[2]};
-      callback(userKeys);
-     });
-   }
-
-   // Unlike computeEncryptionKeysForUser, this method always uses the latest SF Version
-  generateInitialEncryptionKeysForUser(identifier, password, callback) {
-    let version = this.version();
-    var pw_cost = this.defaultPasswordGenerationCost();
-    var pw_nonce = this.generateRandomKey(256);
-    var pw_salt = this.generateSalt(identifier, version, pw_cost, pw_nonce);
-    this.generateSymmetricKeyPair({password: password, pw_salt: pw_salt, pw_cost: pw_cost}, (keys) => {
-      let authParams = {pw_nonce: pw_nonce, pw_cost: pw_cost, identifier: identifier, version: version};
-      let userKeys = {pw: keys[0], mk: keys[1], ak: keys[2]};
-      callback(userKeys, authParams);
-    });
-  }
-
-}
-
-export { SFAbstractCrypto }
-;class SFCryptoJS extends SFAbstractCrypto {
 
   /** Generates two deterministic keys based on one input */
-  generateSymmetricKeyPair({password, pw_salt, pw_cost} = {}, callback) {
-    var output = CryptoJS.PBKDF2(password, pw_salt, { keySize: 768/32, hasher: CryptoJS.algo.SHA512, iterations: pw_cost }).toString();
-
+  async generateSymmetricKeyPair({password, pw_salt, pw_cost} = {}) {
+    var output = await this.pbkdf2(password, pw_salt, pw_cost);
     var outputLength = output.length;
     var splitLength = outputLength/3;
     var firstThird = output.slice(0, splitLength);
     var secondThird = output.slice(splitLength, splitLength * 2);
     var thirdThird = output.slice(splitLength * 2, splitLength * 3);
-    callback([firstThird, secondThird, thirdThird])
+    return [firstThird, secondThird, thirdThird];
   }
- }
 
+  async computeEncryptionKeysForUser(password, authParams) {
+    var pw_salt;
 
-export { SFCryptoJS }
+    if(authParams.version == "003") {
+      // Salt is computed from identifier + pw_nonce from server
+      pw_salt = await this.generateSalt(authParams.identifier, authParams.version, authParams.pw_cost, authParams.pw_nonce);
+    } else {
+      // Salt is returned from server
+      pw_salt = authParams.pw_salt;
+    }
+
+    return this.generateSymmetricKeyPair({password: password, pw_salt: pw_salt, pw_cost: authParams.pw_cost})
+    .then((keys) => {
+      let userKeys = {pw: keys[0], mk: keys[1], ak: keys[2]};
+      return userKeys;
+     });
+   }
+
+   // Unlike computeEncryptionKeysForUser, this method always uses the latest SF Version
+  async generateInitialEncryptionKeysForUser(identifier, password) {
+    let version = this.SFJS.version;
+    var pw_cost = this.SFJS.defaultPasswordGenerationCost;
+    var pw_nonce = await this.generateRandomKey(256);
+    var pw_salt = await this.generateSalt(identifier, version, pw_cost, pw_nonce);
+
+    return this.generateSymmetricKeyPair({password: password, pw_salt: pw_salt, pw_cost: pw_cost})
+    .then((keys) => {
+      let authParams = {pw_nonce: pw_nonce, pw_cost: pw_cost, identifier: identifier, version: version};
+      let userKeys = {pw: keys[0], mk: keys[1], ak: keys[2]};
+      return {keys: userKeys, authParams: authParams};
+    });
+  }
+
+}
+;export class SFCryptoJS extends SFAbstractCrypto {
+
+  async pbkdf2(password, pw_salt, pw_cost) {
+    var params = {
+      keySize: 768/32,
+      hasher: CryptoJS.algo.SHA512,
+      iterations: pw_cost
+    }
+
+    return CryptoJS.PBKDF2(password, pw_salt, params).toString();
+  }
+
+}
 ;var subtleCrypto = window.crypto ? window.crypto.subtle : null;
 
-class SFCryptoWeb extends SFAbstractCrypto {
-
-  /**
-  Overrides
-  */
-
-  /** Generates two deterministic keys based on one input */
-  generateSymmetricKeyPair({password, pw_salt, pw_cost} = {}, callback) {
-   this.stretchPassword({password: password, pw_salt: pw_salt, pw_cost: pw_cost}, function(output){
-     var outputLength = output.length;
-     var splitLength = outputLength/3;
-     var firstThird = output.slice(0, splitLength);
-     var secondThird = output.slice(splitLength, splitLength * 2);
-     var thirdThird = output.slice(splitLength * 2, splitLength * 3);
-     callback([firstThird, secondThird, thirdThird])
-   })
-  }
+export class SFCryptoWeb extends SFAbstractCrypto {
 
   /**
   Internal
   */
 
-  stretchPassword({password, pw_salt, pw_cost} = {}, callback) {
+  async pbkdf2(password, pw_salt, pw_cost) {
+   var key = await this.webCryptoImportKey(password);
+   if(!key) {
+     console.log("Key is null, unable to continue");
+     return null;
+   }
 
-   this.webCryptoImportKey(password, function(key){
-
-     if(!key) {
-       console.log("Key is null, unable to continue");
-       callback(null);
-       return;
-     }
-
-     this.webCryptoDeriveBits({key: key, pw_salt: pw_salt, pw_cost: pw_cost}, function(key){
-       if(!key) {
-         callback(null);
-         return;
-       }
-
-       callback(key);
-
-     }.bind(this))
-   }.bind(this))
+   return this.webCryptoDeriveBits({key: key, pw_salt: pw_salt, pw_cost: pw_cost});
   }
 
-  webCryptoImportKey(input, callback) {
-     subtleCrypto.importKey(
-      "raw",
-      this.stringToArrayBuffer(input),
-      {name: "PBKDF2"},
-      false,
-      ["deriveBits"]
-    )
-    .then(function(key){
-      callback(key);
+  async webCryptoImportKey(input) {
+    return subtleCrypto.importKey("raw", this.stringToArrayBuffer(input), { name: "PBKDF2" }, false, ["deriveBits"])
+    .then((key) => {
+      return key;
     })
-    .catch(function(err){
+    .catch((err) => {
       console.error(err);
-      callback(null);
+      return null;
     });
   }
 
-  webCryptoDeriveBits({key, pw_salt, pw_cost} = {}, callback) {
-     subtleCrypto.deriveBits(
-      {
-        "name": "PBKDF2",
-        salt: this.stringToArrayBuffer(pw_salt),
-        iterations: pw_cost,
-        hash: {name: "SHA-512"},
-      },
-      key,
-      768
-    )
-    .then(function(bits){
+  async webCryptoDeriveBits({key, pw_salt, pw_cost} = {}) {
+    var params = {
+      "name": "PBKDF2",
+      salt: this.stringToArrayBuffer(pw_salt),
+      iterations: pw_cost,
+      hash: {name: "SHA-512"},
+    }
+
+    return subtleCrypto.deriveBits(params, key, 768)
+    .then((bits) => {
       var key = this.arrayBufferToHexString(new Uint8Array(bits));
-      callback(key);
-    }.bind(this))
-    .catch(function(err){
+      return key;
+    })
+    .catch((err) => {
       console.error(err);
-      callback(null);
+      return null;
     });
   }
 
@@ -298,43 +240,45 @@ class SFCryptoWeb extends SFAbstractCrypto {
       return hexString;
   }
 }
+;export class SFItemTransformer {
 
-export { SFCryptoWeb }
-;class SFItemTransformer {
+  constructor(crypto) {
+    this.crypto = crypto;
+  }
 
-  static _private_encryptString(string, encryptionKey, authKey, uuid, version) {
+  async _private_encryptString(string, encryptionKey, authKey, uuid, version) {
     var fullCiphertext, contentCiphertext;
     if(version === "001") {
-      contentCiphertext = SFJS.crypto.encryptText(string, encryptionKey, null);
+      contentCiphertext = await this.crypto.encryptText(string, encryptionKey, null);
       fullCiphertext = version + contentCiphertext;
     } else {
-      var iv = SFJS.crypto.generateRandomKey(128);
-      contentCiphertext = SFJS.crypto.encryptText(string, encryptionKey, iv);
+      var iv = await this.crypto.generateRandomKey(128);
+      contentCiphertext = await this.crypto.encryptText(string, encryptionKey, iv);
       var ciphertextToAuth = [version, uuid, iv, contentCiphertext].join(":");
-      var authHash = SFJS.crypto.hmac256(ciphertextToAuth, authKey);
+      var authHash = await this.crypto.hmac256(ciphertextToAuth, authKey);
       fullCiphertext = [version, authHash, uuid, iv, contentCiphertext].join(":");
     }
 
     return fullCiphertext;
   }
 
-  static encryptItem(item, keys, version = "003") {
+  async encryptItem(item, keys, version = "003") {
     var params = {};
     // encrypt item key
-    var item_key = SFJS.crypto.generateRandomEncryptionKey();
+    var item_key = await this.crypto.generateRandomEncryptionKey();
     if(version === "001") {
       // legacy
-      params.enc_item_key = SFJS.crypto.encryptText(item_key, keys.mk, null);
+      params.enc_item_key = await this.crypto.encryptText(item_key, keys.mk, null);
     } else {
-      params.enc_item_key = this._private_encryptString(item_key, keys.mk, keys.ak, item.uuid, version);
+      params.enc_item_key = await this._private_encryptString(item_key, keys.mk, keys.ak, item.uuid, version);
     }
 
     // encrypt content
-    var ek = SFJS.crypto.firstHalfOfKey(item_key);
-    var ak = SFJS.crypto.secondHalfOfKey(item_key);
-    var ciphertext = this._private_encryptString(JSON.stringify(item.createContentJSONFromProperties()), ek, ak, item.uuid, version);
+    var ek = await this.crypto.firstHalfOfKey(item_key);
+    var ak = await this.crypto.secondHalfOfKey(item_key);
+    var ciphertext = await this._private_encryptString(JSON.stringify(item.createContentJSONFromProperties()), ek, ak, item.uuid, version);
     if(version === "001") {
-      var authHash = SFJS.crypto.hmac256(ciphertext, ak);
+      var authHash = await this.crypto.hmac256(ciphertext, ak);
       params.auth_hash = authHash;
     }
 
@@ -342,7 +286,7 @@ export { SFCryptoWeb }
     return params;
   }
 
-  static encryptionComponentsFromString(string, encryptionKey, authKey) {
+  encryptionComponentsFromString(string, encryptionKey, authKey) {
     var encryptionVersion = string.substring(0, 3);
     if(encryptionVersion === "001") {
       return {
@@ -369,7 +313,7 @@ export { SFCryptoWeb }
     }
   }
 
-  static decryptItem(item, keys) {
+  async decryptItem(item, keys) {
 
     if(typeof item.content != "string") {
       // Content is already an object, can't do anything with it.
@@ -379,7 +323,7 @@ export { SFCryptoWeb }
     if(item.content.startsWith("000")) {
       // is base64 encoded
       try {
-        item.content = JSON.parse(SFJS.crypto.base64Decode(item.content.substring(3, item.content.length)));
+        item.content = JSON.parse(await this.crypto.base64Decode(item.content.substring(3, item.content.length)));
       } catch (e) {}
 
       return;
@@ -408,7 +352,7 @@ export { SFCryptoWeb }
       return;
     }
 
-    var item_key = SFJS.crypto.decryptText(keyParams, requiresAuth);
+    var item_key = await this.crypto.decryptText(keyParams, requiresAuth);
 
     if(!item_key) {
       if(!item.errorDecrypting) { item.errorDecryptingValueChanged = true;}
@@ -417,8 +361,8 @@ export { SFCryptoWeb }
     }
 
     // decrypt content
-    var ek = SFJS.crypto.firstHalfOfKey(item_key);
-    var ak = SFJS.crypto.secondHalfOfKey(item_key);
+    var ek = await this.crypto.firstHalfOfKey(item_key);
+    var ak = await this.crypto.secondHalfOfKey(item_key);
     var itemParams = this.encryptionComponentsFromString(item.content, ek, ak);
 
     // return if uuid in auth hash does not match item uuid. Signs of tampering.
@@ -433,7 +377,7 @@ export { SFCryptoWeb }
       itemParams.authHash = item.auth_hash;
     }
 
-    var content = SFJS.crypto.decryptText(itemParams, true);
+    var content = await this.crypto.decryptText(itemParams, true);
     if(!content) {
       if(!item.errorDecrypting) { item.errorDecryptingValueChanged = true;}
       item.errorDecrypting = true;
@@ -445,48 +389,116 @@ export { SFCryptoWeb }
     }
   }
 
-  static decryptMultipleItems(items, keys, throws) {
-    for (var item of items) {
+  async decryptMultipleItems(items, keys, throws) {
+    let decrypt = async (item) => {
+      // 4/15/18: Adding item.content == null clause. We still want to decrypt deleted items incase
+      // they were marked as dirty but not yet synced. Not yet sure why we had this requirement.
+      if(item.deleted == true && item.content == null) {
+        return;
+      }
 
-     // 4/15/18: Adding item.content == null clause. We still want to decrypt deleted items incase
-     // they were marked as dirty but not yet synced. Not yet sure why we had this requirement.
-     if(item.deleted == true && item.content == null) {
-       continue;
-     }
+      var isString = typeof item.content === 'string' || item.content instanceof String;
+      if(isString) {
+        try {
+          await this.decryptItem(item, keys);
+        } catch (e) {
+          if(!item.errorDecrypting) { item.errorDecryptingValueChanged = true;}
+          item.errorDecrypting = true;
+          if(throws) {
+            throw e;
+          }
+          console.error("Error decrypting item", item, e);
+          return;
+        }
+      }
+    }
 
-     var isString = typeof item.content === 'string' || item.content instanceof String;
-     if(isString) {
-       try {
-         this.decryptItem(item, keys);
-       } catch (e) {
-         if(!item.errorDecrypting) { item.errorDecryptingValueChanged = true;}
-         item.errorDecrypting = true;
-         if(throws) {
-           throw e;
-         }
-         console.error("Error decrypting item", item, e);
-         continue;
-       }
-     }
-   }
+    return Promise.all(items.map((item) => {
+      return decrypt(item);
+    }));
+
   }
 }
-
-window.SFItemTransformer = SFItemTransformer;
-export { SFItemTransformer }
-;class StandardFile {
+;export class StandardFile {
   constructor() {
-    // detect IE8 and above, and edge.
-    // IE and Edge do not support pbkdf2 in WebCrypto, therefore we need to use CryptoJS
-    var IEOrEdge = document.documentMode || /Edge/.test(navigator.userAgent);
+    // This library runs in native environments as well (react native)
+    if(typeof window !== 'undefined' && typeof document !== 'undefined') {
+      // detect IE8 and above, and edge.
+      // IE and Edge do not support pbkdf2 in WebCrypto, therefore we need to use CryptoJS
+      var IEOrEdge = document.documentMode || /Edge/.test(navigator.userAgent);
 
-    if(!IEOrEdge && (window.crypto && window.crypto.subtle)) {
-      this.crypto = new SFCryptoWeb();
-    } else {
-      this.crypto = new SFCryptoJS();
+      if(!IEOrEdge && (window.crypto && window.crypto.subtle)) {
+        this.crypto = new SFCryptoWeb();
+      } else {
+        this.crypto = new SFCryptoJS();
+      }
+
+      this.crypto.SFJS = {
+        version : this.version(),
+        defaultPasswordGenerationCost : this.defaultPasswordGenerationCost()
+      }
+
+      this.itemTransformer = new SFItemTransformer(this.crypto);
     }
   }
+
+  version() {
+    return "003";
+  }
+
+  supportsPasswordDerivationCost(cost) {
+    // some passwords are created on platforms with stronger pbkdf2 capabilities, like iOS,
+    // which CryptoJS can't handle here (WebCrypto can however).
+    // if user has high password cost and is using browser that doesn't support WebCrypto,
+    // we want to tell them that they can't login with this browser.
+    if(cost > 5000) {
+      return this.crypto instanceof SFCryptoWeb;
+    } else {
+      return true;
+    }
+  }
+
+  // Returns the versions that this library supports technically.
+  supportedVersions() {
+    return ["001", "002", "003"];
+  }
+
+  isVersionNewerThanLibraryVersion(version) {
+    var libraryVersion = this.version();
+    return parseInt(version) > parseInt(libraryVersion);
+  }
+
+  isProtocolVersionOutdated(version) {
+    // YYYY-MM-DD
+    let expirationDates = {
+      "001" : Date.parse("2018-01-01"),
+      "002" : Date.parse("2019-06-01"),
+    }
+
+    let date = expirationDates[version];
+    if(!date) {
+      // No expiration date, is active version
+      return false;
+    }
+    let expired = new Date() > date;
+    return expired;
+  }
+
+  costMinimumForVersion(version) {
+    return {
+      "001" : 3000,
+      "002" : 3000,
+      "003" : 110000
+    }[version];
+  }
+
+  defaultPasswordGenerationCost() {
+    return this.costMinimumForVersion(this.version());
+  }
+
 }
 
-window.StandardFile = StandardFile;
-window.SFJS = new StandardFile()
+if(window) {
+  window.StandardFile = StandardFile;
+  window.SFJS = new StandardFile()
+}
