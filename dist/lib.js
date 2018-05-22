@@ -2,6 +2,10 @@
 
 export class SFAbstractCrypto {
 
+  constructor() {
+    this.DefaultPBKDF2Length = 768;
+  }
+
   /*
   Our WebCrypto implementation only offers PBKDf2, so any other encryption
   and key generation functions must use CryptoJS in this abstract implementation.
@@ -103,7 +107,7 @@ export class SFAbstractCrypto {
 
   /** Generates two deterministic keys based on one input */
   async generateSymmetricKeyPair({password, pw_salt, pw_cost} = {}) {
-    var output = await this.pbkdf2(password, pw_salt, pw_cost);
+    var output = await this.pbkdf2(password, pw_salt, pw_cost, this.DefaultPBKDF2Length);
     var outputLength = output.length;
     var splitLength = outputLength/3;
     var firstThird = output.slice(0, splitLength);
@@ -116,6 +120,10 @@ export class SFAbstractCrypto {
     var pw_salt;
 
     if(authParams.version == "003") {
+      if(!authParams.identifier) {
+        console.error("authParams is missing identifier.");
+        return;
+      }
       // Salt is computed from identifier + pw_nonce from server
       pw_salt = await this.generateSalt(authParams.identifier, authParams.version, authParams.pw_cost, authParams.pw_nonce);
     } else {
@@ -131,7 +139,7 @@ export class SFAbstractCrypto {
    }
 
    // Unlike computeEncryptionKeysForUser, this method always uses the latest SF Version
-  async generateInitialEncryptionKeysForUser(identifier, password) {
+  async generateInitialKeysAndAuthParamsForUser(identifier, password) {
     let version = this.SFJS.version;
     var pw_cost = this.SFJS.defaultPasswordGenerationCost;
     var pw_nonce = await this.generateRandomKey(256);
@@ -148,9 +156,10 @@ export class SFAbstractCrypto {
 }
 ;export class SFCryptoJS extends SFAbstractCrypto {
 
-  async pbkdf2(password, pw_salt, pw_cost) {
+  async pbkdf2(password, pw_salt, pw_cost, length) {
+    if(!length) { length = this.DefaultPBKDF2Length; }
     var params = {
-      keySize: 768/32,
+      keySize: length/32,
       hasher: CryptoJS.algo.SHA512,
       iterations: pw_cost
     }
@@ -167,14 +176,16 @@ export class SFCryptoWeb extends SFAbstractCrypto {
   Internal
   */
 
-  async pbkdf2(password, pw_salt, pw_cost) {
-   var key = await this.webCryptoImportKey(password);
-   if(!key) {
-     console.log("Key is null, unable to continue");
-     return null;
-   }
+  async pbkdf2(password, pw_salt, pw_cost, length) {
+    if(!length) { length = this.DefaultPBKDF2Length; }
 
-   return this.webCryptoDeriveBits({key: key, pw_salt: pw_salt, pw_cost: pw_cost});
+    var key = await this.webCryptoImportKey(password);
+    if(!key) {
+      console.log("Key is null, unable to continue");
+      return null;
+    }
+
+    return this.webCryptoDeriveBits({key: key, pw_salt: pw_salt, pw_cost: pw_cost});
   }
 
   async webCryptoImportKey(input) {
@@ -188,7 +199,7 @@ export class SFCryptoWeb extends SFAbstractCrypto {
     });
   }
 
-  async webCryptoDeriveBits({key, pw_salt, pw_cost} = {}) {
+  async webCryptoDeriveBits({key, pw_salt, pw_cost, length} = {}) {
     var params = {
       "name": "PBKDF2",
       salt: this.stringToArrayBuffer(pw_salt),
@@ -196,7 +207,7 @@ export class SFCryptoWeb extends SFAbstractCrypto {
       hash: {name: "SHA-512"},
     }
 
-    return subtleCrypto.deriveBits(params, key, 768)
+    return subtleCrypto.deriveBits(params, key, length)
     .then((bits) => {
       var key = this.arrayBufferToHexString(new Uint8Array(bits));
       return key;
@@ -420,7 +431,7 @@ export class SFCryptoWeb extends SFAbstractCrypto {
   }
 }
 ;export class StandardFile {
-  constructor() {
+  constructor(cryptoInstance) {
     // This library runs in native environments as well (react native)
     if(typeof window !== 'undefined' && typeof document !== 'undefined') {
       // detect IE8 and above, and edge.
@@ -432,13 +443,17 @@ export class SFCryptoWeb extends SFAbstractCrypto {
       } else {
         this.crypto = new SFCryptoJS();
       }
+    }
 
-      this.crypto.SFJS = {
-        version : this.version(),
-        defaultPasswordGenerationCost : this.defaultPasswordGenerationCost()
-      }
+    if(cryptoInstance) {
+      this.crypto = cryptoInstance;
+    }
 
-      this.itemTransformer = new SFItemTransformer(this.crypto);
+    this.itemTransformer = new SFItemTransformer(this.crypto);
+
+    this.crypto.SFJS = {
+      version : this.version(),
+      defaultPasswordGenerationCost : this.defaultPasswordGenerationCost()
     }
   }
 
@@ -498,7 +513,10 @@ export class SFCryptoWeb extends SFAbstractCrypto {
 
 }
 
-if(window) {
-  window.StandardFile = StandardFile;
-  window.SFJS = new StandardFile()
+if(typeof window !== 'undefined' && window !== null) {
+  // window is for some reason defined in React Native, but throws an exception when you try to set to it
+  try {
+    window.StandardFile = StandardFile;
+    window.SFJS = new StandardFile()
+  } catch (e) { }
 }

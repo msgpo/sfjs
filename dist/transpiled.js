@@ -3,50 +3,33 @@
 Object.defineProperty(exports, "__esModule", {
   value: true
 });
-exports.StandardFile = exports.SFItemTransformer = exports.SFCryptoWeb = exports.SFCryptoJS = exports.SFAbstractCrypto = undefined;
 
-var _possibleConstructorReturn2 = require('babel-runtime/helpers/possibleConstructorReturn');
+var _createClass = function () { function defineProperties(target, props) { for (var i = 0; i < props.length; i++) { var descriptor = props[i]; descriptor.enumerable = descriptor.enumerable || false; descriptor.configurable = true; if ("value" in descriptor) descriptor.writable = true; Object.defineProperty(target, descriptor.key, descriptor); } } return function (Constructor, protoProps, staticProps) { if (protoProps) defineProperties(Constructor.prototype, protoProps); if (staticProps) defineProperties(Constructor, staticProps); return Constructor; }; }();
 
-var _possibleConstructorReturn3 = _interopRequireDefault(_possibleConstructorReturn2);
+function _possibleConstructorReturn(self, call) { if (!self) { throw new ReferenceError("this hasn't been initialised - super() hasn't been called"); } return call && (typeof call === "object" || typeof call === "function") ? call : self; }
 
-var _inherits2 = require('babel-runtime/helpers/inherits');
+function _inherits(subClass, superClass) { if (typeof superClass !== "function" && superClass !== null) { throw new TypeError("Super expression must either be null or a function, not " + typeof superClass); } subClass.prototype = Object.create(superClass && superClass.prototype, { constructor: { value: subClass, enumerable: false, writable: true, configurable: true } }); if (superClass) Object.setPrototypeOf ? Object.setPrototypeOf(subClass, superClass) : subClass.__proto__ = superClass; }
 
-var _inherits3 = _interopRequireDefault(_inherits2);
+function _asyncToGenerator(fn) { return function () { var gen = fn.apply(this, arguments); return new Promise(function (resolve, reject) { function step(key, arg) { try { var info = gen[key](arg); var value = info.value; } catch (error) { reject(error); return; } if (info.done) { resolve(value); } else { return Promise.resolve(value).then(function (value) { step("next", value); }, function (err) { step("throw", err); }); } } return step("next"); }); }; }
 
-var _regenerator = require('babel-runtime/regenerator');
-
-var _regenerator2 = _interopRequireDefault(_regenerator);
-
-var _asyncToGenerator2 = require('babel-runtime/helpers/asyncToGenerator');
-
-var _asyncToGenerator3 = _interopRequireDefault(_asyncToGenerator2);
-
-var _classCallCheck2 = require('babel-runtime/helpers/classCallCheck');
-
-var _classCallCheck3 = _interopRequireDefault(_classCallCheck2);
-
-var _createClass2 = require('babel-runtime/helpers/createClass');
-
-var _createClass3 = _interopRequireDefault(_createClass2);
-
-function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { default: obj }; }
+function _classCallCheck(instance, Constructor) { if (!(instance instanceof Constructor)) { throw new TypeError("Cannot call a class as a function"); } }
 
 /* Abstract class. Instantiate an instance of either SFCryptoJS (uses cryptojs) or SFCryptoWeb (uses web crypto) */
 
 var SFAbstractCrypto = exports.SFAbstractCrypto = function () {
   function SFAbstractCrypto() {
-    (0, _classCallCheck3.default)(this, SFAbstractCrypto);
+    _classCallCheck(this, SFAbstractCrypto);
+
+    this.DefaultPBKDF2Length = 768;
   }
 
-  (0, _createClass3.default)(SFAbstractCrypto, [{
+  /*
+  Our WebCrypto implementation only offers PBKDf2, so any other encryption
+  and key generation functions must use CryptoJS in this abstract implementation.
+  */
+
+  _createClass(SFAbstractCrypto, [{
     key: 'generateUUIDSync',
-
-
-    /*
-    Our WebCrypto implementation only offers PBKDf2, so any other encryption
-    and key generation functions must use CryptoJS in this abstract implementation.
-    */
-
     value: function generateUUIDSync() {
       var crypto = window.crypto || window.msCrypto;
       if (crypto) {
@@ -75,7 +58,7 @@ var SFAbstractCrypto = exports.SFAbstractCrypto = function () {
   }, {
     key: 'decryptText',
     value: function () {
-      var _ref = (0, _asyncToGenerator3.default)(_regenerator2.default.mark(function _callee() {
+      var _ref = _asyncToGenerator( /*#__PURE__*/regeneratorRuntime.mark(function _callee() {
         var _ref2 = arguments.length > 0 && arguments[0] !== undefined ? arguments[0] : {},
             ciphertextToAuth = _ref2.ciphertextToAuth,
             contentCiphertext = _ref2.contentCiphertext,
@@ -86,7 +69,7 @@ var SFAbstractCrypto = exports.SFAbstractCrypto = function () {
 
         var requiresAuth = arguments[1];
         var localAuthHash, keyData, ivData, decrypted;
-        return _regenerator2.default.wrap(function _callee$(_context) {
+        return regeneratorRuntime.wrap(function _callee$(_context) {
           while (1) {
             switch (_context.prev = _context.next) {
               case 0:
@@ -141,9 +124,9 @@ var SFAbstractCrypto = exports.SFAbstractCrypto = function () {
   }, {
     key: 'encryptText',
     value: function () {
-      var _ref3 = (0, _asyncToGenerator3.default)(_regenerator2.default.mark(function _callee2(text, key, iv) {
+      var _ref3 = _asyncToGenerator( /*#__PURE__*/regeneratorRuntime.mark(function _callee2(text, key, iv) {
         var keyData, ivData, encrypted;
-        return _regenerator2.default.wrap(function _callee2$(_context2) {
+        return regeneratorRuntime.wrap(function _callee2$(_context2) {
           while (1) {
             switch (_context2.prev = _context2.next) {
               case 0:
@@ -169,8 +152,8 @@ var SFAbstractCrypto = exports.SFAbstractCrypto = function () {
   }, {
     key: 'generateRandomKey',
     value: function () {
-      var _ref4 = (0, _asyncToGenerator3.default)(_regenerator2.default.mark(function _callee3(bits) {
-        return _regenerator2.default.wrap(function _callee3$(_context3) {
+      var _ref4 = _asyncToGenerator( /*#__PURE__*/regeneratorRuntime.mark(function _callee3(bits) {
+        return regeneratorRuntime.wrap(function _callee3$(_context3) {
           while (1) {
             switch (_context3.prev = _context3.next) {
               case 0:
@@ -193,9 +176,9 @@ var SFAbstractCrypto = exports.SFAbstractCrypto = function () {
   }, {
     key: 'generateRandomEncryptionKey',
     value: function () {
-      var _ref5 = (0, _asyncToGenerator3.default)(_regenerator2.default.mark(function _callee4() {
+      var _ref5 = _asyncToGenerator( /*#__PURE__*/regeneratorRuntime.mark(function _callee4() {
         var salt, passphrase;
-        return _regenerator2.default.wrap(function _callee4$(_context4) {
+        return regeneratorRuntime.wrap(function _callee4$(_context4) {
           while (1) {
             switch (_context4.prev = _context4.next) {
               case 0:
@@ -228,8 +211,8 @@ var SFAbstractCrypto = exports.SFAbstractCrypto = function () {
   }, {
     key: 'firstHalfOfKey',
     value: function () {
-      var _ref6 = (0, _asyncToGenerator3.default)(_regenerator2.default.mark(function _callee5(key) {
-        return _regenerator2.default.wrap(function _callee5$(_context5) {
+      var _ref6 = _asyncToGenerator( /*#__PURE__*/regeneratorRuntime.mark(function _callee5(key) {
+        return regeneratorRuntime.wrap(function _callee5$(_context5) {
           while (1) {
             switch (_context5.prev = _context5.next) {
               case 0:
@@ -252,8 +235,8 @@ var SFAbstractCrypto = exports.SFAbstractCrypto = function () {
   }, {
     key: 'secondHalfOfKey',
     value: function () {
-      var _ref7 = (0, _asyncToGenerator3.default)(_regenerator2.default.mark(function _callee6(key) {
-        return _regenerator2.default.wrap(function _callee6$(_context6) {
+      var _ref7 = _asyncToGenerator( /*#__PURE__*/regeneratorRuntime.mark(function _callee6(key) {
+        return regeneratorRuntime.wrap(function _callee6$(_context6) {
           while (1) {
             switch (_context6.prev = _context6.next) {
               case 0:
@@ -276,8 +259,8 @@ var SFAbstractCrypto = exports.SFAbstractCrypto = function () {
   }, {
     key: 'base64',
     value: function () {
-      var _ref8 = (0, _asyncToGenerator3.default)(_regenerator2.default.mark(function _callee7(text) {
-        return _regenerator2.default.wrap(function _callee7$(_context7) {
+      var _ref8 = _asyncToGenerator( /*#__PURE__*/regeneratorRuntime.mark(function _callee7(text) {
+        return regeneratorRuntime.wrap(function _callee7$(_context7) {
           while (1) {
             switch (_context7.prev = _context7.next) {
               case 0:
@@ -300,8 +283,8 @@ var SFAbstractCrypto = exports.SFAbstractCrypto = function () {
   }, {
     key: 'base64Decode',
     value: function () {
-      var _ref9 = (0, _asyncToGenerator3.default)(_regenerator2.default.mark(function _callee8(base64String) {
-        return _regenerator2.default.wrap(function _callee8$(_context8) {
+      var _ref9 = _asyncToGenerator( /*#__PURE__*/regeneratorRuntime.mark(function _callee8(base64String) {
+        return regeneratorRuntime.wrap(function _callee8$(_context8) {
           while (1) {
             switch (_context8.prev = _context8.next) {
               case 0:
@@ -324,8 +307,8 @@ var SFAbstractCrypto = exports.SFAbstractCrypto = function () {
   }, {
     key: 'sha256',
     value: function () {
-      var _ref10 = (0, _asyncToGenerator3.default)(_regenerator2.default.mark(function _callee9(text) {
-        return _regenerator2.default.wrap(function _callee9$(_context9) {
+      var _ref10 = _asyncToGenerator( /*#__PURE__*/regeneratorRuntime.mark(function _callee9(text) {
+        return regeneratorRuntime.wrap(function _callee9$(_context9) {
           while (1) {
             switch (_context9.prev = _context9.next) {
               case 0:
@@ -348,9 +331,9 @@ var SFAbstractCrypto = exports.SFAbstractCrypto = function () {
   }, {
     key: 'hmac256',
     value: function () {
-      var _ref11 = (0, _asyncToGenerator3.default)(_regenerator2.default.mark(function _callee10(message, key) {
+      var _ref11 = _asyncToGenerator( /*#__PURE__*/regeneratorRuntime.mark(function _callee10(message, key) {
         var keyData, messageData, result;
-        return _regenerator2.default.wrap(function _callee10$(_context10) {
+        return regeneratorRuntime.wrap(function _callee10$(_context10) {
           while (1) {
             switch (_context10.prev = _context10.next) {
               case 0:
@@ -376,9 +359,9 @@ var SFAbstractCrypto = exports.SFAbstractCrypto = function () {
   }, {
     key: 'generateSalt',
     value: function () {
-      var _ref12 = (0, _asyncToGenerator3.default)(_regenerator2.default.mark(function _callee11(identifier, version, cost, nonce) {
+      var _ref12 = _asyncToGenerator( /*#__PURE__*/regeneratorRuntime.mark(function _callee11(identifier, version, cost, nonce) {
         var result;
-        return _regenerator2.default.wrap(function _callee11$(_context11) {
+        return regeneratorRuntime.wrap(function _callee11$(_context11) {
           while (1) {
             switch (_context11.prev = _context11.next) {
               case 0:
@@ -409,19 +392,19 @@ var SFAbstractCrypto = exports.SFAbstractCrypto = function () {
   }, {
     key: 'generateSymmetricKeyPair',
     value: function () {
-      var _ref13 = (0, _asyncToGenerator3.default)(_regenerator2.default.mark(function _callee12() {
+      var _ref13 = _asyncToGenerator( /*#__PURE__*/regeneratorRuntime.mark(function _callee12() {
         var _ref14 = arguments.length > 0 && arguments[0] !== undefined ? arguments[0] : {},
             password = _ref14.password,
             pw_salt = _ref14.pw_salt,
             pw_cost = _ref14.pw_cost;
 
         var output, outputLength, splitLength, firstThird, secondThird, thirdThird;
-        return _regenerator2.default.wrap(function _callee12$(_context12) {
+        return regeneratorRuntime.wrap(function _callee12$(_context12) {
           while (1) {
             switch (_context12.prev = _context12.next) {
               case 0:
                 _context12.next = 2;
-                return this.pbkdf2(password, pw_salt, pw_cost);
+                return this.pbkdf2(password, pw_salt, pw_cost, this.DefaultPBKDF2Length);
 
               case 2:
                 output = _context12.sent;
@@ -449,36 +432,45 @@ var SFAbstractCrypto = exports.SFAbstractCrypto = function () {
   }, {
     key: 'computeEncryptionKeysForUser',
     value: function () {
-      var _ref15 = (0, _asyncToGenerator3.default)(_regenerator2.default.mark(function _callee13(password, authParams) {
+      var _ref15 = _asyncToGenerator( /*#__PURE__*/regeneratorRuntime.mark(function _callee13(password, authParams) {
         var pw_salt;
-        return _regenerator2.default.wrap(function _callee13$(_context13) {
+        return regeneratorRuntime.wrap(function _callee13$(_context13) {
           while (1) {
             switch (_context13.prev = _context13.next) {
               case 0:
                 if (!(authParams.version == "003")) {
-                  _context13.next = 6;
+                  _context13.next = 9;
                   break;
                 }
 
-                _context13.next = 3;
+                if (authParams.identifier) {
+                  _context13.next = 4;
+                  break;
+                }
+
+                console.error("authParams is missing identifier.");
+                return _context13.abrupt('return');
+
+              case 4:
+                _context13.next = 6;
                 return this.generateSalt(authParams.identifier, authParams.version, authParams.pw_cost, authParams.pw_nonce);
 
-              case 3:
+              case 6:
                 pw_salt = _context13.sent;
-                _context13.next = 7;
+                _context13.next = 10;
                 break;
 
-              case 6:
+              case 9:
                 // Salt is returned from server
                 pw_salt = authParams.pw_salt;
 
-              case 7:
+              case 10:
                 return _context13.abrupt('return', this.generateSymmetricKeyPair({ password: password, pw_salt: pw_salt, pw_cost: authParams.pw_cost }).then(function (keys) {
                   var userKeys = { pw: keys[0], mk: keys[1], ak: keys[2] };
                   return userKeys;
                 }));
 
-              case 8:
+              case 11:
               case 'end':
                 return _context13.stop();
             }
@@ -496,11 +488,11 @@ var SFAbstractCrypto = exports.SFAbstractCrypto = function () {
     // Unlike computeEncryptionKeysForUser, this method always uses the latest SF Version
 
   }, {
-    key: 'generateInitialEncryptionKeysForUser',
+    key: 'generateInitialKeysAndAuthParamsForUser',
     value: function () {
-      var _ref16 = (0, _asyncToGenerator3.default)(_regenerator2.default.mark(function _callee14(identifier, password) {
+      var _ref16 = _asyncToGenerator( /*#__PURE__*/regeneratorRuntime.mark(function _callee14(identifier, password) {
         var version, pw_cost, pw_nonce, pw_salt;
-        return _regenerator2.default.wrap(function _callee14$(_context14) {
+        return regeneratorRuntime.wrap(function _callee14$(_context14) {
           while (1) {
             switch (_context14.prev = _context14.next) {
               case 0:
@@ -530,42 +522,47 @@ var SFAbstractCrypto = exports.SFAbstractCrypto = function () {
         }, _callee14, this);
       }));
 
-      function generateInitialEncryptionKeysForUser(_x20, _x21) {
+      function generateInitialKeysAndAuthParamsForUser(_x20, _x21) {
         return _ref16.apply(this, arguments);
       }
 
-      return generateInitialEncryptionKeysForUser;
+      return generateInitialKeysAndAuthParamsForUser;
     }()
   }]);
+
   return SFAbstractCrypto;
 }();
 
 ;
 var SFCryptoJS = exports.SFCryptoJS = function (_SFAbstractCrypto) {
-  (0, _inherits3.default)(SFCryptoJS, _SFAbstractCrypto);
+  _inherits(SFCryptoJS, _SFAbstractCrypto);
 
   function SFCryptoJS() {
-    (0, _classCallCheck3.default)(this, SFCryptoJS);
-    return (0, _possibleConstructorReturn3.default)(this, (SFCryptoJS.__proto__ || Object.getPrototypeOf(SFCryptoJS)).apply(this, arguments));
+    _classCallCheck(this, SFCryptoJS);
+
+    return _possibleConstructorReturn(this, (SFCryptoJS.__proto__ || Object.getPrototypeOf(SFCryptoJS)).apply(this, arguments));
   }
 
-  (0, _createClass3.default)(SFCryptoJS, [{
+  _createClass(SFCryptoJS, [{
     key: 'pbkdf2',
     value: function () {
-      var _ref17 = (0, _asyncToGenerator3.default)(_regenerator2.default.mark(function _callee15(password, pw_salt, pw_cost) {
+      var _ref17 = _asyncToGenerator( /*#__PURE__*/regeneratorRuntime.mark(function _callee15(password, pw_salt, pw_cost, length) {
         var params;
-        return _regenerator2.default.wrap(function _callee15$(_context15) {
+        return regeneratorRuntime.wrap(function _callee15$(_context15) {
           while (1) {
             switch (_context15.prev = _context15.next) {
               case 0:
+                if (!length) {
+                  length = this.DefaultPBKDF2Length;
+                }
                 params = {
-                  keySize: 768 / 32,
+                  keySize: length / 32,
                   hasher: CryptoJS.algo.SHA512,
                   iterations: pw_cost
                 };
                 return _context15.abrupt('return', CryptoJS.PBKDF2(password, pw_salt, params).toString());
 
-              case 2:
+              case 3:
               case 'end':
                 return _context15.stop();
             }
@@ -573,27 +570,29 @@ var SFCryptoJS = exports.SFCryptoJS = function (_SFAbstractCrypto) {
         }, _callee15, this);
       }));
 
-      function pbkdf2(_x22, _x23, _x24) {
+      function pbkdf2(_x22, _x23, _x24, _x25) {
         return _ref17.apply(this, arguments);
       }
 
       return pbkdf2;
     }()
   }]);
+
   return SFCryptoJS;
 }(SFAbstractCrypto);
 
 ;var subtleCrypto = window.crypto ? window.crypto.subtle : null;
 
 var SFCryptoWeb = exports.SFCryptoWeb = function (_SFAbstractCrypto2) {
-  (0, _inherits3.default)(SFCryptoWeb, _SFAbstractCrypto2);
+  _inherits(SFCryptoWeb, _SFAbstractCrypto2);
 
   function SFCryptoWeb() {
-    (0, _classCallCheck3.default)(this, SFCryptoWeb);
-    return (0, _possibleConstructorReturn3.default)(this, (SFCryptoWeb.__proto__ || Object.getPrototypeOf(SFCryptoWeb)).apply(this, arguments));
+    _classCallCheck(this, SFCryptoWeb);
+
+    return _possibleConstructorReturn(this, (SFCryptoWeb.__proto__ || Object.getPrototypeOf(SFCryptoWeb)).apply(this, arguments));
   }
 
-  (0, _createClass3.default)(SFCryptoWeb, [{
+  _createClass(SFCryptoWeb, [{
     key: 'pbkdf2',
 
 
@@ -602,30 +601,34 @@ var SFCryptoWeb = exports.SFCryptoWeb = function (_SFAbstractCrypto2) {
     */
 
     value: function () {
-      var _ref18 = (0, _asyncToGenerator3.default)(_regenerator2.default.mark(function _callee16(password, pw_salt, pw_cost) {
+      var _ref18 = _asyncToGenerator( /*#__PURE__*/regeneratorRuntime.mark(function _callee16(password, pw_salt, pw_cost, length) {
         var key;
-        return _regenerator2.default.wrap(function _callee16$(_context16) {
+        return regeneratorRuntime.wrap(function _callee16$(_context16) {
           while (1) {
             switch (_context16.prev = _context16.next) {
               case 0:
-                _context16.next = 2;
+                if (!length) {
+                  length = this.DefaultPBKDF2Length;
+                }
+
+                _context16.next = 3;
                 return this.webCryptoImportKey(password);
 
-              case 2:
+              case 3:
                 key = _context16.sent;
 
                 if (key) {
-                  _context16.next = 6;
+                  _context16.next = 7;
                   break;
                 }
 
                 console.log("Key is null, unable to continue");
                 return _context16.abrupt('return', null);
 
-              case 6:
+              case 7:
                 return _context16.abrupt('return', this.webCryptoDeriveBits({ key: key, pw_salt: pw_salt, pw_cost: pw_cost }));
 
-              case 7:
+              case 8:
               case 'end':
                 return _context16.stop();
             }
@@ -633,7 +636,7 @@ var SFCryptoWeb = exports.SFCryptoWeb = function (_SFAbstractCrypto2) {
         }, _callee16, this);
       }));
 
-      function pbkdf2(_x25, _x26, _x27) {
+      function pbkdf2(_x26, _x27, _x28, _x29) {
         return _ref18.apply(this, arguments);
       }
 
@@ -642,8 +645,8 @@ var SFCryptoWeb = exports.SFCryptoWeb = function (_SFAbstractCrypto2) {
   }, {
     key: 'webCryptoImportKey',
     value: function () {
-      var _ref19 = (0, _asyncToGenerator3.default)(_regenerator2.default.mark(function _callee17(input) {
-        return _regenerator2.default.wrap(function _callee17$(_context17) {
+      var _ref19 = _asyncToGenerator( /*#__PURE__*/regeneratorRuntime.mark(function _callee17(input) {
+        return regeneratorRuntime.wrap(function _callee17$(_context17) {
           while (1) {
             switch (_context17.prev = _context17.next) {
               case 0:
@@ -662,7 +665,7 @@ var SFCryptoWeb = exports.SFCryptoWeb = function (_SFAbstractCrypto2) {
         }, _callee17, this);
       }));
 
-      function webCryptoImportKey(_x28) {
+      function webCryptoImportKey(_x30) {
         return _ref19.apply(this, arguments);
       }
 
@@ -671,16 +674,17 @@ var SFCryptoWeb = exports.SFCryptoWeb = function (_SFAbstractCrypto2) {
   }, {
     key: 'webCryptoDeriveBits',
     value: function () {
-      var _ref20 = (0, _asyncToGenerator3.default)(_regenerator2.default.mark(function _callee18() {
+      var _ref20 = _asyncToGenerator( /*#__PURE__*/regeneratorRuntime.mark(function _callee18() {
         var _this3 = this;
 
         var _ref21 = arguments.length > 0 && arguments[0] !== undefined ? arguments[0] : {},
             key = _ref21.key,
             pw_salt = _ref21.pw_salt,
-            pw_cost = _ref21.pw_cost;
+            pw_cost = _ref21.pw_cost,
+            length = _ref21.length;
 
         var params;
-        return _regenerator2.default.wrap(function _callee18$(_context18) {
+        return regeneratorRuntime.wrap(function _callee18$(_context18) {
           while (1) {
             switch (_context18.prev = _context18.next) {
               case 0:
@@ -690,7 +694,7 @@ var SFCryptoWeb = exports.SFCryptoWeb = function (_SFAbstractCrypto2) {
                   iterations: pw_cost,
                   hash: { name: "SHA-512" }
                 };
-                return _context18.abrupt('return', subtleCrypto.deriveBits(params, key, 768).then(function (bits) {
+                return _context18.abrupt('return', subtleCrypto.deriveBits(params, key, length).then(function (bits) {
                   var key = _this3.arrayBufferToHexString(new Uint8Array(bits));
                   return key;
                 }).catch(function (err) {
@@ -748,23 +752,24 @@ var SFCryptoWeb = exports.SFCryptoWeb = function (_SFAbstractCrypto2) {
       return hexString;
     }
   }]);
+
   return SFCryptoWeb;
 }(SFAbstractCrypto);
 
 ;
 var SFItemTransformer = exports.SFItemTransformer = function () {
   function SFItemTransformer(crypto) {
-    (0, _classCallCheck3.default)(this, SFItemTransformer);
+    _classCallCheck(this, SFItemTransformer);
 
     this.crypto = crypto;
   }
 
-  (0, _createClass3.default)(SFItemTransformer, [{
+  _createClass(SFItemTransformer, [{
     key: '_private_encryptString',
     value: function () {
-      var _ref22 = (0, _asyncToGenerator3.default)(_regenerator2.default.mark(function _callee19(string, encryptionKey, authKey, uuid, version) {
+      var _ref22 = _asyncToGenerator( /*#__PURE__*/regeneratorRuntime.mark(function _callee19(string, encryptionKey, authKey, uuid, version) {
         var fullCiphertext, contentCiphertext, iv, ciphertextToAuth, authHash;
-        return _regenerator2.default.wrap(function _callee19$(_context19) {
+        return regeneratorRuntime.wrap(function _callee19$(_context19) {
           while (1) {
             switch (_context19.prev = _context19.next) {
               case 0:
@@ -814,7 +819,7 @@ var SFItemTransformer = exports.SFItemTransformer = function () {
         }, _callee19, this);
       }));
 
-      function _private_encryptString(_x30, _x31, _x32, _x33, _x34) {
+      function _private_encryptString(_x32, _x33, _x34, _x35, _x36) {
         return _ref22.apply(this, arguments);
       }
 
@@ -823,10 +828,10 @@ var SFItemTransformer = exports.SFItemTransformer = function () {
   }, {
     key: 'encryptItem',
     value: function () {
-      var _ref23 = (0, _asyncToGenerator3.default)(_regenerator2.default.mark(function _callee20(item, keys) {
+      var _ref23 = _asyncToGenerator( /*#__PURE__*/regeneratorRuntime.mark(function _callee20(item, keys) {
         var version = arguments.length > 2 && arguments[2] !== undefined ? arguments[2] : "003";
         var params, item_key, ek, ak, ciphertext, authHash;
-        return _regenerator2.default.wrap(function _callee20$(_context20) {
+        return regeneratorRuntime.wrap(function _callee20$(_context20) {
           while (1) {
             switch (_context20.prev = _context20.next) {
               case 0:
@@ -902,7 +907,7 @@ var SFItemTransformer = exports.SFItemTransformer = function () {
         }, _callee20, this);
       }));
 
-      function encryptItem(_x36, _x37) {
+      function encryptItem(_x38, _x39) {
         return _ref23.apply(this, arguments);
       }
 
@@ -939,9 +944,9 @@ var SFItemTransformer = exports.SFItemTransformer = function () {
   }, {
     key: 'decryptItem',
     value: function () {
-      var _ref24 = (0, _asyncToGenerator3.default)(_regenerator2.default.mark(function _callee21(item, keys) {
+      var _ref24 = _asyncToGenerator( /*#__PURE__*/regeneratorRuntime.mark(function _callee21(item, keys) {
         var encryptedItemKey, requiresAuth, keyParams, item_key, ek, ak, itemParams, content;
-        return _regenerator2.default.wrap(function _callee21$(_context21) {
+        return regeneratorRuntime.wrap(function _callee21$(_context21) {
           while (1) {
             switch (_context21.prev = _context21.next) {
               case 0:
@@ -1091,7 +1096,7 @@ var SFItemTransformer = exports.SFItemTransformer = function () {
         }, _callee21, this, [[3, 11]]);
       }));
 
-      function decryptItem(_x38, _x39) {
+      function decryptItem(_x40, _x41) {
         return _ref24.apply(this, arguments);
       }
 
@@ -1100,18 +1105,18 @@ var SFItemTransformer = exports.SFItemTransformer = function () {
   }, {
     key: 'decryptMultipleItems',
     value: function () {
-      var _ref25 = (0, _asyncToGenerator3.default)(_regenerator2.default.mark(function _callee23(items, keys, throws) {
+      var _ref25 = _asyncToGenerator( /*#__PURE__*/regeneratorRuntime.mark(function _callee23(items, keys, throws) {
         var _this4 = this;
 
         var decrypt;
-        return _regenerator2.default.wrap(function _callee23$(_context23) {
+        return regeneratorRuntime.wrap(function _callee23$(_context23) {
           while (1) {
             switch (_context23.prev = _context23.next) {
               case 0:
                 decrypt = function () {
-                  var _ref26 = (0, _asyncToGenerator3.default)(_regenerator2.default.mark(function _callee22(item) {
+                  var _ref26 = _asyncToGenerator( /*#__PURE__*/regeneratorRuntime.mark(function _callee22(item) {
                     var isString;
-                    return _regenerator2.default.wrap(function _callee22$(_context22) {
+                    return regeneratorRuntime.wrap(function _callee22$(_context22) {
                       while (1) {
                         switch (_context22.prev = _context22.next) {
                           case 0:
@@ -1166,7 +1171,7 @@ var SFItemTransformer = exports.SFItemTransformer = function () {
                     }, _callee22, _this4, [[4, 9]]);
                   }));
 
-                  return function decrypt(_x43) {
+                  return function decrypt(_x45) {
                     return _ref26.apply(this, arguments);
                   };
                 }();
@@ -1183,20 +1188,21 @@ var SFItemTransformer = exports.SFItemTransformer = function () {
         }, _callee23, this);
       }));
 
-      function decryptMultipleItems(_x40, _x41, _x42) {
+      function decryptMultipleItems(_x42, _x43, _x44) {
         return _ref25.apply(this, arguments);
       }
 
       return decryptMultipleItems;
     }()
   }]);
+
   return SFItemTransformer;
 }();
 
 ;
 var StandardFile = exports.StandardFile = function () {
-  function StandardFile() {
-    (0, _classCallCheck3.default)(this, StandardFile);
+  function StandardFile(cryptoInstance) {
+    _classCallCheck(this, StandardFile);
 
     // This library runs in native environments as well (react native)
     if (typeof window !== 'undefined' && typeof document !== 'undefined') {
@@ -1209,17 +1215,21 @@ var StandardFile = exports.StandardFile = function () {
       } else {
         this.crypto = new SFCryptoJS();
       }
-
-      this.crypto.SFJS = {
-        version: this.version(),
-        defaultPasswordGenerationCost: this.defaultPasswordGenerationCost()
-      };
-
-      this.itemTransformer = new SFItemTransformer(this.crypto);
     }
+
+    if (cryptoInstance) {
+      this.crypto = cryptoInstance;
+    }
+
+    this.itemTransformer = new SFItemTransformer(this.crypto);
+
+    this.crypto.SFJS = {
+      version: this.version(),
+      defaultPasswordGenerationCost: this.defaultPasswordGenerationCost()
+    };
   }
 
-  (0, _createClass3.default)(StandardFile, [{
+  _createClass(StandardFile, [{
     key: 'version',
     value: function version() {
       return "003";
@@ -1283,11 +1293,15 @@ var StandardFile = exports.StandardFile = function () {
       return this.costMinimumForVersion(this.version());
     }
   }]);
+
   return StandardFile;
 }();
 
-if (window) {
-  window.StandardFile = StandardFile;
-  window.SFJS = new StandardFile();
+if (typeof window !== 'undefined' && window !== null) {
+  // window is for some reason defined in React Native, but throws an exception when you try to set to it
+  try {
+    window.StandardFile = StandardFile;
+    window.SFJS = new StandardFile();
+  } catch (e) {}
 }
 //# sourceMappingURL=transpiled.js.map

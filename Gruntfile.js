@@ -19,7 +19,7 @@ module.exports = function(grunt) {
 
       lib: {
         src: [
-          'lib/**/*.js'
+          'lib/**/*.js',
         ],
         dest: 'dist/lib.js',
       },
@@ -31,6 +31,11 @@ module.exports = function(grunt) {
         dest: 'dist/vendor.js',
       },
 
+      regenerator: {
+        src: ['node_modules/regenerator-runtime/runtime.js'],
+        dest: 'dist/regenerator.js'
+      },
+
       dist: {
         src: ['dist/vendor.js', 'dist/transpiled.js'],
         dest: 'dist/sfjs.js',
@@ -40,7 +45,7 @@ module.exports = function(grunt) {
     babel: {
       options: {
         sourceMap: true,
-        presets: ['es2016']
+        // presets: ['es2016']
       },
 
       dist: {
@@ -48,7 +53,6 @@ module.exports = function(grunt) {
           'dist/transpiled.js': 'dist/lib.js'
         }
       },
-
     },
 
     browserify: {
@@ -56,7 +60,8 @@ module.exports = function(grunt) {
       dist: {
         options: {
           browserifyOptions: {
-            standalone: 'SF'
+            standalone: 'SF',
+            // transform: [['babelify', {presets: ['env']}]]
           }
         },
         files: {
@@ -80,5 +85,6 @@ module.exports = function(grunt) {
   grunt.loadNpmTasks('grunt-browserify');
   grunt.loadNpmTasks('grunt-contrib-concat');
 
-  grunt.registerTask('default', ['concat:lib', 'babel', 'concat:vendor', 'concat:dist', 'browserify', 'uglify']);
+  // grunt.registerTask('default', ['concat:lib', 'concat:vendor', 'concat:dist', 'babel']);
+  grunt.registerTask('default', ['concat:lib', 'babel', 'concat:vendor', 'concat:dist', 'concat:regenerator', 'browserify']);
 };
