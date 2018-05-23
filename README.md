@@ -34,12 +34,12 @@ let SFJS = new StandardFile();
 
 ```
 SFJS.generateInitialKeysAndAuthParamsForUser(email, password).then((results) => {
-	let keys  = results.keys;
-	let authParams = results.authParams;
+  let keys = results.keys;
+  let authParams = results.authParams;
 
-	let serverPassword = keys.pw;
-	let encryptionKey = keys.mk;
-	let authenticationKey = keys.ak;
+  let serverPassword = keys.pw;
+  let encryptionKey = keys.mk;
+  let authenticationKey = keys.ak;
 });
 ```
 
@@ -48,22 +48,24 @@ SFJS.generateInitialKeysAndAuthParamsForUser(email, password).then((results) => 
 ```
 let authParams = getPreviouslyCreatedAuthParams();
 SFJS.computeEncryptionKeysForUser(password, authParams).then((keys) => {
-	let serverPassword = keys.pw;
-	let encryptionKey = keys.mk;
-	let authenticationKey = keys.ak;
+  let serverPassword = keys.pw;
+  let encryptionKey = keys.mk;
+  let authenticationKey = keys.ak;
 });
 ```
 
 #### Key descriptions:
 `pw`: sent to the server for authentication.
+
 `mk`: encrypts and decrypts items. Never sent to the server.
+
 `ak`: authenticates the encryption and decryption of items. Never sent to the server.
 
 ### Encrypting and decrypting items
 
-Note that the Item class is not yet included in SFJS. You must create your own Item class. You can also use the Item class from the [Standard Notes implementation](https://github.com/standardnotes/web/blob/master/app/assets/javascripts/app/models/api/item.js)._
-
 Use `SFJS.itemTransformer` to encrypt and decrypt items.
+
+Note that the Item class is not yet included in SFJS. You must create your own Item class. You can also use the Item class from the [Standard Notes implementation](https://github.com/standardnotes/web/blob/master/app/assets/javascripts/app/models/api/item.js).
 
 #### Encrypt:
 
@@ -85,7 +87,7 @@ SFJS.itemTransformer.decryptItem(item, keys).then(() => {
 
 ## Notes
 - SFJS uses an asynchronous API. All functions are asynchronous, and return immediately even if they have not finished. Add `.then()` to every call to be notified of the result, or use `await` if you don't want to use callbacks.
-- SFJS handles key generation and encryption, but there's two other parts of the [Standard File](https://standardfile.org) specification that this library does not handle: model management, and server communication/syncing.
+- SFJS handles key generation and encryption, but there's two other parts of the [Standard File](https://standardfile.org) specification that this library does not handle: model management and server communication/syncing.
 	- Model management relates to resolving relationships between items, handling deletions, and mapping items to and from the server.
 	- Server communication relates to signing in, registering, and syncing items back and forth.
 
