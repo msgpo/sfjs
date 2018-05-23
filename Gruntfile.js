@@ -5,7 +5,7 @@ module.exports = function(grunt) {
     watch: {
       js: {
         files: ['lib/**/*.js'],
-        tasks: ['concat:lib', 'babel', 'concat:vendor', 'concat:dist', 'browserify', 'uglify'],
+        tasks: ['concat:lib', 'babel', 'concat:vendor', 'concat:dist', 'concat:regenerator', 'browserify'],
         options: {
           spawn: false,
         },
@@ -61,7 +61,6 @@ module.exports = function(grunt) {
         options: {
           browserifyOptions: {
             standalone: 'SF',
-            // transform: [['babelify', {presets: ['env']}]]
           }
         },
         files: {

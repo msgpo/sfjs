@@ -68,9 +68,11 @@ export class SFAbstractCrypto {
   }
 
   async generateRandomEncryptionKey() {
-    var salt = await this.generateRandomKey(512);
-    var passphrase = await this.generateRandomKey(512);
-    return this.sha256(passphrase + salt);
+    // Key length needs to be 512 in order to decrypt properly on mobile and web.
+    let length = 512; let cost = 1;
+    var salt = await this.generateRandomKey(length);
+    var passphrase = await this.generateRandomKey(length);
+    return this.pbkdf2(passphrase, salt, cost, length);
   }
 
   async firstHalfOfKey(key) {
@@ -157,7 +159,6 @@ export class SFAbstractCrypto {
 ;export class SFCryptoJS extends SFAbstractCrypto {
 
   async pbkdf2(password, pw_salt, pw_cost, length) {
-    if(!length) { length = this.DefaultPBKDF2Length; }
     var params = {
       keySize: length/32,
       hasher: CryptoJS.algo.SHA512,
@@ -177,15 +178,13 @@ export class SFCryptoWeb extends SFAbstractCrypto {
   */
 
   async pbkdf2(password, pw_salt, pw_cost, length) {
-    if(!length) { length = this.DefaultPBKDF2Length; }
-
     var key = await this.webCryptoImportKey(password);
     if(!key) {
       console.log("Key is null, unable to continue");
       return null;
     }
 
-    return this.webCryptoDeriveBits({key: key, pw_salt: pw_salt, pw_cost: pw_cost});
+    return this.webCryptoDeriveBits(key, pw_salt, pw_cost, length);
   }
 
   async webCryptoImportKey(input) {
@@ -199,7 +198,7 @@ export class SFCryptoWeb extends SFAbstractCrypto {
     });
   }
 
-  async webCryptoDeriveBits({key, pw_salt, pw_cost, length} = {}) {
+  async webCryptoDeriveBits(key, pw_salt, pw_cost, length) {
     var params = {
       "name": "PBKDF2",
       salt: this.stringToArrayBuffer(pw_salt),

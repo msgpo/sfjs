@@ -177,24 +177,27 @@ var SFAbstractCrypto = exports.SFAbstractCrypto = function () {
     key: 'generateRandomEncryptionKey',
     value: function () {
       var _ref5 = _asyncToGenerator( /*#__PURE__*/regeneratorRuntime.mark(function _callee4() {
-        var salt, passphrase;
+        var length, cost, salt, passphrase;
         return regeneratorRuntime.wrap(function _callee4$(_context4) {
           while (1) {
             switch (_context4.prev = _context4.next) {
               case 0:
-                _context4.next = 2;
-                return this.generateRandomKey(512);
+                // Key length needs to be 512 in order to decrypt properly on mobile and web.
+                length = 512;
+                cost = 1;
+                _context4.next = 4;
+                return this.generateRandomKey(length);
 
-              case 2:
+              case 4:
                 salt = _context4.sent;
-                _context4.next = 5;
-                return this.generateRandomKey(512);
-
-              case 5:
-                passphrase = _context4.sent;
-                return _context4.abrupt('return', this.sha256(passphrase + salt));
+                _context4.next = 7;
+                return this.generateRandomKey(length);
 
               case 7:
+                passphrase = _context4.sent;
+                return _context4.abrupt('return', this.pbkdf2(passphrase, salt, cost, length));
+
+              case 9:
               case 'end':
                 return _context4.stop();
             }
@@ -552,9 +555,6 @@ var SFCryptoJS = exports.SFCryptoJS = function (_SFAbstractCrypto) {
           while (1) {
             switch (_context15.prev = _context15.next) {
               case 0:
-                if (!length) {
-                  length = this.DefaultPBKDF2Length;
-                }
                 params = {
                   keySize: length / 32,
                   hasher: CryptoJS.algo.SHA512,
@@ -562,7 +562,7 @@ var SFCryptoJS = exports.SFCryptoJS = function (_SFAbstractCrypto) {
                 };
                 return _context15.abrupt('return', CryptoJS.PBKDF2(password, pw_salt, params).toString());
 
-              case 3:
+              case 2:
               case 'end':
                 return _context15.stop();
             }
@@ -607,28 +607,24 @@ var SFCryptoWeb = exports.SFCryptoWeb = function (_SFAbstractCrypto2) {
           while (1) {
             switch (_context16.prev = _context16.next) {
               case 0:
-                if (!length) {
-                  length = this.DefaultPBKDF2Length;
-                }
-
-                _context16.next = 3;
+                _context16.next = 2;
                 return this.webCryptoImportKey(password);
 
-              case 3:
+              case 2:
                 key = _context16.sent;
 
                 if (key) {
-                  _context16.next = 7;
+                  _context16.next = 6;
                   break;
                 }
 
                 console.log("Key is null, unable to continue");
                 return _context16.abrupt('return', null);
 
-              case 7:
-                return _context16.abrupt('return', this.webCryptoDeriveBits({ key: key, pw_salt: pw_salt, pw_cost: pw_cost }));
+              case 6:
+                return _context16.abrupt('return', this.webCryptoDeriveBits(key, pw_salt, pw_cost, length));
 
-              case 8:
+              case 7:
               case 'end':
                 return _context16.stop();
             }
@@ -674,14 +670,8 @@ var SFCryptoWeb = exports.SFCryptoWeb = function (_SFAbstractCrypto2) {
   }, {
     key: 'webCryptoDeriveBits',
     value: function () {
-      var _ref20 = _asyncToGenerator( /*#__PURE__*/regeneratorRuntime.mark(function _callee18() {
+      var _ref20 = _asyncToGenerator( /*#__PURE__*/regeneratorRuntime.mark(function _callee18(key, pw_salt, pw_cost, length) {
         var _this3 = this;
-
-        var _ref21 = arguments.length > 0 && arguments[0] !== undefined ? arguments[0] : {},
-            key = _ref21.key,
-            pw_salt = _ref21.pw_salt,
-            pw_cost = _ref21.pw_cost,
-            length = _ref21.length;
 
         var params;
         return regeneratorRuntime.wrap(function _callee18$(_context18) {
@@ -710,7 +700,7 @@ var SFCryptoWeb = exports.SFCryptoWeb = function (_SFAbstractCrypto2) {
         }, _callee18, this);
       }));
 
-      function webCryptoDeriveBits() {
+      function webCryptoDeriveBits(_x31, _x32, _x33, _x34) {
         return _ref20.apply(this, arguments);
       }
 
@@ -767,7 +757,7 @@ var SFItemTransformer = exports.SFItemTransformer = function () {
   _createClass(SFItemTransformer, [{
     key: '_private_encryptString',
     value: function () {
-      var _ref22 = _asyncToGenerator( /*#__PURE__*/regeneratorRuntime.mark(function _callee19(string, encryptionKey, authKey, uuid, version) {
+      var _ref21 = _asyncToGenerator( /*#__PURE__*/regeneratorRuntime.mark(function _callee19(string, encryptionKey, authKey, uuid, version) {
         var fullCiphertext, contentCiphertext, iv, ciphertextToAuth, authHash;
         return regeneratorRuntime.wrap(function _callee19$(_context19) {
           while (1) {
@@ -819,8 +809,8 @@ var SFItemTransformer = exports.SFItemTransformer = function () {
         }, _callee19, this);
       }));
 
-      function _private_encryptString(_x32, _x33, _x34, _x35, _x36) {
-        return _ref22.apply(this, arguments);
+      function _private_encryptString(_x35, _x36, _x37, _x38, _x39) {
+        return _ref21.apply(this, arguments);
       }
 
       return _private_encryptString;
@@ -828,7 +818,7 @@ var SFItemTransformer = exports.SFItemTransformer = function () {
   }, {
     key: 'encryptItem',
     value: function () {
-      var _ref23 = _asyncToGenerator( /*#__PURE__*/regeneratorRuntime.mark(function _callee20(item, keys) {
+      var _ref22 = _asyncToGenerator( /*#__PURE__*/regeneratorRuntime.mark(function _callee20(item, keys) {
         var version = arguments.length > 2 && arguments[2] !== undefined ? arguments[2] : "003";
         var params, item_key, ek, ak, ciphertext, authHash;
         return regeneratorRuntime.wrap(function _callee20$(_context20) {
@@ -907,8 +897,8 @@ var SFItemTransformer = exports.SFItemTransformer = function () {
         }, _callee20, this);
       }));
 
-      function encryptItem(_x38, _x39) {
-        return _ref23.apply(this, arguments);
+      function encryptItem(_x41, _x42) {
+        return _ref22.apply(this, arguments);
       }
 
       return encryptItem;
@@ -944,7 +934,7 @@ var SFItemTransformer = exports.SFItemTransformer = function () {
   }, {
     key: 'decryptItem',
     value: function () {
-      var _ref24 = _asyncToGenerator( /*#__PURE__*/regeneratorRuntime.mark(function _callee21(item, keys) {
+      var _ref23 = _asyncToGenerator( /*#__PURE__*/regeneratorRuntime.mark(function _callee21(item, keys) {
         var encryptedItemKey, requiresAuth, keyParams, item_key, ek, ak, itemParams, content;
         return regeneratorRuntime.wrap(function _callee21$(_context21) {
           while (1) {
@@ -1096,8 +1086,8 @@ var SFItemTransformer = exports.SFItemTransformer = function () {
         }, _callee21, this, [[3, 11]]);
       }));
 
-      function decryptItem(_x40, _x41) {
-        return _ref24.apply(this, arguments);
+      function decryptItem(_x43, _x44) {
+        return _ref23.apply(this, arguments);
       }
 
       return decryptItem;
@@ -1105,7 +1095,7 @@ var SFItemTransformer = exports.SFItemTransformer = function () {
   }, {
     key: 'decryptMultipleItems',
     value: function () {
-      var _ref25 = _asyncToGenerator( /*#__PURE__*/regeneratorRuntime.mark(function _callee23(items, keys, throws) {
+      var _ref24 = _asyncToGenerator( /*#__PURE__*/regeneratorRuntime.mark(function _callee23(items, keys, throws) {
         var _this4 = this;
 
         var decrypt;
@@ -1114,7 +1104,7 @@ var SFItemTransformer = exports.SFItemTransformer = function () {
             switch (_context23.prev = _context23.next) {
               case 0:
                 decrypt = function () {
-                  var _ref26 = _asyncToGenerator( /*#__PURE__*/regeneratorRuntime.mark(function _callee22(item) {
+                  var _ref25 = _asyncToGenerator( /*#__PURE__*/regeneratorRuntime.mark(function _callee22(item) {
                     var isString;
                     return regeneratorRuntime.wrap(function _callee22$(_context22) {
                       while (1) {
@@ -1171,8 +1161,8 @@ var SFItemTransformer = exports.SFItemTransformer = function () {
                     }, _callee22, _this4, [[4, 9]]);
                   }));
 
-                  return function decrypt(_x45) {
-                    return _ref26.apply(this, arguments);
+                  return function decrypt(_x48) {
+                    return _ref25.apply(this, arguments);
                   };
                 }();
 
@@ -1188,8 +1178,8 @@ var SFItemTransformer = exports.SFItemTransformer = function () {
         }, _callee23, this);
       }));
 
-      function decryptMultipleItems(_x42, _x43, _x44) {
-        return _ref25.apply(this, arguments);
+      function decryptMultipleItems(_x45, _x46, _x47) {
+        return _ref24.apply(this, arguments);
       }
 
       return decryptMultipleItems;
