@@ -486,7 +486,7 @@ export class SFCryptoWeb extends SFAbstractCrypto {
     // YYYY-MM-DD
     let expirationDates = {
       "001" : Date.parse("2018-01-01"),
-      "002" : Date.parse("2019-06-01"),
+      "002" : Date.parse("2020-01-01"),
     }
 
     let date = expirationDates[version];

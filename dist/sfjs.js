@@ -1370,7 +1370,7 @@ var StandardFile = exports.StandardFile = function () {
       // YYYY-MM-DD
       var expirationDates = {
         "001": Date.parse("2018-01-01"),
-        "002": Date.parse("2019-06-01")
+        "002": Date.parse("2020-01-01")
       };
 
       var date = expirationDates[version];
