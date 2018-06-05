@@ -1,6 +1,6 @@
 {
   "name": "standard-file-js",
-  "version": "0.0.14",
+  "version": "0.3.0",
   "main": "dist/sfjs.js",
   "devDependencies": {
     "babel-cli": "^6.18.0",
