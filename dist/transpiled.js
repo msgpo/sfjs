@@ -608,7 +608,7 @@ var SFCryptoWeb = exports.SFCryptoWeb = function (_SFAbstractCrypto2) {
             switch (_context16.prev = _context16.next) {
               case 0:
                 _context16.next = 2;
-                return this.webCryptoImportKey(password);
+                return this.webCryptoImportKey(password, "PBKDF2", "deriveBits");
 
               case 2:
                 key = _context16.sent;
@@ -638,22 +638,40 @@ var SFCryptoWeb = exports.SFCryptoWeb = function (_SFAbstractCrypto2) {
 
       return pbkdf2;
     }()
+
+    /* This is a functioning implementation of WebCrypto's encrypt, however, in basic testing, CrpytoJS performs about 30-40% faster, surprisingly. */
+    /*
+    async encryptText(text, key, iv) {
+      var ivData  = this.hexStringToArrayBuffer(iv);
+      const alg = { name: 'AES-CBC', iv: ivData };
+       const keyBuffer = this.hexStringToArrayBuffer(key);
+      var keyData = await this.webCryptoImportKey(keyBuffer, alg.name, "encrypt");
+       var textData = this.stringToArrayBuffer(text);
+       return crypto.subtle.encrypt(alg, keyData, textData).then((result) => {
+        let cipher = this.arrayBufferToBase64(result);
+        return cipher;
+      })
+    }
+    */
+
   }, {
     key: 'webCryptoImportKey',
     value: function () {
-      var _ref19 = _asyncToGenerator( /*#__PURE__*/regeneratorRuntime.mark(function _callee17(input) {
+      var _ref19 = _asyncToGenerator( /*#__PURE__*/regeneratorRuntime.mark(function _callee17(input, alg, action) {
+        var text;
         return regeneratorRuntime.wrap(function _callee17$(_context17) {
           while (1) {
             switch (_context17.prev = _context17.next) {
               case 0:
-                return _context17.abrupt('return', subtleCrypto.importKey("raw", this.stringToArrayBuffer(input), { name: "PBKDF2" }, false, ["deriveBits"]).then(function (key) {
+                text = typeof input === "string" ? this.stringToArrayBuffer(input) : input;
+                return _context17.abrupt('return', subtleCrypto.importKey("raw", text, { name: alg }, false, [action]).then(function (key) {
                   return key;
                 }).catch(function (err) {
                   console.error(err);
                   return null;
                 }));
 
-              case 1:
+              case 2:
               case 'end':
                 return _context17.stop();
             }
@@ -661,7 +679,7 @@ var SFCryptoWeb = exports.SFCryptoWeb = function (_SFAbstractCrypto2) {
         }, _callee17, this);
       }));
 
-      function webCryptoImportKey(_x30) {
+      function webCryptoImportKey(_x30, _x31, _x32) {
         return _ref19.apply(this, arguments);
       }
 
@@ -700,7 +718,7 @@ var SFCryptoWeb = exports.SFCryptoWeb = function (_SFAbstractCrypto2) {
         }, _callee18, this);
       }));
 
-      function webCryptoDeriveBits(_x31, _x32, _x33, _x34) {
+      function webCryptoDeriveBits(_x33, _x34, _x35, _x36) {
         return _ref20.apply(this, arguments);
       }
 
@@ -740,6 +758,24 @@ var SFCryptoWeb = exports.SFCryptoWeb = function (_SFAbstractCrypto2) {
         hexString += nextHexByte;
       }
       return hexString;
+    }
+  }, {
+    key: 'hexStringToArrayBuffer',
+    value: function hexStringToArrayBuffer(hex) {
+      for (var bytes = [], c = 0; c < hex.length; c += 2) {
+        bytes.push(parseInt(hex.substr(c, 2), 16));
+      }return new Uint8Array(bytes);
+    }
+  }, {
+    key: 'arrayBufferToBase64',
+    value: function arrayBufferToBase64(buffer) {
+      var binary = '';
+      var bytes = new Uint8Array(buffer);
+      var len = bytes.byteLength;
+      for (var i = 0; i < len; i++) {
+        binary += String.fromCharCode(bytes[i]);
+      }
+      return window.btoa(binary);
     }
   }]);
 
@@ -809,7 +845,7 @@ var SFItemTransformer = exports.SFItemTransformer = function () {
         }, _callee19, this);
       }));
 
-      function _private_encryptString(_x35, _x36, _x37, _x38, _x39) {
+      function _private_encryptString(_x37, _x38, _x39, _x40, _x41) {
         return _ref21.apply(this, arguments);
       }
 
@@ -897,7 +933,7 @@ var SFItemTransformer = exports.SFItemTransformer = function () {
         }, _callee20, this);
       }));
 
-      function encryptItem(_x41, _x42) {
+      function encryptItem(_x43, _x44) {
         return _ref22.apply(this, arguments);
       }
 
@@ -997,25 +1033,26 @@ var SFItemTransformer = exports.SFItemTransformer = function () {
                 // return if uuid in auth hash does not match item uuid. Signs of tampering.
 
                 if (!(keyParams.uuid && keyParams.uuid !== item.uuid)) {
-                  _context21.next = 25;
+                  _context21.next = 26;
                   break;
                 }
 
+                console.error("Item key params UUID does not match item UUID");
                 if (!item.errorDecrypting) {
                   item.errorDecryptingValueChanged = true;
                 }
                 item.errorDecrypting = true;
                 return _context21.abrupt('return');
 
-              case 25:
-                _context21.next = 27;
+              case 26:
+                _context21.next = 28;
                 return this.crypto.decryptText(keyParams, requiresAuth);
 
-              case 27:
+              case 28:
                 item_key = _context21.sent;
 
                 if (item_key) {
-                  _context21.next = 32;
+                  _context21.next = 33;
                   break;
                 }
 
@@ -1025,23 +1062,23 @@ var SFItemTransformer = exports.SFItemTransformer = function () {
                 item.errorDecrypting = true;
                 return _context21.abrupt('return');
 
-              case 32:
-                _context21.next = 34;
+              case 33:
+                _context21.next = 35;
                 return this.crypto.firstHalfOfKey(item_key);
 
-              case 34:
+              case 35:
                 ek = _context21.sent;
-                _context21.next = 37;
+                _context21.next = 38;
                 return this.crypto.secondHalfOfKey(item_key);
 
-              case 37:
+              case 38:
                 ak = _context21.sent;
                 itemParams = this.encryptionComponentsFromString(item.content, ek, ak);
 
                 // return if uuid in auth hash does not match item uuid. Signs of tampering.
 
                 if (!(itemParams.uuid && itemParams.uuid !== item.uuid)) {
-                  _context21.next = 43;
+                  _context21.next = 44;
                   break;
                 }
 
@@ -1051,17 +1088,17 @@ var SFItemTransformer = exports.SFItemTransformer = function () {
                 item.errorDecrypting = true;
                 return _context21.abrupt('return');
 
-              case 43:
+              case 44:
 
                 if (!itemParams.authHash) {
                   // legacy 001
                   itemParams.authHash = item.auth_hash;
                 }
 
-                _context21.next = 46;
+                _context21.next = 47;
                 return this.crypto.decryptText(itemParams, true);
 
-              case 46:
+              case 47:
                 content = _context21.sent;
 
                 if (!content) {
@@ -1078,7 +1115,7 @@ var SFItemTransformer = exports.SFItemTransformer = function () {
                   item.content = content;
                 }
 
-              case 48:
+              case 49:
               case 'end':
                 return _context21.stop();
             }
@@ -1086,7 +1123,7 @@ var SFItemTransformer = exports.SFItemTransformer = function () {
         }, _callee21, this, [[3, 11]]);
       }));
 
-      function decryptItem(_x43, _x44) {
+      function decryptItem(_x45, _x46) {
         return _ref23.apply(this, arguments);
       }
 
@@ -1161,7 +1198,7 @@ var SFItemTransformer = exports.SFItemTransformer = function () {
                     }, _callee22, _this4, [[4, 9]]);
                   }));
 
-                  return function decrypt(_x48) {
+                  return function decrypt(_x50) {
                     return _ref25.apply(this, arguments);
                   };
                 }();
@@ -1178,7 +1215,7 @@ var SFItemTransformer = exports.SFItemTransformer = function () {
         }, _callee23, this);
       }));
 
-      function decryptMultipleItems(_x45, _x46, _x47) {
+      function decryptMultipleItems(_x47, _x48, _x49) {
         return _ref24.apply(this, arguments);
       }
 
