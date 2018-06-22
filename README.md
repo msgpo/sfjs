@@ -1,3 +1,5 @@
+# SFJS
+
 SFJS is a client-side JavaScript library for [Standard File](https://standardfile.org) that handles user key generation and item encryption/decryption.
 
 This library can be used in any JavaScript environment, including web, desktop, native, and mobile (via [React Native](https://github.com/standardnotes/mobile/blob/master/src/lib/sfjs.js)).
