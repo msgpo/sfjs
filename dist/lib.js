@@ -67,8 +67,8 @@ export class SFAbstractCrypto {
     return CryptoJS.lib.WordArray.random(bits/8).toString();
   }
 
-  async generateRandomEncryptionKey() {
-    // Key length needs to be 512 in order to decrypt properly on mobile and web.
+  async generateItemEncryptionKey() {
+    // Generates a key that will be split in half, each being 256 bits. So total length will need to be 512.
     let length = 512; let cost = 1;
     var salt = await this.generateRandomKey(length);
     var passphrase = await this.generateRandomKey(length);
@@ -174,7 +174,7 @@ export class SFAbstractCrypto {
 export class SFCryptoWeb extends SFAbstractCrypto {
 
   /**
-  Internal
+  Public
   */
 
   async pbkdf2(password, pw_salt, pw_cost, length) {
@@ -185,6 +185,33 @@ export class SFCryptoWeb extends SFAbstractCrypto {
     }
 
     return this.webCryptoDeriveBits(key, pw_salt, pw_cost, length);
+  }
+
+  async generateRandomKey(bits) {
+    let extractable = true;
+    return subtleCrypto.generateKey({name: "AES-CBC", length: bits}, extractable, ["encrypt", "decrypt"]).then((keyObject) => {
+      return subtleCrypto.exportKey("raw", keyObject).then((keyData) => {
+        var key = this.arrayBufferToHexString(new Uint8Array(keyData));
+        return key;
+      })
+      .catch((err) => {
+        console.error("Error exporting key", err);
+      });
+    })
+    .catch((err) => {
+      console.error("Error generating key", err);
+    });
+  }
+
+  async generateItemEncryptionKey() {
+    // Generates a key that will be split in half, each being 256 bits. So total length will need to be 512.
+    var length = 256;
+    return Promise.all([
+      this.generateRandomKey(length),
+      this.generateRandomKey(length)
+    ]).then((values) => {
+      return values.join("");
+    });
   }
 
   /* This is a functioning implementation of WebCrypto's encrypt, however, in basic testing, CrpytoJS performs about 30-40% faster, surprisingly. */
@@ -203,6 +230,10 @@ export class SFCryptoWeb extends SFAbstractCrypto {
       return cipher;
     })
   }
+  */
+
+  /**
+  Internal
   */
 
   async webCryptoImportKey(input, alg, action) {
@@ -311,7 +342,7 @@ export class SFCryptoWeb extends SFAbstractCrypto {
   async encryptItem(item, keys, version = "003") {
     var params = {};
     // encrypt item key
-    var item_key = await this.crypto.generateRandomEncryptionKey();
+    var item_key = await this.crypto.generateItemEncryptionKey();
     if(version === "001") {
       // legacy
       params.enc_item_key = await this.crypto.encryptText(item_key, keys.mk, null);

@@ -174,7 +174,7 @@ var SFAbstractCrypto = exports.SFAbstractCrypto = function () {
       return generateRandomKey;
     }()
   }, {
-    key: 'generateRandomEncryptionKey',
+    key: 'generateItemEncryptionKey',
     value: function () {
       var _ref5 = _asyncToGenerator( /*#__PURE__*/regeneratorRuntime.mark(function _callee4() {
         var length, cost, salt, passphrase;
@@ -182,7 +182,7 @@ var SFAbstractCrypto = exports.SFAbstractCrypto = function () {
           while (1) {
             switch (_context4.prev = _context4.next) {
               case 0:
-                // Key length needs to be 512 in order to decrypt properly on mobile and web.
+                // Generates a key that will be split in half, each being 256 bits. So total length will need to be 512.
                 length = 512;
                 cost = 1;
                 _context4.next = 4;
@@ -205,11 +205,11 @@ var SFAbstractCrypto = exports.SFAbstractCrypto = function () {
         }, _callee4, this);
       }));
 
-      function generateRandomEncryptionKey() {
+      function generateItemEncryptionKey() {
         return _ref5.apply(this, arguments);
       }
 
-      return generateRandomEncryptionKey;
+      return generateItemEncryptionKey;
     }()
   }, {
     key: 'firstHalfOfKey',
@@ -597,7 +597,7 @@ var SFCryptoWeb = exports.SFCryptoWeb = function (_SFAbstractCrypto2) {
 
 
     /**
-    Internal
+    Public
     */
 
     value: function () {
@@ -638,6 +638,72 @@ var SFCryptoWeb = exports.SFCryptoWeb = function (_SFAbstractCrypto2) {
 
       return pbkdf2;
     }()
+  }, {
+    key: 'generateRandomKey',
+    value: function () {
+      var _ref19 = _asyncToGenerator( /*#__PURE__*/regeneratorRuntime.mark(function _callee17(bits) {
+        var _this3 = this;
+
+        var extractable;
+        return regeneratorRuntime.wrap(function _callee17$(_context17) {
+          while (1) {
+            switch (_context17.prev = _context17.next) {
+              case 0:
+                extractable = true;
+                return _context17.abrupt('return', subtleCrypto.generateKey({ name: "AES-CBC", length: bits }, extractable, ["encrypt", "decrypt"]).then(function (keyObject) {
+                  return subtleCrypto.exportKey("raw", keyObject).then(function (keyData) {
+                    var key = _this3.arrayBufferToHexString(new Uint8Array(keyData));
+                    return key;
+                  }).catch(function (err) {
+                    console.error("Error exporting key", err);
+                  });
+                }).catch(function (err) {
+                  console.error("Error generating key", err);
+                }));
+
+              case 2:
+              case 'end':
+                return _context17.stop();
+            }
+          }
+        }, _callee17, this);
+      }));
+
+      function generateRandomKey(_x30) {
+        return _ref19.apply(this, arguments);
+      }
+
+      return generateRandomKey;
+    }()
+  }, {
+    key: 'generateItemEncryptionKey',
+    value: function () {
+      var _ref20 = _asyncToGenerator( /*#__PURE__*/regeneratorRuntime.mark(function _callee18() {
+        var length;
+        return regeneratorRuntime.wrap(function _callee18$(_context18) {
+          while (1) {
+            switch (_context18.prev = _context18.next) {
+              case 0:
+                // Generates a key that will be split in half, each being 256 bits. So total length will need to be 512.
+                length = 256;
+                return _context18.abrupt('return', Promise.all([this.generateRandomKey(length), this.generateRandomKey(length)]).then(function (values) {
+                  return values.join("");
+                }));
+
+              case 2:
+              case 'end':
+                return _context18.stop();
+            }
+          }
+        }, _callee18, this);
+      }));
+
+      function generateItemEncryptionKey() {
+        return _ref20.apply(this, arguments);
+      }
+
+      return generateItemEncryptionKey;
+    }()
 
     /* This is a functioning implementation of WebCrypto's encrypt, however, in basic testing, CrpytoJS performs about 30-40% faster, surprisingly. */
     /*
@@ -654,17 +720,21 @@ var SFCryptoWeb = exports.SFCryptoWeb = function (_SFAbstractCrypto2) {
     }
     */
 
+    /**
+    Internal
+    */
+
   }, {
     key: 'webCryptoImportKey',
     value: function () {
-      var _ref19 = _asyncToGenerator( /*#__PURE__*/regeneratorRuntime.mark(function _callee17(input, alg, action) {
+      var _ref21 = _asyncToGenerator( /*#__PURE__*/regeneratorRuntime.mark(function _callee19(input, alg, action) {
         var text;
-        return regeneratorRuntime.wrap(function _callee17$(_context17) {
+        return regeneratorRuntime.wrap(function _callee19$(_context19) {
           while (1) {
-            switch (_context17.prev = _context17.next) {
+            switch (_context19.prev = _context19.next) {
               case 0:
                 text = typeof input === "string" ? this.stringToArrayBuffer(input) : input;
-                return _context17.abrupt('return', subtleCrypto.importKey("raw", text, { name: alg }, false, [action]).then(function (key) {
+                return _context19.abrupt('return', subtleCrypto.importKey("raw", text, { name: alg }, false, [action]).then(function (key) {
                   return key;
                 }).catch(function (err) {
                   console.error(err);
@@ -673,14 +743,14 @@ var SFCryptoWeb = exports.SFCryptoWeb = function (_SFAbstractCrypto2) {
 
               case 2:
               case 'end':
-                return _context17.stop();
+                return _context19.stop();
             }
           }
-        }, _callee17, this);
+        }, _callee19, this);
       }));
 
-      function webCryptoImportKey(_x30, _x31, _x32) {
-        return _ref19.apply(this, arguments);
+      function webCryptoImportKey(_x31, _x32, _x33) {
+        return _ref21.apply(this, arguments);
       }
 
       return webCryptoImportKey;
@@ -688,13 +758,13 @@ var SFCryptoWeb = exports.SFCryptoWeb = function (_SFAbstractCrypto2) {
   }, {
     key: 'webCryptoDeriveBits',
     value: function () {
-      var _ref20 = _asyncToGenerator( /*#__PURE__*/regeneratorRuntime.mark(function _callee18(key, pw_salt, pw_cost, length) {
-        var _this3 = this;
+      var _ref22 = _asyncToGenerator( /*#__PURE__*/regeneratorRuntime.mark(function _callee20(key, pw_salt, pw_cost, length) {
+        var _this4 = this;
 
         var params;
-        return regeneratorRuntime.wrap(function _callee18$(_context18) {
+        return regeneratorRuntime.wrap(function _callee20$(_context20) {
           while (1) {
-            switch (_context18.prev = _context18.next) {
+            switch (_context20.prev = _context20.next) {
               case 0:
                 params = {
                   "name": "PBKDF2",
@@ -702,8 +772,8 @@ var SFCryptoWeb = exports.SFCryptoWeb = function (_SFAbstractCrypto2) {
                   iterations: pw_cost,
                   hash: { name: "SHA-512" }
                 };
-                return _context18.abrupt('return', subtleCrypto.deriveBits(params, key, length).then(function (bits) {
-                  var key = _this3.arrayBufferToHexString(new Uint8Array(bits));
+                return _context20.abrupt('return', subtleCrypto.deriveBits(params, key, length).then(function (bits) {
+                  var key = _this4.arrayBufferToHexString(new Uint8Array(bits));
                   return key;
                 }).catch(function (err) {
                   console.error(err);
@@ -712,14 +782,14 @@ var SFCryptoWeb = exports.SFCryptoWeb = function (_SFAbstractCrypto2) {
 
               case 2:
               case 'end':
-                return _context18.stop();
+                return _context20.stop();
             }
           }
-        }, _callee18, this);
+        }, _callee20, this);
       }));
 
-      function webCryptoDeriveBits(_x33, _x34, _x35, _x36) {
-        return _ref20.apply(this, arguments);
+      function webCryptoDeriveBits(_x34, _x35, _x36, _x37) {
+        return _ref22.apply(this, arguments);
       }
 
       return webCryptoDeriveBits;
@@ -793,60 +863,60 @@ var SFItemTransformer = exports.SFItemTransformer = function () {
   _createClass(SFItemTransformer, [{
     key: '_private_encryptString',
     value: function () {
-      var _ref21 = _asyncToGenerator( /*#__PURE__*/regeneratorRuntime.mark(function _callee19(string, encryptionKey, authKey, uuid, version) {
+      var _ref23 = _asyncToGenerator( /*#__PURE__*/regeneratorRuntime.mark(function _callee21(string, encryptionKey, authKey, uuid, version) {
         var fullCiphertext, contentCiphertext, iv, ciphertextToAuth, authHash;
-        return regeneratorRuntime.wrap(function _callee19$(_context19) {
+        return regeneratorRuntime.wrap(function _callee21$(_context21) {
           while (1) {
-            switch (_context19.prev = _context19.next) {
+            switch (_context21.prev = _context21.next) {
               case 0:
                 if (!(version === "001")) {
-                  _context19.next = 7;
+                  _context21.next = 7;
                   break;
                 }
 
-                _context19.next = 3;
+                _context21.next = 3;
                 return this.crypto.encryptText(string, encryptionKey, null);
 
               case 3:
-                contentCiphertext = _context19.sent;
+                contentCiphertext = _context21.sent;
 
                 fullCiphertext = version + contentCiphertext;
-                _context19.next = 18;
+                _context21.next = 18;
                 break;
 
               case 7:
-                _context19.next = 9;
+                _context21.next = 9;
                 return this.crypto.generateRandomKey(128);
 
               case 9:
-                iv = _context19.sent;
-                _context19.next = 12;
+                iv = _context21.sent;
+                _context21.next = 12;
                 return this.crypto.encryptText(string, encryptionKey, iv);
 
               case 12:
-                contentCiphertext = _context19.sent;
+                contentCiphertext = _context21.sent;
                 ciphertextToAuth = [version, uuid, iv, contentCiphertext].join(":");
-                _context19.next = 16;
+                _context21.next = 16;
                 return this.crypto.hmac256(ciphertextToAuth, authKey);
 
               case 16:
-                authHash = _context19.sent;
+                authHash = _context21.sent;
 
                 fullCiphertext = [version, authHash, uuid, iv, contentCiphertext].join(":");
 
               case 18:
-                return _context19.abrupt('return', fullCiphertext);
+                return _context21.abrupt('return', fullCiphertext);
 
               case 19:
               case 'end':
-                return _context19.stop();
+                return _context21.stop();
             }
           }
-        }, _callee19, this);
+        }, _callee21, this);
       }));
 
-      function _private_encryptString(_x37, _x38, _x39, _x40, _x41) {
-        return _ref21.apply(this, arguments);
+      function _private_encryptString(_x38, _x39, _x40, _x41, _x42) {
+        return _ref23.apply(this, arguments);
       }
 
       return _private_encryptString;
@@ -854,87 +924,87 @@ var SFItemTransformer = exports.SFItemTransformer = function () {
   }, {
     key: 'encryptItem',
     value: function () {
-      var _ref22 = _asyncToGenerator( /*#__PURE__*/regeneratorRuntime.mark(function _callee20(item, keys) {
+      var _ref24 = _asyncToGenerator( /*#__PURE__*/regeneratorRuntime.mark(function _callee22(item, keys) {
         var version = arguments.length > 2 && arguments[2] !== undefined ? arguments[2] : "003";
         var params, item_key, ek, ak, ciphertext, authHash;
-        return regeneratorRuntime.wrap(function _callee20$(_context20) {
+        return regeneratorRuntime.wrap(function _callee22$(_context22) {
           while (1) {
-            switch (_context20.prev = _context20.next) {
+            switch (_context22.prev = _context22.next) {
               case 0:
                 params = {};
                 // encrypt item key
 
-                _context20.next = 3;
-                return this.crypto.generateRandomEncryptionKey();
+                _context22.next = 3;
+                return this.crypto.generateItemEncryptionKey();
 
               case 3:
-                item_key = _context20.sent;
+                item_key = _context22.sent;
 
                 if (!(version === "001")) {
-                  _context20.next = 10;
+                  _context22.next = 10;
                   break;
                 }
 
-                _context20.next = 7;
+                _context22.next = 7;
                 return this.crypto.encryptText(item_key, keys.mk, null);
 
               case 7:
-                params.enc_item_key = _context20.sent;
-                _context20.next = 13;
+                params.enc_item_key = _context22.sent;
+                _context22.next = 13;
                 break;
 
               case 10:
-                _context20.next = 12;
+                _context22.next = 12;
                 return this._private_encryptString(item_key, keys.mk, keys.ak, item.uuid, version);
 
               case 12:
-                params.enc_item_key = _context20.sent;
+                params.enc_item_key = _context22.sent;
 
               case 13:
-                _context20.next = 15;
+                _context22.next = 15;
                 return this.crypto.firstHalfOfKey(item_key);
 
               case 15:
-                ek = _context20.sent;
-                _context20.next = 18;
+                ek = _context22.sent;
+                _context22.next = 18;
                 return this.crypto.secondHalfOfKey(item_key);
 
               case 18:
-                ak = _context20.sent;
-                _context20.next = 21;
+                ak = _context22.sent;
+                _context22.next = 21;
                 return this._private_encryptString(JSON.stringify(item.createContentJSONFromProperties()), ek, ak, item.uuid, version);
 
               case 21:
-                ciphertext = _context20.sent;
+                ciphertext = _context22.sent;
 
                 if (!(version === "001")) {
-                  _context20.next = 27;
+                  _context22.next = 27;
                   break;
                 }
 
-                _context20.next = 25;
+                _context22.next = 25;
                 return this.crypto.hmac256(ciphertext, ak);
 
               case 25:
-                authHash = _context20.sent;
+                authHash = _context22.sent;
 
                 params.auth_hash = authHash;
 
               case 27:
 
                 params.content = ciphertext;
-                return _context20.abrupt('return', params);
+                return _context22.abrupt('return', params);
 
               case 29:
               case 'end':
-                return _context20.stop();
+                return _context22.stop();
             }
           }
-        }, _callee20, this);
+        }, _callee22, this);
       }));
 
-      function encryptItem(_x43, _x44) {
-        return _ref22.apply(this, arguments);
+      function encryptItem(_x44, _x45) {
+        return _ref24.apply(this, arguments);
       }
 
       return encryptItem;
@@ -970,52 +1040,52 @@ var SFItemTransformer = exports.SFItemTransformer = function () {
   }, {
     key: 'decryptItem',
     value: function () {
-      var _ref23 = _asyncToGenerator( /*#__PURE__*/regeneratorRuntime.mark(function _callee21(item, keys) {
+      var _ref25 = _asyncToGenerator( /*#__PURE__*/regeneratorRuntime.mark(function _callee23(item, keys) {
         var encryptedItemKey, requiresAuth, keyParams, item_key, ek, ak, itemParams, content;
-        return regeneratorRuntime.wrap(function _callee21$(_context21) {
+        return regeneratorRuntime.wrap(function _callee23$(_context23) {
           while (1) {
-            switch (_context21.prev = _context21.next) {
+            switch (_context23.prev = _context23.next) {
               case 0:
                 if (!(typeof item.content != "string")) {
-                  _context21.next = 2;
+                  _context23.next = 2;
                   break;
                 }
 
-                return _context21.abrupt('return');
+                return _context23.abrupt('return');
 
               case 2:
                 if (!item.content.startsWith("000")) {
-                  _context21.next = 14;
+                  _context23.next = 14;
                   break;
                 }
 
-                _context21.prev = 3;
-                _context21.t0 = JSON;
-                _context21.next = 7;
+                _context23.prev = 3;
+                _context23.t0 = JSON;
+                _context23.next = 7;
                 return this.crypto.base64Decode(item.content.substring(3, item.content.length));
 
               case 7:
-                _context21.t1 = _context21.sent;
-                item.content = _context21.t0.parse.call(_context21.t0, _context21.t1);
-                _context21.next = 13;
+                _context23.t1 = _context23.sent;
+                item.content = _context23.t0.parse.call(_context23.t0, _context23.t1);
+                _context23.next = 13;
                 break;
 
               case 11:
-                _context21.prev = 11;
-                _context21.t2 = _context21['catch'](3);
+                _context23.prev = 11;
+                _context23.t2 = _context23['catch'](3);
 
               case 13:
-                return _context21.abrupt('return');
+                return _context23.abrupt('return');
 
               case 14:
                 if (item.enc_item_key) {
-                  _context21.next = 17;
+                  _context23.next = 17;
                   break;
                 }
 
                 // This needs to be here to continue, return otherwise
                 console.log("Missing item encryption key, skipping decryption.");
-                return _context21.abrupt('return');
+                return _context23.abrupt('return');
 
               case 17:
 
@@ -1033,7 +1103,7 @@ var SFItemTransformer = exports.SFItemTransformer = function () {
                 // return if uuid in auth hash does not match item uuid. Signs of tampering.
 
                 if (!(keyParams.uuid && keyParams.uuid !== item.uuid)) {
-                  _context21.next = 26;
+                  _context23.next = 26;
                   break;
                 }
 
@@ -1042,17 +1112,17 @@ var SFItemTransformer = exports.SFItemTransformer = function () {
                   item.errorDecryptingValueChanged = true;
                 }
                 item.errorDecrypting = true;
-                return _context21.abrupt('return');
+                return _context23.abrupt('return');
 
               case 26:
-                _context21.next = 28;
+                _context23.next = 28;
                 return this.crypto.decryptText(keyParams, requiresAuth);
 
               case 28:
-                item_key = _context21.sent;
+                item_key = _context23.sent;
 
                 if (item_key) {
-                  _context21.next = 33;
+                  _context23.next = 33;
                   break;
                 }
 
@@ -1060,25 +1130,25 @@ var SFItemTransformer = exports.SFItemTransformer = function () {
                   item.errorDecryptingValueChanged = true;
                 }
                 item.errorDecrypting = true;
-                return _context21.abrupt('return');
+                return _context23.abrupt('return');
 
               case 33:
-                _context21.next = 35;
+                _context23.next = 35;
                 return this.crypto.firstHalfOfKey(item_key);
 
               case 35:
-                ek = _context21.sent;
-                _context21.next = 38;
+                ek = _context23.sent;
+                _context23.next = 38;
                 return this.crypto.secondHalfOfKey(item_key);
 
               case 38:
-                ak = _context21.sent;
+                ak = _context23.sent;
                 itemParams = this.encryptionComponentsFromString(item.content, ek, ak);
 
                 // return if uuid in auth hash does not match item uuid. Signs of tampering.
 
                 if (!(itemParams.uuid && itemParams.uuid !== item.uuid)) {
-                  _context21.next = 44;
+                  _context23.next = 44;
                   break;
                 }
 
@@ -1086,7 +1156,7 @@ var SFItemTransformer = exports.SFItemTransformer = function () {
                   item.errorDecryptingValueChanged = true;
                 }
                 item.errorDecrypting = true;
-                return _context21.abrupt('return');
+                return _context23.abrupt('return');
 
               case 44:
 
@@ -1095,11 +1165,11 @@ var SFItemTransformer = exports.SFItemTransformer = function () {
                   itemParams.authHash = item.auth_hash;
                 }
 
-                _context21.next = 47;
+                _context23.next = 47;
                 return this.crypto.decryptText(itemParams, true);
 
               case 47:
-                content = _context21.sent;
+                content = _context23.sent;
 
                 if (!content) {
                   if (!item.errorDecrypting) {
@@ -1117,14 +1187,14 @@ var SFItemTransformer = exports.SFItemTransformer = function () {
 
               case 49:
               case 'end':
-                return _context21.stop();
+                return _context23.stop();
             }
           }
-        }, _callee21, this, [[3, 11]]);
+        }, _callee23, this, [[3, 11]]);
       }));
 
-      function decryptItem(_x45, _x46) {
-        return _ref23.apply(this, arguments);
+      function decryptItem(_x46, _x47) {
+        return _ref25.apply(this, arguments);
       }
 
       return decryptItem;
@@ -1132,47 +1202,47 @@ var SFItemTransformer = exports.SFItemTransformer = function () {
   }, {
     key: 'decryptMultipleItems',
     value: function () {
-      var _ref24 = _asyncToGenerator( /*#__PURE__*/regeneratorRuntime.mark(function _callee23(items, keys, throws) {
-        var _this4 = this;
+      var _ref26 = _asyncToGenerator( /*#__PURE__*/regeneratorRuntime.mark(function _callee25(items, keys, throws) {
+        var _this5 = this;
 
         var decrypt;
-        return regeneratorRuntime.wrap(function _callee23$(_context23) {
+        return regeneratorRuntime.wrap(function _callee25$(_context25) {
           while (1) {
-            switch (_context23.prev = _context23.next) {
+            switch (_context25.prev = _context25.next) {
               case 0:
                 decrypt = function () {
-                  var _ref25 = _asyncToGenerator( /*#__PURE__*/regeneratorRuntime.mark(function _callee22(item) {
+                  var _ref27 = _asyncToGenerator( /*#__PURE__*/regeneratorRuntime.mark(function _callee24(item) {
                     var isString;
-                    return regeneratorRuntime.wrap(function _callee22$(_context22) {
+                    return regeneratorRuntime.wrap(function _callee24$(_context24) {
                       while (1) {
-                        switch (_context22.prev = _context22.next) {
+                        switch (_context24.prev = _context24.next) {
                           case 0:
                             if (!(item.deleted == true && item.content == null)) {
-                              _context22.next = 2;
+                              _context24.next = 2;
                               break;
                             }
 
-                            return _context22.abrupt('return');
+                            return _context24.abrupt('return');
 
                           case 2:
                             isString = typeof item.content === 'string' || item.content instanceof String;
 
                             if (!isString) {
-                              _context22.next = 17;
+                              _context24.next = 17;
                               break;
                             }
 
-                            _context22.prev = 4;
-                            _context22.next = 7;
-                            return _this4.decryptItem(item, keys);
+                            _context24.prev = 4;
+                            _context24.next = 7;
+                            return _this5.decryptItem(item, keys);
 
                           case 7:
-                            _context22.next = 17;
+                            _context24.next = 17;
                             break;
 
                           case 9:
-                            _context22.prev = 9;
-                            _context22.t0 = _context22['catch'](4);
+                            _context24.prev = 9;
+                            _context24.t0 = _context24['catch'](4);
 
                             if (!item.errorDecrypting) {
                               item.errorDecryptingValueChanged = true;
@@ -1180,43 +1250,43 @@ var SFItemTransformer = exports.SFItemTransformer = function () {
                             item.errorDecrypting = true;
 
                             if (!throws) {
-                              _context22.next = 15;
+                              _context24.next = 15;
                               break;
                             }
 
-                            throw _context22.t0;
+                            throw _context24.t0;
 
                           case 15:
-                            console.error("Error decrypting item", item, _context22.t0);
-                            return _context22.abrupt('return');
+                            console.error("Error decrypting item", item, _context24.t0);
+                            return _context24.abrupt('return');
 
                           case 17:
                           case 'end':
-                            return _context22.stop();
+                            return _context24.stop();
                         }
                       }
-                    }, _callee22, _this4, [[4, 9]]);
+                    }, _callee24, _this5, [[4, 9]]);
                   }));
 
-                  return function decrypt(_x50) {
-                    return _ref25.apply(this, arguments);
+                  return function decrypt(_x51) {
+                    return _ref27.apply(this, arguments);
                   };
                 }();
 
-                return _context23.abrupt('return', Promise.all(items.map(function (item) {
+                return _context25.abrupt('return', Promise.all(items.map(function (item) {
                   return decrypt(item);
                 })));
 
               case 2:
               case 'end':
-                return _context23.stop();
+                return _context25.stop();
             }
           }
-        }, _callee23, this);
+        }, _callee25, this);
       }));
 
-      function decryptMultipleItems(_x47, _x48, _x49) {
-        return _ref24.apply(this, arguments);
+      function decryptMultipleItems(_x48, _x49, _x50) {
+        return _ref26.apply(this, arguments);
       }
 
       return decryptMultipleItems;
