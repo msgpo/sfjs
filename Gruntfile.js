@@ -45,7 +45,6 @@ module.exports = function(grunt) {
     babel: {
       options: {
         sourceMap: true,
-        // presets: ['es2016']
       },
 
       dist: {
@@ -84,6 +83,5 @@ module.exports = function(grunt) {
   grunt.loadNpmTasks('grunt-browserify');
   grunt.loadNpmTasks('grunt-contrib-concat');
 
-  // grunt.registerTask('default', ['concat:lib', 'concat:vendor', 'concat:dist', 'babel']);
   grunt.registerTask('default', ['concat:lib', 'babel', 'concat:vendor', 'concat:dist', 'concat:regenerator', 'browserify']);
 };

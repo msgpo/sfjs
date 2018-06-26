@@ -2,6 +2,9 @@
   "name": "standard-file-js",
   "version": "0.3.1",
   "main": "dist/sfjs.js",
+  "scripts": {
+    "test": "mocha --require babel-register"
+  },
   "devDependencies": {
     "babel-cli": "^6.18.0",
     "babel-core": "^6.26.3",
@@ -9,7 +12,11 @@
     "babel-preset-env": "^1.1.1",
     "babel-preset-es2015": "^6.24.1",
     "babel-preset-es2016": "^6.16.0",
+    "babel-register": "^6.26.0",
     "babelify": "^8.0.0",
+    "chai": "^4.1.2",
+    "chai-as-promised": "^7.1.1",
+    "connect": "^3.6.6",
     "grunt": "^1.0.1",
     "grunt-babel": "^6.0.0",
     "grunt-browserify": "^5.0.0",
@@ -17,6 +24,9 @@
     "grunt-contrib-uglify": "^2.0.0",
     "grunt-contrib-watch": "^1.0.0",
     "grunt-newer": "^1.2.0",
-    "regenerator-runtime": "^0.11.1"
+    "mocha": "^5.2.0",
+    "regenerator-runtime": "^0.11.1",
+    "serve-static": "^1.13.2",
+    "browserify": "^16.2.2"
   }
 }

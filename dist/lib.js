@@ -505,15 +505,13 @@ export class SFCryptoWeb extends SFAbstractCrypto {
       // IE and Edge do not support pbkdf2 in WebCrypto, therefore we need to use CryptoJS
       var IEOrEdge = document.documentMode || /Edge/.test(navigator.userAgent);
 
-      if(!IEOrEdge && (window.crypto && window.crypto.subtle)) {
+      if(cryptoInstance) {
+        this.crypto = cryptoInstance;
+      } else if(!IEOrEdge && (window.crypto && window.crypto.subtle)) {
         this.crypto = new SFCryptoWeb();
       } else {
         this.crypto = new SFCryptoJS();
       }
-    }
-
-    if(cryptoInstance) {
-      this.crypto = cryptoInstance;
     }
 
     this.itemTransformer = new SFItemTransformer(this.crypto);
@@ -584,6 +582,9 @@ if(typeof window !== 'undefined' && window !== null) {
   // window is for some reason defined in React Native, but throws an exception when you try to set to it
   try {
     window.StandardFile = StandardFile;
-    window.SFJS = new StandardFile()
+    window.SFJS = new StandardFile();
+    window.SFCryptoWeb = SFCryptoWeb;
+    window.SFCryptoJS = SFCryptoJS;
+    window.SFItemTransformer = SFItemTransformer;
   } catch (e) { }
 }
