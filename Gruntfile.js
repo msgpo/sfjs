@@ -26,7 +26,8 @@ module.exports = function(grunt) {
 
       vendor: {
         src: [
-          'vendor/cryptojs/*.js'
+          'vendor/cryptojs/*.js',
+
         ],
         dest: 'dist/vendor.js',
       },
