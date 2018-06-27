@@ -4,37 +4,33 @@ import '../node_modules/chai/chai.js';
 import './vendor/chai-as-promised-built.js';
 import '../vendor/lodash/lodash.custom.js';
 
-const DefaultMapping = {
-  "Note" : Note,
-  "Tag" : Tag
-}
-ModelManager.ContentTypeClassMapping = DefaultMapping;
+SFItem.AppDomain = "org.standardnotes.sn";
 
 chai.use(chaiAsPromised);
 var expect = chai.expect;
 
-const globalModelManager = new ModelManager();
+const globalModelManager = new SFModelManager();
 const createModelManager = () => {
-  return new ModelManager();
+  return new SFModelManager();
+}
+
+const createItemParams = () => {
+  var params = {
+    uuid: SFJS.crypto.generateUUIDSync(),
+    content_type: "Note",
+    content: {
+      title: "hello",
+      text: "world"
+    }
+  };
+  return params;
+}
+
+const createItem = () => {
+  return new SFItem(createItemParams());
 }
 
 describe('app models', () => {
-
-  const getParams = () => {
-    var params = {
-      content_type: "Note",
-      content: {
-        title: "hello",
-        text: "world"
-      }
-    };
-    return params;
-  }
-
-  const createItem = () => {
-    return new Item(getParams());
-  }
-
   var createdItem;
 
   it('lodash should be defined', () => {
@@ -55,7 +51,7 @@ describe('app models', () => {
     }
 
     // merging a with b should replace total content
-    Item.deepMerge(a, b);
+    SFItem.deepMerge(a, b);
 
     expect(a.content.references).to.eql([]);
   });
@@ -65,12 +61,12 @@ describe('app models', () => {
   });
 
   it('item should be defined', () => {
-    expect(Item).to.not.be.null;
+    expect(SFItem).to.not.be.null;
   });
 
   it('item content should be assigned', () => {
-    var params = getParams();
-    var item = new Item(params);
+    var params = createItemParams();
+    var item = new SFItem(params);
     expect(item.content.title).to.equal(params.content.title);
   });
 
@@ -93,15 +89,58 @@ describe('app models', () => {
     expect(globalModelManager.items.length).to.equal(0);
   });
 
+  it('handles delayed mapping', () => {
+    let modelManager = createModelManager();
+    var params1 = createItem();
+    var params2 = createItem();
+
+    params1.content.references = [{uuid: params2.uuid, content_type: params2.content_type}];
+
+    expect(params1.content.references.length).to.equal(1);
+    expect(params2.content.references.length).to.equal(0);
+
+    modelManager.mapResponseItemsToLocalModels([params1]);
+    modelManager.mapResponseItemsToLocalModels([params2]);
+
+    var item1 = modelManager.findItem(params1.uuid);
+    var item2 = modelManager.findItem(params2.uuid);
+
+    // relatedObjects was only temporarily enabled for items to test this case.
+    // expect(item1.relatedObjects.length).to.equal(1);
+  });
+
+  it('fixes relationship integrity', () => {
+    let modelManager = createModelManager();
+    var item1 = createItem();
+    var item2 = createItem();
+
+    item1.addItemAsRelationship(item2);
+    item2.addItemAsRelationship(item1);
+
+    expect(item1.content.references.length).to.equal(1);
+    expect(item2.content.references.length).to.equal(1);
+
+    // damage references of one object
+    item1.content.references = [];
+    modelManager.mapResponseItemsToLocalModels([item1]);
+
+    expect(item1.content.references.length).to.equal(0);
+    expect(item2.content.references.length).to.equal(1);
+  });
+
   it('creating and removing relationships between two items should have valid references', () => {
     let modelManager = createModelManager();
     var item1 = createItem();
     var item2 = createItem();
-    modelManager.createRelationshipBetweenItems(item1, item2);
+    item1.addItemAsRelationship(item2);
+    item2.addItemAsRelationship(item1);
+
     expect(item1.content.references.length).to.equal(1);
     expect(item2.content.references.length).to.equal(1);
 
-    modelManager.removeRelationshipBetweenItems(item1, item2);
+    item1.removeItemAsRelationship(item2);
+    item2.removeItemAsRelationship(item1);
+
     expect(item1.content.references.length).to.equal(0);
     expect(item2.content.references.length).to.equal(0);
   });
@@ -112,7 +151,9 @@ describe('app models', () => {
     var item2 = createItem();
     modelManager.addItem(item1);
     modelManager.addItem(item2);
-    modelManager.createRelationshipBetweenItems(item1, item2);
+
+    item1.addItemAsRelationship(item2);
+    item2.addItemAsRelationship(item1);
 
     modelManager.alternateUUIDForItem(item1, (alternatedItem) => {
       expect(item1.uuid).to.not.equal(alternatedItem.uuid);
@@ -126,47 +167,39 @@ describe('app models', () => {
 
       expect(item2.hasRelationshipWithItem(alternatedItem)).to.equal(true);
       expect(alternatedItem.hasRelationshipWithItem(item2)).to.equal(true);
+
+      expect(item1.dirty).to.equal(true);
+      expect(alternatedItem.dirty).to.equal(true);
+      expect(item2.dirty).to.equal(true);
+
       done();
     })
-  });
-
-  it('creates and deletes basic relationships', () => {
-    let modelManager = createModelManager();
-    var item1 = createItem();
-    var item2 = createItem();
-    modelManager.createRelationshipBetweenItems(item1, item2);
-    expect(item1.content.references.length).to.equal(1);
-    expect(item2.content.references.length).to.equal(1);
-
-    modelManager.removeRelationshipBetweenItems(item1, item2);
-    expect(item1.content.references.length).to.equal(0);
-    expect(item2.content.references.length).to.equal(0);
   });
 });
 
 describe("model manager mapping", () => {
-  const getParams = () => {
-    var params = {
-      uuid: SFJS.crypto.generateUUIDSync(),
-      content_type: "Note",
-      content: {
-        title: "hello",
-        text: "world"
-      }
-    };
-    return params;
-  }
-
   it('mapping nonexistent item creates it', () => {
     let modelManager = createModelManager();
-    var params = getParams();
+    var params = createItemParams();
     modelManager.mapResponseItemsToLocalModels([params]);
     expect(modelManager.items.length).to.equal(1);
   });
 
+  it('mapping string content correctly parses it', () => {
+    let modelManager = createModelManager();
+    var params = createItemParams();
+    let originalTitle = params.content.title;
+    params.content = JSON.stringify(params.content);
+    modelManager.mapResponseItemsToLocalModels([params]);
+    var item = modelManager.items[0];
+    expect(params.content.title).to.not.be.a('string');
+    expect(item.content.title).to.be.a('string');
+    expect(item.content.title).to.equal(originalTitle);
+  });
+
   it('mapping nonexistent deleted item doesnt create it', () => {
     let modelManager = createModelManager();
-    var params = getParams();
+    var params = createItemParams();
     params.deleted = true;
     modelManager.mapResponseItemsToLocalModels([params]);
     expect(modelManager.items.length).to.equal(0);
@@ -174,7 +207,7 @@ describe("model manager mapping", () => {
 
   it('mapping and deleting nonexistent item creates and deletes it', () => {
     let modelManager = createModelManager();
-    var params = getParams();
+    var params = createItemParams();
     modelManager.mapResponseItemsToLocalModels([params]);
     expect(modelManager.items.length).to.equal(1);
 
@@ -185,9 +218,8 @@ describe("model manager mapping", () => {
 
   it('mapping deleted but dirty item should not delete it', () => {
     let modelManager = createModelManager();
-    var params = getParams();
+    var params = createItemParams();
     modelManager.mapResponseItemsToLocalModels([params]);
-
 
     let item = modelManager.items[0];
     item.deleted = true;
@@ -198,7 +230,7 @@ describe("model manager mapping", () => {
 
   it('mapping existing item updates its properties', () => {
     let modelManager = createModelManager();
-    var params = getParams();
+    var params = createItemParams();
     modelManager.mapResponseItemsToLocalModels([params]);
 
     var newTitle = "updated title";
@@ -208,102 +240,157 @@ describe("model manager mapping", () => {
 
     expect(item.content.title).to.equal(newTitle);
   });
+
+  it('setting an item dirty should retrieve it in dirty items', () => {
+    let modelManager = createModelManager();
+    var params = createItemParams();
+    modelManager.mapResponseItemsToLocalModels([params]);
+    let item = modelManager.items[0];
+    item.setDirty(true);
+    let dirtyItems = modelManager.getDirtyItems();
+    expect(dirtyItems.length).to.equal(1);
+  });
+
+  it('clearing dirty items should return no items', () => {
+    let modelManager = createModelManager();
+    var params = createItemParams();
+    modelManager.mapResponseItemsToLocalModels([params]);
+    let item = modelManager.items[0];
+    item.setDirty(true);
+    let dirtyItems = modelManager.getDirtyItems();
+    expect(dirtyItems.length).to.equal(1);
+
+    modelManager.clearDirtyItems(dirtyItems);
+    expect(modelManager.getDirtyItems().length).to.equal(0);
+  });
+
+  it('set all items dirty', () => {
+    let modelManager = createModelManager();
+    let count = 10;
+    var items = [];
+    for(var i = 0; i < count; i++) {
+      items.push(createItemParams());
+    }
+    modelManager.mapResponseItemsToLocalModels(items);
+    modelManager.setAllItemsDirty();
+
+    let dirtyItems = modelManager.getDirtyItems();
+    expect(dirtyItems.length).to.equal(10);
+  });
+
+  it('sync observers should be notified of changes', (done) => {
+    let modelManager = createModelManager();
+    var params = createItemParams();
+    modelManager.mapResponseItemsToLocalModels([params]);
+    let item = modelManager.items[0];
+    modelManager.addItemSyncObserver("test", "*", (items, validItems, deletedItems, source, sourceKey) => {
+      expect(items[0].uuid == item.uuid);
+      done();
+    })
+    modelManager.mapResponseItemsToLocalModels([params]);
+  });
 })
 
-describe("notes and tags", () => {
-  const getNoteParams = () => {
-    var params = {
-      uuid: SFJS.crypto.generateUUIDSync(),
-      content_type: "Note",
-      content: {
-        title: "hello",
-        text: "world"
-      }
-    };
-    return params;
-  }
-
-  const createRelatedNoteTagPair = () => {
-    let noteParams = getNoteParams();
-    let tagParams = {
-      uuid: SFJS.crypto.generateUUIDSync(),
-      content_type: "Tag",
-      content: {
-        title: "thoughts",
-      }
-    };
-    noteParams.content.references = [
-      {
-        uuid: tagParams.uuid,
-        content_type: tagParams.content_type
-      }
-    ]
-
-    tagParams.content.references = [
-      {
-        uuid: noteParams.uuid,
-        content_type: noteParams.content_type
-      }
-    ]
-
-    return [noteParams, tagParams];
-  }
-
-  it('uses proper class for note', () => {
+describe("items", () => {
+  it('item content should equal item contentObject', () => {
     let modelManager = createModelManager();
-    let noteParams = getNoteParams();
-    modelManager.mapResponseItemsToLocalModels([noteParams]);
-    let note = modelManager.allItemsMatchingTypes(["Note"])[0];
-    expect(note).to.be.an.instanceOf(Note);
+    var item1 = createItem();
+    var item2 = createItem();
+    item1.addItemAsRelationship(item2);
+    item2.addItemAsRelationship(item1);
+
+    expect(item1.content).to.equal(item1.contentObject);
+
+    item1.content.foo = "bar";
+
+    expect(item1.content).to.equal(item1.contentObject);
   });
 
-  it('creates two-way relationship between note and tag', () => {
+  it('setting an item as dirty should update its client updated at', (done) => {
     let modelManager = createModelManager();
-
-    let pair = createRelatedNoteTagPair();
-    let noteParams = pair[0];
-    let tagParams = pair[1];
-
-    expect(tagParams.content.references.length).to.equal(1);
-    expect(tagParams.content.references.length).to.equal(1);
-
-    modelManager.mapResponseItemsToLocalModels([noteParams, tagParams]);
-    let note = modelManager.allItemsMatchingTypes(["Note"])[0];
-    let tag = modelManager.allItemsMatchingTypes(["Tag"])[0];
-
-    expect(note).to.not.be.null;
-    expect(tag).to.not.be.null;
-
-    expect(note.content.references.length).to.equal(1);
-    expect(tag.content.references.length).to.equal(1);
-
-    expect(note.tags.length).to.equal(1);
-    expect(tag.notes.length).to.equal(1);
-
-    modelManager.setItemToBeDeleted(note);
-    expect(note.tags.length).to.equal(0);
-    expect(tag.notes.length).to.equal(0);
+    var params = createItemParams();
+    modelManager.mapResponseItemsToLocalModels([params]);
+    let item = modelManager.items[0];
+    var prevDate = item.client_updated_at.getTime();
+    setTimeout(function () {
+      item.setDirty(true);
+      var newDate = item.client_updated_at.getTime();
+      expect(prevDate).to.not.equal(newDate);
+      done();
+    }, 100);
   });
 
-  it('handles remote deletion of relationship', () => {
+  it('setting an item as dirty with option to skip client updated at', (done) => {
     let modelManager = createModelManager();
-
-    let pair = createRelatedNoteTagPair();
-    let noteParams = pair[0];
-    let tagParams = pair[1];
-
-    modelManager.mapResponseItemsToLocalModels([noteParams, tagParams]);
-    let note = modelManager.allItemsMatchingTypes(["Note"])[0];
-    let tag = modelManager.allItemsMatchingTypes(["Tag"])[0];
-
-    expect(note.content.references.length).to.equal(1);
-    expect(tag.content.references.length).to.equal(1);
-
-    noteParams.content.references = [];
-    modelManager.mapResponseItemsToLocalModels([noteParams]);
-
-    expect(note.content.references.length).to.equal(0);
-    expect(note.tags.length).to.equal(0);
-    expect(tag.notes.length).to.equal(0);
+    var params = createItemParams();
+    modelManager.mapResponseItemsToLocalModels([params]);
+    let item = modelManager.items[0];
+    var prevDate = item.client_updated_at.getTime();
+    setTimeout(function () {
+      item.setDirty(true, true /* dontUpdateClientDate */);
+      var newDate = item.client_updated_at.getTime();
+      expect(prevDate).to.equal(newDate);
+      done();
+    }, 100);
   });
-});
+
+  it('properly pins, archives, and locks', () => {
+    let modelManager = createModelManager();
+    var params = createItemParams();
+    modelManager.mapResponseItemsToLocalModels([params]);
+
+    let item = modelManager.items[0];
+    expect(item.pinned).to.not.be.ok;
+
+    item.setAppDataItem("pinned", true);
+    expect(item.pinned).to.equal(true);
+
+    item.setAppDataItem("archived", true);
+    expect(item.archived).to.equal(true);
+
+    item.setAppDataItem("locked", true);
+    expect(item.locked).to.equal(true);
+  });
+
+  it('properly compares item equality', () => {
+    let modelManager = createModelManager();
+    var params1 = createItemParams();
+    var params2 = createItemParams();
+    modelManager.mapResponseItemsToLocalModels([params1, params2]);
+
+    let item1 = modelManager.items[0];
+    let item2 = modelManager.items[1];
+
+    expect(item1.isItemContentEqualWith(item2)).to.equal(true);
+
+    // items should ignore this field when checking for equality
+    item1.client_updated_at = new Date();
+    item2.client_updated_at = null;
+
+    expect(item1.isItemContentEqualWith(item2)).to.equal(true);
+
+    item1.content.foo = "bar";
+
+    expect(item1.isItemContentEqualWith(item2)).to.equal(false);
+
+    item2.content.foo = "bar";
+
+    expect(item1.isItemContentEqualWith(item2)).to.equal(true);
+    expect(item2.isItemContentEqualWith(item1)).to.equal(true);
+
+    item1.addItemAsRelationship(item2);
+    item2.addItemAsRelationship(item1);
+
+    expect(item1.content.references.length).to.equal(1);
+    expect(item2.content.references.length).to.equal(1);
+
+    expect(item1.isItemContentEqualWith(item2)).to.equal(false);
+
+    item1.removeItemAsRelationship(item2);
+    item2.removeItemAsRelationship(item1);
+
+    expect(item1.isItemContentEqualWith(item2)).to.equal(true);
+    expect(item1.content.references.length).to.equal(0);
+    expect(item2.content.references.length).to.equal(0);
+  });
+})
