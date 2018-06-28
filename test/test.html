@@ -3,6 +3,12 @@
   <meta charset="utf-8">
   <title>Mocha Tests</title>
   <link href="https://cdn.rawgit.com/mochajs/mocha/2.2.5/mocha.css" rel="stylesheet" />
+  <style>
+
+  body {
+    /* background-color: rgb(195, 195, 195); */
+  }
+  </style>
 </head>
 <body>
   <div id="mocha"></div>
@@ -11,6 +17,7 @@
   <script type="module" src="crypto.test.js"></script>
   <script type="module" src="app.test.js"></script>
   <script type="module" src="sync.test.js"></script>
+  <script type="module" src="auth.test.js"></script>
   <script type="module">
     mocha.checkLeaks();
     mocha.run();

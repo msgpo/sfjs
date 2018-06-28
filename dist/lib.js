@@ -1,13 +1,177 @@
-class SFHttpManager {
+export class SFAuthManager {
+
+  constructor(storageManager, httpManager, timeout) {
+    this.httpManager = httpManager;
+    this.storageManager = storageManager;
+    this.$timeout = timeout || setTimeout.bind(window);
+  }
+
+  getAuthParamsForEmail(url, email, extraParams, callback) {
+    var requestUrl = url + "/auth/params";
+    this.httpManager.getAbsolute(requestUrl, _.merge({email: email}, extraParams), function(response){
+      callback(response);
+    }, function(response){
+      console.error("Error getting auth params", response);
+      if(typeof response !== 'object') {
+        response = {error: {message: "A server error occurred while trying to sign in. Please try again."}};
+      }
+      callback(response);
+    })
+  }
+
+  login(url, email, password, ephemeral, strictSignin, extraParams, callback) {
+    this.getAuthParamsForEmail(url, email, extraParams, (authParams) => {
+
+      // SF3 requires a unique identifier in the auth params
+      authParams.identifier = email;
+
+      if(authParams.error) {
+        callback(authParams);
+        return;
+      }
+
+      if(!authParams || !authParams.pw_cost) {
+        callback({error : {message: "Invalid email or password."}});
+        return;
+      }
+
+      if(!SFJS.supportedVersions().includes(authParams.version)) {
+        var message;
+        if(SFJS.isVersionNewerThanLibraryVersion(authParams.version)) {
+          // The user has a new account type, but is signing in to an older client.
+          message = "This version of the application does not support your newer account type. Please upgrade to the latest version of Standard Notes to sign in.";
+        } else {
+          // The user has a very old account type, which is no longer supported by this client
+          message = "The protocol version associated with your account is outdated and no longer supported by this application. Please visit standardnotes.org/help/security for more information.";
+        }
+        callback({error: {message: message}});
+        return;
+      }
+
+      if(SFJS.isProtocolVersionOutdated(authParams.version)) {
+        let message = `The encryption version for your account, ${authParams.version}, is outdated and requires upgrade. You may proceed with login, but are advised to follow prompts for Security Updates once inside. Please visit standardnotes.org/help/security for more information.\n\nClick 'OK' to proceed with login.`
+        if(!confirm(message)) {
+          callback({error: {}});
+          return;
+        }
+      }
+
+      if(!SFJS.supportsPasswordDerivationCost(authParams.pw_cost)) {
+        let message = "Your account was created on a platform with higher security capabilities than this browser supports. " +
+        "If we attempted to generate your login keys here, it would take hours. " +
+        "Please use a browser with more up to date security capabilities, like Google Chrome or Firefox, to log in."
+        callback({error: {message: message}});
+        return;
+      }
+
+      var minimum = SFJS.costMinimumForVersion(authParams.version);
+      if(authParams.pw_cost < minimum) {
+        let message = "Unable to login due to insecure password parameters. Please visit standardnotes.org/help/security for more information.";
+        callback({error: {message: message}});
+        return;
+      }
+
+      if(strictSignin) {
+        // Refuse sign in if authParams.version is anything but the latest version
+        var latestVersion = SFJS.version();
+        if(authParams.version !== latestVersion) {
+          let message = `Strict sign in refused server sign in parameters. The latest security version is ${latestVersion}, but your account is reported to have version ${authParams.version}. If you'd like to proceed with sign in anyway, please disable strict sign in and try again.`;
+          callback({error: {message: message}});
+          return;
+        }
+      }
+
+      SFJS.crypto.computeEncryptionKeysForUser(password, authParams).then((keys) => {
+        var requestUrl = url + "/auth/sign_in";
+        var params = _.merge({password: keys.pw, email: email}, extraParams);
+
+        this.httpManager.postAbsolute(requestUrl, params, (response) => {
+          this.handleAuthResponse(response, email, url, authParams, keys);
+          this.$timeout(() => callback(response, keys));
+        }, (response) => {
+          console.error("Error logging in", response);
+          if(typeof response !== 'object') {
+            response = {error: {message: "A server error occurred while trying to sign in. Please try again."}};
+          }
+          this.$timeout(() => callback(response));
+        });
+
+      });
+    })
+  }
+
+  handleAuthResponse(response, email, url, authParams, keys) {
+    if(url) { this.storageManager.setItem("server", url);}
+    this.storageManager.setItem("auth_params", JSON.stringify(authParams));
+    this.storageManager.setItem("jwt", response.token);
+    this.saveKeys(keys);
+  }
+
+  saveKeys(keys) {
+    this._keys = keys;
+    this.storageManager.setItem("mk", keys.mk);
+    this.storageManager.setItem("ak", keys.ak);
+  }
+
+  async keys() {
+    if(!this._keys) {
+      var mk = await this.storageManager.getItem("mk");
+      if(!mk) {
+        return null;
+      }
+      this._keys = {mk: mk, ak: await this.storageManager.getItem("ak")};
+    }
+    return this._keys;
+  }
+
+  register(url, email, password, ephemeral, callback) {
+    SFJS.crypto.generateInitialKeysAndAuthParamsForUser(email, password).then((results) => {
+      let keys = results.keys;
+      let authParams = results.authParams;
+
+      var requestUrl = url + "/auth";
+      var params = _.merge({password: keys.pw, email: email}, authParams);
+
+      this.httpManager.postAbsolute(requestUrl, params, (response) => {
+        this.handleAuthResponse(response, email, url, authParams, keys);
+        callback(response);
+      }, (response) => {
+        console.error("Registration error", response);
+        if(typeof response !== 'object') {
+          response = {error: {message: "A server error occurred while trying to register. Please try again."}};
+        }
+        callback(response);
+      })
+    });
+  }
+
+  async changePassword(email, current_server_pw, newKeys, newAuthParams, callback) {
+    let newServerPw = newKeys.pw;
+
+    var requestUrl = await this.storageManager.getItem("server") + "/auth/change_pw";
+    var params = _.merge({new_password: newServerPw, current_password: current_server_pw}, newAuthParams);
+
+    this.httpManager.postAbsolute(requestUrl, params, (response) => {
+      this.handleAuthResponse(response, email, null, newAuthParams, newKeys);
+      callback(response);
+    }, (response) => {
+      if(typeof response !== 'object') {
+        response = {error: {message: "Something went wrong while changing your password. Your password was not changed. Please try again."}}
+      }
+      callback(response);
+    })
+  }
+}
+;class SFHttpManager {
 
   constructor(storageManager, timeout) {
     // calling callbacks in a $timeout allows UI to update
-    this.$timeout = timeout || setTimeout;
+    this.$timeout = timeout || setTimeout.bind(window);
     this.storageManager = storageManager;
   }
 
-  setAuthHeadersForRequest(request) {
-    var token = this.storageManager.getItem("jwt");
+  async setAuthHeadersForRequest(request) {
+    var token = await this.storageManager.getItem("jwt");
     if(token) {
       request.setRequestHeader('Authorization', 'Bearer ' + token);
     }
@@ -25,7 +189,7 @@ class SFHttpManager {
     this.httpRequest("get", url, params, onsuccess, onerror);
   }
 
-  httpRequest(verb, url, params, onsuccess, onerror) {
+  async httpRequest(verb, url, params, onsuccess, onerror) {
 
     var xmlhttp = new XMLHttpRequest();
 
@@ -56,7 +220,7 @@ class SFHttpManager {
     }
 
     xmlhttp.open(verb, url, true);
-    this.setAuthHeadersForRequest(xmlhttp);
+    await this.setAuthHeadersForRequest(xmlhttp);
     xmlhttp.setRequestHeader('Content-type', 'application/json');
 
     if(verb == "post" || verb == "patch") {
@@ -468,19 +632,19 @@ export class SFStorageManager {
 
   /* Simple Key/Value Storage */
 
-  setItem(key, value, vaultKey) {
+  async setItem(key, value, vaultKey) {
 
   }
 
-  getItem(key, vault) {
+  async getItem(key, vault) {
 
   }
 
-  removeItem(key, vault) {
+  async removeItem(key, vault) {
 
   }
 
-  clear() {
+  async clear() {
     // clear only simple key/values
   }
 
@@ -488,31 +652,33 @@ export class SFStorageManager {
   Model Storage
   */
 
-  getAllModels(callback) {
+  async getAllModels() {
 
   }
 
-  saveModel(item) {
-    this.saveModels([item]);
+  async saveModel(item) {
+    return this.saveModels([item]);
   }
 
-  saveModels(items, onsuccess, onerror) {
-
-  }
-
-  deleteModel(item, callback) {
+  async saveModels(items) {
 
   }
 
-  clearAllModels(callback) {
+  async deleteModel(item) {
+
+  }
+
+  async clearAllModels() {
     // clear only models
   }
 
   /* General */
 
-  clearAllData(callback) {
-    this.clear();
-    this.clearAllModels(callback);
+  async clearAllData() {
+    return Promise.all([
+      this.clear(),
+      this.clearAllModels()
+    ])
   }
 }
 ;export class SFSyncManager {
@@ -524,15 +690,15 @@ export class SFStorageManager {
     this.storageManager = storageManager;
 
     // Allows you to et your own interval/timeout function (i.e if you're using angular and want to use $timeout)
-    this.$interval = interval || setInterval;
-    this.$timeout = timeout || setTimeout;
+    this.$interval = interval || setInterval.bind(window);
+    this.$timeout = timeout || setTimeout.bind(window);
 
     this.syncStatus = {};
     this.syncStatusObservers = [];
   }
 
-  get serverURL() {
-    return this.storageManager.getItem("server") || window._default_sf_server;
+  async getServerURL() {
+    return await this.storageManager.getItem("server") || window._default_sf_server;
   }
 
   registerSyncStatusObserver(callback) {
@@ -571,7 +737,7 @@ export class SFStorageManager {
     this.keyRequestHandler = handler;
   }
 
-  getActiveKeyInfo() {
+  async getActiveKeyInfo() {
     // keyRequestHandler is set externally by using class. It should return an object of this format:
     /*
     {
@@ -583,39 +749,8 @@ export class SFStorageManager {
     return this.keyRequestHandler();
   }
 
-  writeItemsToLocalStorage(items, offlineOnly, callback) {
-    if(items.length == 0) {
-      callback && callback();
-      return;
-    }
-
-    let info = this.getActiveKeyInfo();
-
-    Promise.all(items.map(async (item) => {
-      var itemParams = new SFItemParams(item, info.keys, info.version);
-      itemParams = await itemParams.paramsForLocalStorage();
-      if(offlineOnly) {
-        delete itemParams.dirty;
-      }
-      return itemParams;
-    })).then((params) => {
-      this.storageManager.saveModels(params, () => {
-        // on success
-        if(this.syncStatus.localError) {
-          this.syncStatus.localError = null;
-          this.syncStatusDidChange();
-        }
-        callback && callback();
-      }, (error) => {
-        // on error
-        this.syncStatus.localError = error;
-        this.syncStatusDidChange();
-      });
-    })
-  }
-
   async loadLocalItems(callback) {
-    this.storageManager.getAllModels((items) => {
+    this.storageManager.getAllModels.then((items) => {
       // break it up into chunks to make interface more responsive for large item counts
       let total = items.length;
       let iteration = 50;
@@ -645,27 +780,54 @@ export class SFStorageManager {
     })
   }
 
-  syncOffline(items, callback) {
+  async writeItemsToLocalStorage(items, offlineOnly) {
+    return new Promise(async (resolve, reject) => {
+      if(items.length == 0) {
+        resolve();
+        return;
+      }
+
+      let info = await this.getActiveKeyInfo();
+
+      Promise.all(items.map(async (item) => {
+        var itemParams = new SFItemParams(item, info.keys, info.version);
+        itemParams = await itemParams.paramsForLocalStorage();
+        if(offlineOnly) {
+          delete itemParams.dirty;
+        }
+        return itemParams;
+      })).then((params) => {
+        this.storageManager.saveModels(params).then(() => {
+          // on success
+          if(this.syncStatus.localError) {
+            this.syncStatus.localError = null;
+            this.syncStatusDidChange();
+          }
+          resolve();
+        }).catch((error) => {
+          // on error
+          console.log("Error writing items", error);
+          this.syncStatus.localError = error;
+          this.syncStatusDidChange();
+          reject();
+        });
+      })
+    })
+  }
+
+  async syncOffline(items, callback) {
     // Update all items updated_at to now
-    for(var item of items) {
-      item.updated_at = new Date();
-    }
-    this.writeItemsToLocalStorage(items, true, (responseItems) => {
+    for(var item of items) { item.updated_at = new Date(); }
+    this.writeItemsToLocalStorage(items, true).then((responseItems) => {
       // delete anything needing to be deleted
       for(var item of items) {
-        if(item.deleted) {
-          this.modelManager.removeItemLocally(item);
-        }
+        if(item.deleted) { this.modelManager.removeItemLocally(item);}
       }
 
       this.notifyEvent("sync:completed");
-
       // Required in order for modelManager to notify sync observers
       this.modelManager.didSyncModelsOffline(items);
-
-      if(callback) {
-        callback({success: true});
-      }
+      callback && callback({success: true});
     })
   }
 
@@ -684,7 +846,7 @@ export class SFStorageManager {
       for(var item of allItems) {
         item.setDirty(true);
       }
-      this.writeItemsToLocalStorage(allItems, false, callback);
+      this.writeItemsToLocalStorage(allItems, false).then(callback);
     }
 
     if(alternateUUIDs) {
@@ -716,38 +878,38 @@ export class SFStorageManager {
     }
   }
 
-  get syncURL() {
-    return this.serverURL + "/items/sync";
+  async getSyncURL() {
+    return await this.getServerURL() + "/items/sync";
   }
 
-  set syncToken(token) {
+  async setSyncToken(token) {
     this._syncToken = token;
-    this.storageManager.setItem("syncToken", token);
+    await this.storageManager.setItem("syncToken", token);
   }
 
-  get syncToken() {
+  async getSyncToken() {
     if(!this._syncToken) {
-      this._syncToken = this.storageManager.getItem("syncToken");
+      this._syncToken = await this.storageManager.getItem("syncToken");
     }
     return this._syncToken;
   }
 
-  clearSyncToken() {
-    this.storageManager.removeItem("syncToken");
+  async clearSyncToken() {
+    return this.storageManager.removeItem("syncToken");
   }
 
-  set cursorToken(token) {
+  async setCursorToken(token) {
     this._cursorToken = token;
     if(token) {
-      this.storageManager.setItem("cursorToken", token);
+      await this.storageManager.setItem("cursorToken", token);
     } else {
-      this.storageManager.removeItem("cursorToken");
+      await this.storageManager.removeItem("cursorToken");
     }
   }
 
-  get cursorToken() {
+  async getCursorToken() {
     if(!this._cursorToken) {
-      this._cursorToken = this.storageManager.getItem("cursorToken");
+      this._cursorToken = await this.storageManager.getItem("cursorToken");
     }
     return this._cursorToken;
   }
@@ -789,7 +951,11 @@ export class SFStorageManager {
   }
 
   stopCheckingIfSyncIsTakingTooLong() {
-    this.$interval.cancel(this.syncStatus.checker);
+    if(this.$interval.hasOwnProperty("cancel")) {
+      this.$interval.cancel(this.syncStatus.checker);
+    } else {
+      clearInterval(this.syncStatus.checker);
+    }
   }
 
   lockSyncing() {
@@ -829,13 +995,13 @@ export class SFStorageManager {
 
       // write to local storage nonetheless, since some users may see several second delay in server response.
       // if they close the browser before the ongoing sync request completes, local changes will be lost if we dont save here
-      this.writeItemsToLocalStorage(allDirtyItems, false, null);
+      this.writeItemsToLocalStorage(allDirtyItems, false);
 
       console.log("Sync op in progress; returning.");
       return;
     }
 
-    let info = this.getActiveKeyInfo();
+    let info = await this.getActiveKeyInfo();
 
     // we want to write all dirty items to disk only if the user is offline, or if the sync op fails
     // if the sync op succeeds, these items will be written to disk by handling the "saved_items" response from the server
@@ -900,8 +1066,8 @@ export class SFStorageManager {
       item.dirtyCount = 0;
     }
 
-    params.sync_token = this.syncToken;
-    params.cursor_token = this.cursorToken;
+    params.sync_token = await this.getSyncToken();
+    params.cursor_token = await this.getCursorToken();
 
     var onSyncCompletion = function(response) {
       this.stopCheckingIfSyncIsTakingTooLong();
@@ -919,7 +1085,7 @@ export class SFStorageManager {
       this.modelManager.clearDirtyItems(itemsToClearAsDirty);
       this.syncStatus.error = null;
 
-      this.notifyEvent("sync:updated_token", this.syncToken);
+      this.notifyEvent("sync:updated_token", await this.getSyncToken());
 
       // Filter retrieved_items to remove any items that may be in saved_items for this complete sync operation
       // When signing in, and a user requires many round trips to complete entire retrieval of data, an item may be saved
@@ -952,18 +1118,18 @@ export class SFStorageManager {
       var unsaved = response.unsaved;
       this.handleUnsavedItemsResponse(unsaved)
 
-      this.writeItemsToLocalStorage(saved, false, null);
+      await this.writeItemsToLocalStorage(saved, false);
 
       this.syncStatus.syncOpInProgress = false;
       this.syncStatus.current += subItems.length;
 
       // set the sync token at the end, so that if any errors happen above, you can resync
-      this.syncToken = response.sync_token;
-      this.cursorToken = response.cursor_token;
+      this.setSyncToken(response.sync_token);
+      this.setCursorToken(response.cursor_token);
 
       onSyncCompletion(response);
 
-      if(this.cursorToken || this.syncStatus.needsMoreSync) {
+      if(await this.getCursorToken() || this.syncStatus.needsMoreSync) {
         setTimeout(function () {
           this.sync(callback, options, "onSyncSuccess cursorToken || needsMoreSync");
         }.bind(this), 10); // wait 10ms to allow UI to update
@@ -973,7 +1139,7 @@ export class SFStorageManager {
           this.sync(callback, options, "onSyncSuccess repeatOnCompletion");
         }.bind(this), 10); // wait 10ms to allow UI to update
       } else {
-        this.writeItemsToLocalStorage(this.allRetreivedItems, false, null);
+        await this.writeItemsToLocalStorage(this.allRetreivedItems, false);
 
         // The number of changed items that constitute a major change
         // This is used by the desktop app to create backups
@@ -995,7 +1161,7 @@ export class SFStorageManager {
     }.bind(this);
 
     try {
-      this.httpManager.postAbsolute(this.syncURL, params, function(response){
+      this.httpManager.postAbsolute(await this.getSyncURL(), params, function(response){
 
         try {
           onSyncSuccess(response);
@@ -1012,7 +1178,7 @@ export class SFStorageManager {
 
         this.syncStatus.syncOpInProgress = false;
         this.syncStatus.error = error;
-        this.writeItemsToLocalStorage(allDirtyItems, false, null);
+        this.writeItemsToLocalStorage(allDirtyItems, false);
 
         onSyncCompletion(response);
 
@@ -1027,7 +1193,7 @@ export class SFStorageManager {
   }
 
   async handleItemsResponse(responseItems, omitFields, source) {
-    var keys = this.getActiveKeyInfo().keys;
+    var keys = (await this.getActiveKeyInfo()).keys;
     await SFJS.itemTransformer.decryptMultipleItems(responseItems, keys);
     var items = this.modelManager.mapResponseItemsToLocalModelsOmittingFields(responseItems, omitFields, source);
 
@@ -1041,7 +1207,7 @@ export class SFStorageManager {
       return valueChanged;
     });
     if(itemsWithErrorStatusChange.length > 0) {
-      this.writeItemsToLocalStorage(itemsWithErrorStatusChange, false, null);
+      this.writeItemsToLocalStorage(itemsWithErrorStatusChange, false);
     }
 
     return items;
@@ -1071,7 +1237,7 @@ export class SFStorageManager {
 
       var mapping = unsaved[i];
       var itemResponse = mapping.item;
-      await SFJS.itemTransformer.decryptMultipleItems([itemResponse], this.getActiveKeyInfo().keys);
+      await SFJS.itemTransformer.decryptMultipleItems([itemResponse], (await this.getActiveKeyInfo()).keys);
       var item = this.modelManager.findItem(itemResponse.uuid);
 
       if(!item) {
@@ -2108,6 +2274,7 @@ if(typeof window !== 'undefined' && window !== null) {
     window.SFHttpManager = SFHttpManager;
     window.SFStorageManager = SFStorageManager;
     window.SFSyncManager = SFSyncManager;
+    window.SFAuthManager = SFAuthManager;
   } catch (e) {
     console.log("Exception while exporting window variables", e);
   }
