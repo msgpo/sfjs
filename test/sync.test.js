@@ -8,7 +8,7 @@ import Factory from './lib/factory.js';
 chai.use(chaiAsPromised);
 var expect = chai.expect;
 
-describe("local storage manager", () => {
+describe.only("local storage manager", () => {
   before(async () => {
     await Factory.globalStorageManager().clearAllData();
   })
@@ -27,6 +27,14 @@ describe("local storage manager", () => {
     return Factory.globalStorageManager().getAllModels().then((models) => {
       expect(models.length).to.equal(1);
     })
+  })
+
+  it("should clear values", async () => {
+    var key = "foo";
+    var value = "bar";
+    await Factory.globalStorageManager().setItem(key, value);
+    await Factory.globalStorageManager().clearAllData();
+    expect(await Factory.globalStorageManager().getItem(key)).to.not.be.ok;
   })
 })
 
@@ -70,14 +78,19 @@ describe('offline syncing', () => {
   });
 });
 
-describe('online syncing', () => {
+describe.only('online syncing', () => {
+  var email = Factory.globalStandardFile().crypto.generateUUIDSync();
+  var password = Factory.globalStandardFile().crypto.generateUUIDSync();
+
   before((done) => {
     Factory.globalStorageManager().clearAllData().then(() => {
-      Factory.newRegisteredUser().then(() => {
+      Factory.newRegisteredUser(email, password).then((user) => {
+        console.log("Registered as", email);
         done();
       })
     })
   })
+
   let authManager = Factory.globalAuthManager();
   let modelManager = Factory.createModelManager();
   let syncManager = new SFSyncManager(modelManager, Factory.globalStorageManager(), Factory.globalHttpManager());
@@ -93,7 +106,7 @@ describe('online syncing', () => {
     };
   })
 
-  it("should sync basic model online", (done) => {
+  it("should register and sync basic model online", (done) => {
     var item = Factory.createItem();
     item.setDirty(true);
     modelManager.addItem(item);
@@ -109,7 +122,25 @@ describe('online syncing', () => {
         done(e);
       }
     })
+  });
 
+  it("should login and retrieve synced item", async () => {
+    // logout
+    await Factory.globalStorageManager().clearAllData();
+    await Factory.globalAuthManager().login(Factory.serverURL(), email, password, true, null);
+
+    syncManager.clearSyncToken();
+    return new Promise((resolve, reject) => {
+      syncManager.sync(async (success) => {
+        try {
+          let models = await Factory.globalStorageManager().getAllModels();
+          expect(models.length).to.equal(1);
+          resolve();
+        } catch (e) {
+          reject(e);
+        }
+      })
+    })
   });
 });
 

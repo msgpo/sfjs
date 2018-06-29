@@ -6,111 +6,10 @@ export class SFAuthManager {
     this.$timeout = timeout || setTimeout.bind(window);
   }
 
-  getAuthParamsForEmail(url, email, extraParams, callback) {
-    var requestUrl = url + "/auth/params";
-    this.httpManager.getAbsolute(requestUrl, _.merge({email: email}, extraParams), function(response){
-      callback(response);
-    }, function(response){
-      console.error("Error getting auth params", response);
-      if(typeof response !== 'object') {
-        response = {error: {message: "A server error occurred while trying to sign in. Please try again."}};
-      }
-      callback(response);
-    })
-  }
-
-  login(url, email, password, ephemeral, strictSignin, extraParams, callback) {
-    this.getAuthParamsForEmail(url, email, extraParams, (authParams) => {
-
-      // SF3 requires a unique identifier in the auth params
-      authParams.identifier = email;
-
-      if(authParams.error) {
-        callback(authParams);
-        return;
-      }
-
-      if(!authParams || !authParams.pw_cost) {
-        callback({error : {message: "Invalid email or password."}});
-        return;
-      }
-
-      if(!SFJS.supportedVersions().includes(authParams.version)) {
-        var message;
-        if(SFJS.isVersionNewerThanLibraryVersion(authParams.version)) {
-          // The user has a new account type, but is signing in to an older client.
-          message = "This version of the application does not support your newer account type. Please upgrade to the latest version of Standard Notes to sign in.";
-        } else {
-          // The user has a very old account type, which is no longer supported by this client
-          message = "The protocol version associated with your account is outdated and no longer supported by this application. Please visit standardnotes.org/help/security for more information.";
-        }
-        callback({error: {message: message}});
-        return;
-      }
-
-      if(SFJS.isProtocolVersionOutdated(authParams.version)) {
-        let message = `The encryption version for your account, ${authParams.version}, is outdated and requires upgrade. You may proceed with login, but are advised to follow prompts for Security Updates once inside. Please visit standardnotes.org/help/security for more information.\n\nClick 'OK' to proceed with login.`
-        if(!confirm(message)) {
-          callback({error: {}});
-          return;
-        }
-      }
-
-      if(!SFJS.supportsPasswordDerivationCost(authParams.pw_cost)) {
-        let message = "Your account was created on a platform with higher security capabilities than this browser supports. " +
-        "If we attempted to generate your login keys here, it would take hours. " +
-        "Please use a browser with more up to date security capabilities, like Google Chrome or Firefox, to log in."
-        callback({error: {message: message}});
-        return;
-      }
-
-      var minimum = SFJS.costMinimumForVersion(authParams.version);
-      if(authParams.pw_cost < minimum) {
-        let message = "Unable to login due to insecure password parameters. Please visit standardnotes.org/help/security for more information.";
-        callback({error: {message: message}});
-        return;
-      }
-
-      if(strictSignin) {
-        // Refuse sign in if authParams.version is anything but the latest version
-        var latestVersion = SFJS.version();
-        if(authParams.version !== latestVersion) {
-          let message = `Strict sign in refused server sign in parameters. The latest security version is ${latestVersion}, but your account is reported to have version ${authParams.version}. If you'd like to proceed with sign in anyway, please disable strict sign in and try again.`;
-          callback({error: {message: message}});
-          return;
-        }
-      }
-
-      SFJS.crypto.computeEncryptionKeysForUser(password, authParams).then((keys) => {
-        var requestUrl = url + "/auth/sign_in";
-        var params = _.merge({password: keys.pw, email: email}, extraParams);
-
-        this.httpManager.postAbsolute(requestUrl, params, (response) => {
-          this.handleAuthResponse(response, email, url, authParams, keys);
-          this.$timeout(() => callback(response, keys));
-        }, (response) => {
-          console.error("Error logging in", response);
-          if(typeof response !== 'object') {
-            response = {error: {message: "A server error occurred while trying to sign in. Please try again."}};
-          }
-          this.$timeout(() => callback(response));
-        });
-
-      });
-    })
-  }
-
-  handleAuthResponse(response, email, url, authParams, keys) {
-    if(url) { this.storageManager.setItem("server", url);}
-    this.storageManager.setItem("auth_params", JSON.stringify(authParams));
-    this.storageManager.setItem("jwt", response.token);
-    this.saveKeys(keys);
-  }
-
-  saveKeys(keys) {
+  async saveKeys(keys) {
     this._keys = keys;
-    this.storageManager.setItem("mk", keys.mk);
-    this.storageManager.setItem("ak", keys.ak);
+    await this.storageManager.setItem("mk", keys.mk);
+    await this.storageManager.setItem("ak", keys.ak);
   }
 
   async keys() {
@@ -124,8 +23,105 @@ export class SFAuthManager {
     return this._keys;
   }
 
-  register(url, email, password, ephemeral, callback) {
-    SFJS.crypto.generateInitialKeysAndAuthParamsForUser(email, password).then((results) => {
+  async getAuthParamsForEmail(url, email, extraParams) {
+    return new Promise((resolve, reject) => {
+      var requestUrl = url + "/auth/params";
+      this.httpManager.getAbsolute(requestUrl, _.merge({email: email}, extraParams), (response) => {
+        resolve(response);
+      }, (response) => {
+        console.error("Error getting auth params", response);
+        if(typeof response !== 'object') {
+          response = {error: {message: "A server error occurred while trying to sign in. Please try again."}};
+        }
+        resolve(response);
+      })
+    })
+  }
+
+  async login(url, email, password, strictSignin, extraParams) {
+    return new Promise(async (resolve, reject) => {
+      let authParams = await this.getAuthParamsForEmail(url, email, extraParams);
+
+      // SF3 requires a unique identifier in the auth params
+      authParams.identifier = email;
+
+      if(authParams.error) {
+        resolve(authParams);
+        return;
+      }
+
+      if(!authParams || !authParams.pw_cost) {
+        resolve({error : {message: "Invalid email or password."}});
+        return;
+      }
+
+      if(!SFJS.supportedVersions().includes(authParams.version)) {
+        var message;
+        if(SFJS.isVersionNewerThanLibraryVersion(authParams.version)) {
+          // The user has a new account type, but is signing in to an older client.
+          message = "This version of the application does not support your newer account type. Please upgrade to the latest version of Standard Notes to sign in.";
+        } else {
+          // The user has a very old account type, which is no longer supported by this client
+          message = "The protocol version associated with your account is outdated and no longer supported by this application. Please visit standardnotes.org/help/security for more information.";
+        }
+        resolve({error: {message: message}});
+        return;
+      }
+
+      if(SFJS.isProtocolVersionOutdated(authParams.version)) {
+        let message = `The encryption version for your account, ${authParams.version}, is outdated and requires upgrade. You may proceed with login, but are advised to follow prompts for Security Updates once inside. Please visit standardnotes.org/help/security for more information.\n\nClick 'OK' to proceed with login.`
+        if(!confirm(message)) {
+          resolve({error: {}});
+          return;
+        }
+      }
+
+      if(!SFJS.supportsPasswordDerivationCost(authParams.pw_cost)) {
+        let message = "Your account was created on a platform with higher security capabilities than this browser supports. " +
+        "If we attempted to generate your login keys here, it would take hours. " +
+        "Please use a browser with more up to date security capabilities, like Google Chrome or Firefox, to log in."
+        resolve({error: {message: message}});
+        return;
+      }
+
+      var minimum = SFJS.costMinimumForVersion(authParams.version);
+      if(authParams.pw_cost < minimum) {
+        let message = "Unable to login due to insecure password parameters. Please visit standardnotes.org/help/security for more information.";
+        resolve({error: {message: message}});
+        return;
+      }
+
+      if(strictSignin) {
+        // Refuse sign in if authParams.version is anything but the latest version
+        var latestVersion = SFJS.version();
+        if(authParams.version !== latestVersion) {
+          let message = `Strict sign in refused server sign in parameters. The latest security version is ${latestVersion}, but your account is reported to have version ${authParams.version}. If you'd like to proceed with sign in anyway, please disable strict sign in and try again.`;
+          resolve({error: {message: message}});
+          return;
+        }
+      }
+
+      let keys = await SFJS.crypto.computeEncryptionKeysForUser(password, authParams);
+
+      var requestUrl = url + "/auth/sign_in";
+      var params = _.merge({password: keys.pw, email: email}, extraParams);
+
+      this.httpManager.postAbsolute(requestUrl, params, (response) => {
+        this.handleAuthResponse(response, email, url, authParams, keys);
+        this.$timeout(() => resolve(response));
+      }, (response) => {
+        console.error("Error logging in", response);
+        if(typeof response !== 'object') {
+          response = {error: {message: "A server error occurred while trying to sign in. Please try again."}};
+        }
+        this.$timeout(() => resolve(response));
+      });
+    });
+  }
+
+  register(url, email, password) {
+    return new Promise(async (resolve, reject) => {
+      let results = await SFJS.crypto.generateInitialKeysAndAuthParamsForUser(email, password);
       let keys = results.keys;
       let authParams = results.authParams;
 
@@ -134,32 +130,41 @@ export class SFAuthManager {
 
       this.httpManager.postAbsolute(requestUrl, params, (response) => {
         this.handleAuthResponse(response, email, url, authParams, keys);
-        callback(response);
+        resolve(response);
       }, (response) => {
         console.error("Registration error", response);
         if(typeof response !== 'object') {
           response = {error: {message: "A server error occurred while trying to register. Please try again."}};
         }
-        callback(response);
+        resolve(response);
       })
     });
   }
 
-  async changePassword(email, current_server_pw, newKeys, newAuthParams, callback) {
-    let newServerPw = newKeys.pw;
+  async changePassword(email, current_server_pw, newKeys, newAuthParams) {
+    return new Promise(async (resolve, reject) => {
+      let newServerPw = newKeys.pw;
 
-    var requestUrl = await this.storageManager.getItem("server") + "/auth/change_pw";
-    var params = _.merge({new_password: newServerPw, current_password: current_server_pw}, newAuthParams);
+      var requestUrl = await this.storageManager.getItem("server") + "/auth/change_pw";
+      var params = _.merge({new_password: newServerPw, current_password: current_server_pw}, newAuthParams);
 
-    this.httpManager.postAbsolute(requestUrl, params, (response) => {
-      this.handleAuthResponse(response, email, null, newAuthParams, newKeys);
-      callback(response);
-    }, (response) => {
-      if(typeof response !== 'object') {
-        response = {error: {message: "Something went wrong while changing your password. Your password was not changed. Please try again."}}
-      }
-      callback(response);
-    })
+      this.httpManager.postAbsolute(requestUrl, params, (response) => {
+        this.handleAuthResponse(response, email, null, newAuthParams, newKeys);
+        resolve(response);
+      }, (response) => {
+        if(typeof response !== 'object') {
+          response = {error: {message: "Something went wrong while changing your password. Your password was not changed. Please try again."}}
+        }
+        resolve(response);
+      })
+    });
+  }
+
+  async handleAuthResponse(response, email, url, authParams, keys) {
+    if(url) { await this.storageManager.setItem("server", url);}
+    await this.storageManager.setItem("auth_params", JSON.stringify(authParams));
+    await this.storageManager.setItem("jwt", response.token);
+    this.saveKeys(keys);
   }
 }
 ;class SFHttpManager {
@@ -895,7 +900,10 @@ export class SFStorageManager {
   }
 
   async clearSyncToken() {
+    this._syncToken = null;
+    this._cursorToken = null;
     return this.storageManager.removeItem("syncToken");
+
   }
 
   async setCursorToken(token) {

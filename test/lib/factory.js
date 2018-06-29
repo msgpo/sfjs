@@ -68,13 +68,15 @@ export default class Factory {
     return new SFItem(this.createItemParams());
   }
 
-  static async newRegisteredUser() {
-    let url = "http://localhost:3000";
-    let email = sf_default.crypto.generateUUIDSync();
-    let password = sf_default.crypto.generateUUIDSync();
-    return new Promise((resolve, reject) => {
-      this.globalAuthManager().register(url, email, password, false, resolve);
-    })
+  static serverURL() {
+    return "http://localhost:3000";
+  }
+
+  static async newRegisteredUser(email, password) {
+    let url = this.serverURL();
+    if(!email) email = sf_default.crypto.generateUUIDSync();
+    if(!password) password = sf_default.crypto.generateUUIDSync();
+    return this.globalAuthManager().register(url, email, password, false);
   }
 }
 
