@@ -29,7 +29,7 @@ export default class LocalStorageManager extends SFStorageManager {
     var models = [];
     for(var key in localStorage) {
       if(key.startsWith("item-")) {
-        models.push(localStorage[key])
+        models.push(JSON.parse(localStorage[key]))
       }
     }
     return models;
@@ -41,7 +41,7 @@ export default class LocalStorageManager extends SFStorageManager {
 
   async saveModels(items) {
     return Promise.all(items.map((item) => {
-      return this.setItem(`item-${item.uuid}`, item)
+      return this.setItem(`item-${item.uuid}`, JSON.stringify(item));
     }))
   }
 

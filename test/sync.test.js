@@ -135,7 +135,6 @@ describe.only('online syncing', () => {
   });
 
   it("should handle sync conflicts by duplicating differing data", async () => {
-    console.log("Currnet item count before handling conflicts:", totalItemCount);
     // create an item and sync it
     var item = Factory.createItem();
     item.setDirty(true);
@@ -165,7 +164,6 @@ describe.only('online syncing', () => {
       return expect(syncManager.sync()).to.be.fulfilled.then(async (response) => {
         expect(response).to.be.ok;
         let models = await Factory.globalStorageManager().getAllModels();
-        console.log("Expecting");
         expect(models.length).to.equal(totalItemCount);
       })
     })
@@ -232,6 +230,17 @@ describe.only('online syncing', () => {
       expect(models.length).to.equal(totalItemCount);
     })
   }).timeout(15000);
+
+  it("load local items", async () => {
+    let localModelManager = Factory.createModelManager();
+    let localSyncManager = new SFSyncManager(localModelManager, Factory.globalStorageManager(), Factory.globalHttpManager());
+    localSyncManager.setKeyRequestHandler(syncManager.keyRequestHandler);
+    localSyncManager.setEventHandler(syncManager.eventHandler);
+    expect(localModelManager.allItems.length).to.equal(0);
+
+    await localSyncManager.loadLocalItems();
+    expect(localModelManager.allItems.length).to.equal(totalItemCount);
+  });
 });
 
 describe('sync params', () => {

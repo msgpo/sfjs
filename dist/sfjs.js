@@ -1792,14 +1792,14 @@ var SFSyncManager = exports.SFSyncManager = function () {
   }, {
     key: "loadLocalItems",
     value: function () {
-      var _ref26 = _asyncToGenerator( /*#__PURE__*/regeneratorRuntime.mark(function _callee27(callback) {
+      var _ref26 = _asyncToGenerator( /*#__PURE__*/regeneratorRuntime.mark(function _callee27() {
         var _this7 = this;
 
         return regeneratorRuntime.wrap(function _callee27$(_context27) {
           while (1) {
             switch (_context27.prev = _context27.next) {
               case 0:
-                this.storageManager.getAllModels.then(function (items) {
+                return _context27.abrupt("return", this.storageManager.getAllModels().then(function (items) {
                   // break it up into chunks to make interface more responsive for large item counts
                   var total = items.length;
                   var iteration = 50;
@@ -1829,15 +1829,18 @@ var SFSyncManager = exports.SFSyncManager = function () {
 
                               current += subitems.length;
 
-                              if (current < total) {
-                                _this7.$timeout(function () {
-                                  decryptNext();
-                                });
-                              } else {
-                                completion();
+                              if (!(current < total)) {
+                                _context26.next = 8;
+                                break;
                               }
 
-                            case 7:
+                              return _context26.abrupt("return", new Promise(function (innerResolve, innerReject) {
+                                _this7.$timeout(function () {
+                                  decryptNext().then(innerResolve);
+                                });
+                              }));
+
+                            case 8:
                             case "end":
                               return _context26.stop();
                           }
@@ -1850,8 +1853,8 @@ var SFSyncManager = exports.SFSyncManager = function () {
                     };
                   }();
 
-                  decryptNext();
-                });
+                  return decryptNext();
+                }));
 
               case 1:
               case "end":
@@ -1861,7 +1864,7 @@ var SFSyncManager = exports.SFSyncManager = function () {
         }, _callee27, this);
       }));
 
-      function loadLocalItems(_x50) {
+      function loadLocalItems() {
         return _ref26.apply(this, arguments);
       }
 
@@ -1927,7 +1930,7 @@ var SFSyncManager = exports.SFSyncManager = function () {
                                 }, _callee28, _this8);
                               }));
 
-                              return function (_x55) {
+                              return function (_x54) {
                                 return _ref30.apply(this, arguments);
                               };
                             }())).then(function (params) {
@@ -1955,7 +1958,7 @@ var SFSyncManager = exports.SFSyncManager = function () {
                     }, _callee29, _this8);
                   }));
 
-                  return function (_x53, _x54) {
+                  return function (_x52, _x53) {
                     return _ref29.apply(this, arguments);
                   };
                 }()));
@@ -1968,7 +1971,7 @@ var SFSyncManager = exports.SFSyncManager = function () {
         }, _callee30, this);
       }));
 
-      function writeItemsToLocalStorage(_x51, _x52) {
+      function writeItemsToLocalStorage(_x50, _x51) {
         return _ref28.apply(this, arguments);
       }
 
@@ -2071,7 +2074,7 @@ var SFSyncManager = exports.SFSyncManager = function () {
         }, _callee31, this, [[3, 7, 11, 19], [12,, 14, 18]]);
       }));
 
-      function syncOffline(_x56) {
+      function syncOffline(_x55) {
         return _ref31.apply(this, arguments);
       }
 
@@ -2169,7 +2172,6 @@ var SFSyncManager = exports.SFSyncManager = function () {
 
                 for (_iterator14 = allItems[Symbol.iterator](); !(_iteratorNormalCompletion14 = (_step14 = _iterator14.next()).done); _iteratorNormalCompletion14 = true) {
                   item = _step14.value;
-
                   item.setDirty(true);
                 }
                 _context32.next = 40;
@@ -2216,7 +2218,7 @@ var SFSyncManager = exports.SFSyncManager = function () {
         }, _callee32, this, [[5, 16, 20, 28], [21,, 23, 27], [32, 36, 40, 48], [41,, 43, 47]]);
       }));
 
-      function markAllItemsDirtyAndSaveOffline(_x57) {
+      function markAllItemsDirtyAndSaveOffline(_x56) {
         return _ref32.apply(this, arguments);
       }
 
@@ -2271,7 +2273,7 @@ var SFSyncManager = exports.SFSyncManager = function () {
         }, _callee34, this);
       }));
 
-      function setSyncToken(_x58) {
+      function setSyncToken(_x57) {
         return _ref34.apply(this, arguments);
       }
 
@@ -2373,7 +2375,7 @@ var SFSyncManager = exports.SFSyncManager = function () {
         }, _callee37, this);
       }));
 
-      function setCursorToken(_x59) {
+      function setCursorToken(_x58) {
         return _ref37.apply(this, arguments);
       }
 
@@ -2710,7 +2712,7 @@ var SFSyncManager = exports.SFSyncManager = function () {
                     }, _callee39, _this10, [[37, 41, 45, 53], [46,, 48, 52], [59, 70]]);
                   }));
 
-                  return function (_x61, _x62) {
+                  return function (_x60, _x61) {
                     return _ref40.apply(this, arguments);
                   };
                 }()));
@@ -2763,7 +2765,7 @@ var SFSyncManager = exports.SFSyncManager = function () {
         }, _callee41, this);
       }));
 
-      function handleSyncError(_x63, _x64, _x65) {
+      function handleSyncError(_x62, _x63, _x64) {
         return _ref41.apply(this, arguments);
       }
 
@@ -2970,7 +2972,7 @@ var SFSyncManager = exports.SFSyncManager = function () {
         }, _callee42, this, [[4, 8, 12, 20], [13,, 15, 19]]);
       }));
 
-      function handleSyncSuccess(_x66, _x67, _x68) {
+      function handleSyncSuccess(_x65, _x66, _x67) {
         return _ref42.apply(this, arguments);
       }
 
@@ -3021,7 +3023,7 @@ var SFSyncManager = exports.SFSyncManager = function () {
         }, _callee43, this);
       }));
 
-      function handleItemsResponse(_x69, _x70, _x71) {
+      function handleItemsResponse(_x68, _x69, _x70) {
         return _ref43.apply(this, arguments);
       }
 
@@ -3175,7 +3177,7 @@ var SFSyncManager = exports.SFSyncManager = function () {
         }, _callee44, this, [[6, 33, 37, 45], [38,, 40, 44]]);
       }));
 
-      function handleUnsavedItemsResponse(_x72) {
+      function handleUnsavedItemsResponse(_x71) {
         return _ref44.apply(this, arguments);
       }
 
@@ -3665,7 +3667,7 @@ var SFItemParams = exports.SFItemParams = function () {
         }, _callee45, this);
       }));
 
-      function paramsForExportFile(_x74) {
+      function paramsForExportFile(_x73) {
         return _ref45.apply(this, arguments);
       }
 
@@ -3978,7 +3980,7 @@ var SFAbstractCrypto = exports.SFAbstractCrypto = function () {
         }, _callee51, this);
       }));
 
-      function encryptText(_x76, _x77, _x78) {
+      function encryptText(_x75, _x76, _x77) {
         return _ref52.apply(this, arguments);
       }
 
@@ -4002,7 +4004,7 @@ var SFAbstractCrypto = exports.SFAbstractCrypto = function () {
         }, _callee52, this);
       }));
 
-      function generateRandomKey(_x79) {
+      function generateRandomKey(_x78) {
         return _ref53.apply(this, arguments);
       }
 
@@ -4064,7 +4066,7 @@ var SFAbstractCrypto = exports.SFAbstractCrypto = function () {
         }, _callee54, this);
       }));
 
-      function firstHalfOfKey(_x80) {
+      function firstHalfOfKey(_x79) {
         return _ref55.apply(this, arguments);
       }
 
@@ -4088,7 +4090,7 @@ var SFAbstractCrypto = exports.SFAbstractCrypto = function () {
         }, _callee55, this);
       }));
 
-      function secondHalfOfKey(_x81) {
+      function secondHalfOfKey(_x80) {
         return _ref56.apply(this, arguments);
       }
 
@@ -4112,7 +4114,7 @@ var SFAbstractCrypto = exports.SFAbstractCrypto = function () {
         }, _callee56, this);
       }));
 
-      function base64(_x82) {
+      function base64(_x81) {
         return _ref57.apply(this, arguments);
       }
 
@@ -4136,7 +4138,7 @@ var SFAbstractCrypto = exports.SFAbstractCrypto = function () {
         }, _callee57, this);
       }));
 
-      function base64Decode(_x83) {
+      function base64Decode(_x82) {
         return _ref58.apply(this, arguments);
       }
 
@@ -4160,7 +4162,7 @@ var SFAbstractCrypto = exports.SFAbstractCrypto = function () {
         }, _callee58, this);
       }));
 
-      function sha256(_x84) {
+      function sha256(_x83) {
         return _ref59.apply(this, arguments);
       }
 
@@ -4188,7 +4190,7 @@ var SFAbstractCrypto = exports.SFAbstractCrypto = function () {
         }, _callee59, this);
       }));
 
-      function hmac256(_x85, _x86) {
+      function hmac256(_x84, _x85) {
         return _ref60.apply(this, arguments);
       }
 
@@ -4218,7 +4220,7 @@ var SFAbstractCrypto = exports.SFAbstractCrypto = function () {
         }, _callee60, this);
       }));
 
-      function generateSalt(_x87, _x88, _x89, _x90) {
+      function generateSalt(_x86, _x87, _x88, _x89) {
         return _ref61.apply(this, arguments);
       }
 
@@ -4316,7 +4318,7 @@ var SFAbstractCrypto = exports.SFAbstractCrypto = function () {
         }, _callee62, this);
       }));
 
-      function computeEncryptionKeysForUser(_x92, _x93) {
+      function computeEncryptionKeysForUser(_x91, _x92) {
         return _ref64.apply(this, arguments);
       }
 
@@ -4360,7 +4362,7 @@ var SFAbstractCrypto = exports.SFAbstractCrypto = function () {
         }, _callee63, this);
       }));
 
-      function generateInitialKeysAndAuthParamsForUser(_x94, _x95) {
+      function generateInitialKeysAndAuthParamsForUser(_x93, _x94) {
         return _ref65.apply(this, arguments);
       }
 
@@ -4405,7 +4407,7 @@ var SFCryptoJS = exports.SFCryptoJS = function (_SFAbstractCrypto) {
         }, _callee64, this);
       }));
 
-      function pbkdf2(_x96, _x97, _x98, _x99) {
+      function pbkdf2(_x95, _x96, _x97, _x98) {
         return _ref66.apply(this, arguments);
       }
 
@@ -4467,7 +4469,7 @@ var SFCryptoWeb = exports.SFCryptoWeb = function (_SFAbstractCrypto2) {
         }, _callee65, this);
       }));
 
-      function pbkdf2(_x100, _x101, _x102, _x103) {
+      function pbkdf2(_x99, _x100, _x101, _x102) {
         return _ref67.apply(this, arguments);
       }
 
@@ -4504,7 +4506,7 @@ var SFCryptoWeb = exports.SFCryptoWeb = function (_SFAbstractCrypto2) {
         }, _callee66, this);
       }));
 
-      function generateRandomKey(_x104) {
+      function generateRandomKey(_x103) {
         return _ref68.apply(this, arguments);
       }
 
@@ -4584,7 +4586,7 @@ var SFCryptoWeb = exports.SFCryptoWeb = function (_SFAbstractCrypto2) {
         }, _callee68, this);
       }));
 
-      function webCryptoImportKey(_x105, _x106, _x107) {
+      function webCryptoImportKey(_x104, _x105, _x106) {
         return _ref70.apply(this, arguments);
       }
 
@@ -4623,7 +4625,7 @@ var SFCryptoWeb = exports.SFCryptoWeb = function (_SFAbstractCrypto2) {
         }, _callee69, this);
       }));
 
-      function webCryptoDeriveBits(_x108, _x109, _x110, _x111) {
+      function webCryptoDeriveBits(_x107, _x108, _x109, _x110) {
         return _ref71.apply(this, arguments);
       }
 
@@ -4750,7 +4752,7 @@ var SFItemTransformer = exports.SFItemTransformer = function () {
         }, _callee70, this);
       }));
 
-      function _private_encryptString(_x112, _x113, _x114, _x115, _x116) {
+      function _private_encryptString(_x111, _x112, _x113, _x114, _x115) {
         return _ref72.apply(this, arguments);
       }
 
@@ -4838,7 +4840,7 @@ var SFItemTransformer = exports.SFItemTransformer = function () {
         }, _callee71, this);
       }));
 
-      function encryptItem(_x118, _x119) {
+      function encryptItem(_x117, _x118) {
         return _ref73.apply(this, arguments);
       }
 
@@ -5028,7 +5030,7 @@ var SFItemTransformer = exports.SFItemTransformer = function () {
         }, _callee72, this, [[3, 11]]);
       }));
 
-      function decryptItem(_x120, _x121) {
+      function decryptItem(_x119, _x120) {
         return _ref74.apply(this, arguments);
       }
 
@@ -5103,7 +5105,7 @@ var SFItemTransformer = exports.SFItemTransformer = function () {
                     }, _callee73, _this16, [[4, 9]]);
                   }));
 
-                  return function decrypt(_x125) {
+                  return function decrypt(_x124) {
                     return _ref76.apply(this, arguments);
                   };
                 }();
@@ -5120,7 +5122,7 @@ var SFItemTransformer = exports.SFItemTransformer = function () {
         }, _callee74, this);
       }));
 
-      function decryptMultipleItems(_x122, _x123, _x124) {
+      function decryptMultipleItems(_x121, _x122, _x123) {
         return _ref75.apply(this, arguments);
       }
 

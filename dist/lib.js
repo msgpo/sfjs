@@ -755,8 +755,8 @@ export class SFStorageManager {
     return this.keyRequestHandler();
   }
 
-  async loadLocalItems(callback) {
-    this.storageManager.getAllModels.then((items) => {
+  async loadLocalItems() {
+    return this.storageManager.getAllModels().then((items) => {
       // break it up into chunks to make interface more responsive for large item counts
       let total = items.length;
       let iteration = 50;
@@ -776,13 +776,15 @@ export class SFStorageManager {
         current += subitems.length;
 
         if(current < total) {
-          this.$timeout(() => { decryptNext(); });
-        } else {
-          completion();
+          return new Promise((innerResolve, innerReject) => {
+            this.$timeout(() => {
+              decryptNext().then(innerResolve);
+            });
+          });
         }
       }
 
-      decryptNext();
+      return decryptNext();
     })
   }
 
@@ -861,9 +863,7 @@ export class SFStorageManager {
     }
 
     var allItems = this.modelManager.allItems;
-    for(var item of allItems) {
-      item.setDirty(true);
-    }
+    for(var item of allItems) { item.setDirty(true); }
     return this.writeItemsToLocalStorage(allItems, false);
   }
 
