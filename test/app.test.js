@@ -145,7 +145,7 @@ describe('app models', () => {
     expect(item2.content.references.length).to.equal(0);
   });
 
-  it('properly handles uuid alternation', (done) => {
+  it('properly handles uuid alternation', () => {
     let modelManager = createModelManager();
     var item1 = createItem();
     var item2 = createItem();
@@ -155,7 +155,8 @@ describe('app models', () => {
     item1.addItemAsRelationship(item2);
     item2.addItemAsRelationship(item1);
 
-    modelManager.alternateUUIDForItem(item1, (alternatedItem) => {
+    return expect(modelManager.alternateUUIDForItem(item1)).to.be.fulfilled.then(async (alternatedItem) => {
+
       expect(item1.uuid).to.not.equal(alternatedItem.uuid);
 
       expect(item1.content.references.length).to.equal(0);
@@ -171,8 +172,6 @@ describe('app models', () => {
       expect(item1.dirty).to.equal(true);
       expect(alternatedItem.dirty).to.equal(true);
       expect(item2.dirty).to.equal(true);
-
-      done();
     })
   });
 });

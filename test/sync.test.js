@@ -8,7 +8,7 @@ import Factory from './lib/factory.js';
 chai.use(chaiAsPromised);
 var expect = chai.expect;
 
-describe.only("local storage manager", () => {
+describe("local storage manager", () => {
   before(async () => {
     await Factory.globalStorageManager().clearAllData();
   })
@@ -63,7 +63,7 @@ describe('offline syncing', () => {
     Factory.globalStorageManager().getAllModels().then((models) => {
       expect(models.length).to.equal(0);
 
-      syncManager.sync((success) => {
+      syncManager.sync().then(() => {
         try {
           expect(modelManager.getDirtyItems().length).to.equal(0);
           Factory.globalStorageManager().getAllModels().then((models) => {
@@ -81,11 +81,11 @@ describe('offline syncing', () => {
 describe.only('online syncing', () => {
   var email = Factory.globalStandardFile().crypto.generateUUIDSync();
   var password = Factory.globalStandardFile().crypto.generateUUIDSync();
+  var totalItemCount = 0;
 
   before((done) => {
     Factory.globalStorageManager().clearAllData().then(() => {
       Factory.newRegisteredUser(email, password).then((user) => {
-        console.log("Registered as", email);
         done();
       })
     })
@@ -106,45 +106,133 @@ describe.only('online syncing', () => {
     };
   })
 
-  it("should register and sync basic model online", (done) => {
+  it("should register and sync basic model online", () => {
     var item = Factory.createItem();
     item.setDirty(true);
     modelManager.addItem(item);
 
-    syncManager.sync((success) => {
-      try {
-        expect(modelManager.getDirtyItems().length).to.equal(0);
-        Factory.globalStorageManager().getAllModels().then((models) => {
-          expect(models.length).to.equal(1);
-          done();
-        });
-      } catch (e) {
-        done(e);
-      }
-    })
+    totalItemCount++;
+
+    return expect(syncManager.sync()).to.be.fulfilled.then(async (response) => {
+      expect(response).to.be.ok;
+      expect(modelManager.getDirtyItems().length).to.equal(0);
+      let models = await Factory.globalStorageManager().getAllModels();
+      expect(models.length).to.equal(totalItemCount);
+    });
   });
 
   it("should login and retrieve synced item", async () => {
     // logout
+    syncManager.clearSyncToken();
     await Factory.globalStorageManager().clearAllData();
     await Factory.globalAuthManager().login(Factory.serverURL(), email, password, true, null);
 
-    syncManager.clearSyncToken();
-    return new Promise((resolve, reject) => {
-      syncManager.sync(async (success) => {
-        try {
-          let models = await Factory.globalStorageManager().getAllModels();
-          expect(models.length).to.equal(1);
-          resolve();
-        } catch (e) {
-          reject(e);
-        }
-      })
+    return expect(syncManager.sync()).to.be.fulfilled.then(async (response) => {
+      expect(response).to.be.ok;
+      let models = await Factory.globalStorageManager().getAllModels();
+      expect(models.length).to.equal(totalItemCount);
     })
   });
+
+  it("should handle sync conflicts by duplicating differing data", async () => {
+    console.log("Currnet item count before handling conflicts:", totalItemCount);
+    // create an item and sync it
+    var item = Factory.createItem();
+    item.setDirty(true);
+    modelManager.addItem(item);
+    await syncManager.sync();
+    totalItemCount++;
+
+    let models = await Factory.globalStorageManager().getAllModels();
+    expect(models.length).to.equal(totalItemCount);
+
+    // modify this item to have different values
+    item.content.title = `${Math.random()}`;
+    item.setDirty(true);
+
+    // We expect this item to be duplicated
+    totalItemCount++;
+
+    // clear sync token so that all items are retrieved on next sync
+    syncManager.clearSyncToken();
+
+    // wait about 1s, which is the value the dev server will ignore conflicting changes
+    return expect(new Promise((resolve, reject) => {
+      setTimeout(function () {
+        resolve();
+      }, 1100);
+    })).to.be.fulfilled.then(async () => {
+      return expect(syncManager.sync()).to.be.fulfilled.then(async (response) => {
+        expect(response).to.be.ok;
+        let models = await Factory.globalStorageManager().getAllModels();
+        console.log("Expecting");
+        expect(models.length).to.equal(totalItemCount);
+      })
+    })
+  }).timeout(5000);
+
+  it("should handle sync conflicts by not duplicating same data", async () => {
+    // create an item and sync it
+    var item = Factory.createItem();
+    totalItemCount++;
+    item.setDirty(true);
+    modelManager.addItem(item);
+    await syncManager.sync();
+
+    // keep item as is and set dirty
+    item.setDirty(true);
+
+    // clear sync token so that all items are retrieved on next sync
+    syncManager.clearSyncToken();
+
+    // wait about 1s, which is the value the dev server will ignore conflicting changes
+    return expect(new Promise((resolve, reject) => {
+      setTimeout(function () {
+        resolve();
+      }, 1100);
+    })).to.be.fulfilled.then(async () => {
+      return expect(syncManager.sync()).to.be.fulfilled.then(async (response) => {
+        expect(response).to.be.ok;
+        let models = await Factory.globalStorageManager().getAllModels();
+        expect(models.length).to.equal(totalItemCount);
+      })
+    })
+  }).timeout(5000);
+
+  let largeItemCount = 300;
+
+  it("should handle syncing pagination", async () => {
+    for(var i = 0; i < largeItemCount; i++) {
+      var item = Factory.createItem();
+      item.setDirty(true);
+      modelManager.addItem(item);
+    }
+
+    totalItemCount += largeItemCount;
+
+    return expect(syncManager.sync()).to.be.fulfilled.then(async (response) => {
+      expect(response).to.be.ok;
+      let models = await Factory.globalStorageManager().getAllModels();
+      expect(models.length).to.equal(totalItemCount);
+    })
+  }).timeout(15000);
+
+  it("should sign in and retrieve large number of items", async () => {
+    // logout
+    syncManager.clearSyncToken();
+    await Factory.globalStorageManager().clearAllData();
+    await Factory.globalAuthManager().login(Factory.serverURL(), email, password, true, null);
+
+    let models = await Factory.globalStorageManager().getAllModels();
+    expect(models.length).to.equal(0);
+
+    return expect(syncManager.sync()).to.be.fulfilled.then(async (response) => {
+      expect(response).to.be.ok;
+      let models = await Factory.globalStorageManager().getAllModels();
+      expect(models.length).to.equal(totalItemCount);
+    })
+  }).timeout(15000);
 });
-
-
 
 describe('sync params', () => {
 
