@@ -78,7 +78,7 @@ describe('offline syncing', () => {
   });
 });
 
-describe.only('online syncing', () => {
+describe('online syncing', () => {
   var email = Factory.globalStandardFile().crypto.generateUUIDSync();
   var password = Factory.globalStandardFile().crypto.generateUUIDSync();
   var totalItemCount = 0;

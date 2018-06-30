@@ -1065,6 +1065,7 @@ var SFModelManager = exports.SFModelManager = function () {
           var referencedItem = this.findItem(reference.uuid);
           if (referencedItem) {
             item.addItemAsRelationship(referencedItem);
+            referencedItem.setIsBeingReferencedBy(item);
             if (markReferencesDirty) {
               referencedItem.setDirty(true);
             }
@@ -1151,6 +1152,7 @@ var SFModelManager = exports.SFModelManager = function () {
     key: "setItemToBeDeleted",
     value: function setItemToBeDeleted(item) {
       item.deleted = true;
+
       if (!item.dummy) {
         item.setDirty(true);
       }
@@ -1160,6 +1162,7 @@ var SFModelManager = exports.SFModelManager = function () {
   }, {
     key: "removeAndDirtyAllRelationshipsForItem",
     value: function removeAndDirtyAllRelationshipsForItem(item) {
+      // Handle direct relationships
       var _iteratorNormalCompletion9 = true;
       var _didIteratorError9 = false;
       var _iteratorError9 = undefined;
@@ -1177,6 +1180,8 @@ var SFModelManager = exports.SFModelManager = function () {
             }
           }
         }
+
+        // Handle indirect relationships
       } catch (err) {
         _didIteratorError9 = true;
         _iteratorError9 = err;
@@ -1191,26 +1196,17 @@ var SFModelManager = exports.SFModelManager = function () {
           }
         }
       }
-    }
-
-    /* Used when changing encryption key */
-
-  }, {
-    key: "setAllItemsDirty",
-    value: function setAllItemsDirty() {
-      var dontUpdateClientDates = arguments.length > 0 && arguments[0] !== undefined ? arguments[0] : true;
-
-      var relevantItems = this.allItems;
 
       var _iteratorNormalCompletion10 = true;
       var _didIteratorError10 = false;
       var _iteratorError10 = undefined;
 
       try {
-        for (var _iterator10 = relevantItems[Symbol.iterator](), _step10; !(_iteratorNormalCompletion10 = (_step10 = _iterator10.next()).done); _iteratorNormalCompletion10 = true) {
-          var item = _step10.value;
+        for (var _iterator10 = item.referencingObjects[Symbol.iterator](), _step10; !(_iteratorNormalCompletion10 = (_step10 = _iterator10.next()).done); _iteratorNormalCompletion10 = true) {
+          var object = _step10.value;
 
-          item.setDirty(true, dontUpdateClientDates);
+          object.removeItemAsRelationship(item);
+          object.setDirty(true);
         }
       } catch (err) {
         _didIteratorError10 = true;
@@ -1223,6 +1219,43 @@ var SFModelManager = exports.SFModelManager = function () {
         } finally {
           if (_didIteratorError10) {
             throw _iteratorError10;
+          }
+        }
+      }
+
+      item.referencingObjects = [];
+    }
+
+    /* Used when changing encryption key */
+
+  }, {
+    key: "setAllItemsDirty",
+    value: function setAllItemsDirty() {
+      var dontUpdateClientDates = arguments.length > 0 && arguments[0] !== undefined ? arguments[0] : true;
+
+      var relevantItems = this.allItems;
+
+      var _iteratorNormalCompletion11 = true;
+      var _didIteratorError11 = false;
+      var _iteratorError11 = undefined;
+
+      try {
+        for (var _iterator11 = relevantItems[Symbol.iterator](), _step11; !(_iteratorNormalCompletion11 = (_step11 = _iterator11.next()).done); _iteratorNormalCompletion11 = true) {
+          var item = _step11.value;
+
+          item.setDirty(true, dontUpdateClientDates);
+        }
+      } catch (err) {
+        _didIteratorError11 = true;
+        _iteratorError11 = err;
+      } finally {
+        try {
+          if (!_iteratorNormalCompletion11 && _iterator11.return) {
+            _iterator11.return();
+          }
+        } finally {
+          if (_didIteratorError11) {
+            throw _iteratorError11;
           }
         }
       }
@@ -1870,19 +1903,19 @@ var SFSyncManager = exports.SFSyncManager = function () {
       var _ref31 = _asyncToGenerator( /*#__PURE__*/regeneratorRuntime.mark(function _callee31(items) {
         var _this9 = this;
 
-        var _iteratorNormalCompletion11, _didIteratorError11, _iteratorError11, _iterator11, _step11, item;
+        var _iteratorNormalCompletion12, _didIteratorError12, _iteratorError12, _iterator12, _step12, item;
 
         return regeneratorRuntime.wrap(function _callee31$(_context31) {
           while (1) {
             switch (_context31.prev = _context31.next) {
               case 0:
                 // Update all items updated_at to now
-                _iteratorNormalCompletion11 = true;
-                _didIteratorError11 = false;
-                _iteratorError11 = undefined;
+                _iteratorNormalCompletion12 = true;
+                _didIteratorError12 = false;
+                _iteratorError12 = undefined;
                 _context31.prev = 3;
-                for (_iterator11 = items[Symbol.iterator](); !(_iteratorNormalCompletion11 = (_step11 = _iterator11.next()).done); _iteratorNormalCompletion11 = true) {
-                  item = _step11.value;
+                for (_iterator12 = items[Symbol.iterator](); !(_iteratorNormalCompletion12 = (_step12 = _iterator12.next()).done); _iteratorNormalCompletion12 = true) {
+                  item = _step12.value;
                   item.updated_at = new Date();
                 }
                 _context31.next = 11;
@@ -1891,26 +1924,26 @@ var SFSyncManager = exports.SFSyncManager = function () {
               case 7:
                 _context31.prev = 7;
                 _context31.t0 = _context31["catch"](3);
-                _didIteratorError11 = true;
-                _iteratorError11 = _context31.t0;
+                _didIteratorError12 = true;
+                _iteratorError12 = _context31.t0;
 
               case 11:
                 _context31.prev = 11;
                 _context31.prev = 12;
 
-                if (!_iteratorNormalCompletion11 && _iterator11.return) {
-                  _iterator11.return();
+                if (!_iteratorNormalCompletion12 && _iterator12.return) {
+                  _iterator12.return();
                 }
 
               case 14:
                 _context31.prev = 14;
 
-                if (!_didIteratorError11) {
+                if (!_didIteratorError12) {
                   _context31.next = 17;
                   break;
                 }
 
-                throw _iteratorError11;
+                throw _iteratorError12;
 
               case 17:
                 return _context31.finish(14);
@@ -1921,29 +1954,29 @@ var SFSyncManager = exports.SFSyncManager = function () {
               case 19:
                 return _context31.abrupt("return", this.writeItemsToLocalStorage(items, true).then(function (responseItems) {
                   // delete anything needing to be deleted
-                  var _iteratorNormalCompletion12 = true;
-                  var _didIteratorError12 = false;
-                  var _iteratorError12 = undefined;
+                  var _iteratorNormalCompletion13 = true;
+                  var _didIteratorError13 = false;
+                  var _iteratorError13 = undefined;
 
                   try {
-                    for (var _iterator12 = items[Symbol.iterator](), _step12; !(_iteratorNormalCompletion12 = (_step12 = _iterator12.next()).done); _iteratorNormalCompletion12 = true) {
-                      var item = _step12.value;
+                    for (var _iterator13 = items[Symbol.iterator](), _step13; !(_iteratorNormalCompletion13 = (_step13 = _iterator13.next()).done); _iteratorNormalCompletion13 = true) {
+                      var item = _step13.value;
 
                       if (item.deleted) {
                         _this9.modelManager.removeItemLocally(item);
                       }
                     }
                   } catch (err) {
-                    _didIteratorError12 = true;
-                    _iteratorError12 = err;
+                    _didIteratorError13 = true;
+                    _iteratorError13 = err;
                   } finally {
                     try {
-                      if (!_iteratorNormalCompletion12 && _iterator12.return) {
-                        _iterator12.return();
+                      if (!_iteratorNormalCompletion13 && _iterator13.return) {
+                        _iterator13.return();
                       }
                     } finally {
-                      if (_didIteratorError12) {
-                        throw _iteratorError12;
+                      if (_didIteratorError13) {
+                        throw _iteratorError13;
                       }
                     }
                   }
@@ -1978,7 +2011,7 @@ var SFSyncManager = exports.SFSyncManager = function () {
     key: "markAllItemsDirtyAndSaveOffline",
     value: function () {
       var _ref32 = _asyncToGenerator( /*#__PURE__*/regeneratorRuntime.mark(function _callee32(alternateUUIDs) {
-        var originalItems, _iteratorNormalCompletion13, _didIteratorError13, _iteratorError13, _iterator13, _step13, item, allItems, _iteratorNormalCompletion14, _didIteratorError14, _iteratorError14, _iterator14, _step14;
+        var originalItems, _iteratorNormalCompletion14, _didIteratorError14, _iteratorError14, _iterator14, _step14, item, allItems, _iteratorNormalCompletion15, _didIteratorError15, _iteratorError15, _iterator15, _step15;
 
         return regeneratorRuntime.wrap(function _callee32$(_context32) {
           while (1) {
@@ -1995,24 +2028,24 @@ var SFSyncManager = exports.SFSyncManager = function () {
                   break;
                 }
 
-                _iteratorNormalCompletion13 = true;
-                _didIteratorError13 = false;
-                _iteratorError13 = undefined;
+                _iteratorNormalCompletion14 = true;
+                _didIteratorError14 = false;
+                _iteratorError14 = undefined;
                 _context32.prev = 5;
-                _iterator13 = originalItems[Symbol.iterator]();
+                _iterator14 = originalItems[Symbol.iterator]();
 
               case 7:
-                if (_iteratorNormalCompletion13 = (_step13 = _iterator13.next()).done) {
+                if (_iteratorNormalCompletion14 = (_step14 = _iterator14.next()).done) {
                   _context32.next = 14;
                   break;
                 }
 
-                item = _step13.value;
+                item = _step14.value;
                 _context32.next = 11;
                 return this.modelManager.alternateUUIDForItem(item);
 
               case 11:
-                _iteratorNormalCompletion13 = true;
+                _iteratorNormalCompletion14 = true;
                 _context32.next = 7;
                 break;
 
@@ -2023,26 +2056,26 @@ var SFSyncManager = exports.SFSyncManager = function () {
               case 16:
                 _context32.prev = 16;
                 _context32.t0 = _context32["catch"](5);
-                _didIteratorError13 = true;
-                _iteratorError13 = _context32.t0;
+                _didIteratorError14 = true;
+                _iteratorError14 = _context32.t0;
 
               case 20:
                 _context32.prev = 20;
                 _context32.prev = 21;
 
-                if (!_iteratorNormalCompletion13 && _iterator13.return) {
-                  _iterator13.return();
+                if (!_iteratorNormalCompletion14 && _iterator14.return) {
+                  _iterator14.return();
                 }
 
               case 23:
                 _context32.prev = 23;
 
-                if (!_didIteratorError13) {
+                if (!_didIteratorError14) {
                   _context32.next = 26;
                   break;
                 }
 
-                throw _iteratorError13;
+                throw _iteratorError14;
 
               case 26:
                 return _context32.finish(23);
@@ -2052,13 +2085,13 @@ var SFSyncManager = exports.SFSyncManager = function () {
 
               case 28:
                 allItems = this.modelManager.allItems;
-                _iteratorNormalCompletion14 = true;
-                _didIteratorError14 = false;
-                _iteratorError14 = undefined;
+                _iteratorNormalCompletion15 = true;
+                _didIteratorError15 = false;
+                _iteratorError15 = undefined;
                 _context32.prev = 32;
 
-                for (_iterator14 = allItems[Symbol.iterator](); !(_iteratorNormalCompletion14 = (_step14 = _iterator14.next()).done); _iteratorNormalCompletion14 = true) {
-                  item = _step14.value;
+                for (_iterator15 = allItems[Symbol.iterator](); !(_iteratorNormalCompletion15 = (_step15 = _iterator15.next()).done); _iteratorNormalCompletion15 = true) {
+                  item = _step15.value;
                   item.setDirty(true);
                 }
                 _context32.next = 40;
@@ -2067,26 +2100,26 @@ var SFSyncManager = exports.SFSyncManager = function () {
               case 36:
                 _context32.prev = 36;
                 _context32.t1 = _context32["catch"](32);
-                _didIteratorError14 = true;
-                _iteratorError14 = _context32.t1;
+                _didIteratorError15 = true;
+                _iteratorError15 = _context32.t1;
 
               case 40:
                 _context32.prev = 40;
                 _context32.prev = 41;
 
-                if (!_iteratorNormalCompletion14 && _iterator14.return) {
-                  _iterator14.return();
+                if (!_iteratorNormalCompletion15 && _iterator15.return) {
+                  _iterator15.return();
                 }
 
               case 43:
                 _context32.prev = 43;
 
-                if (!_didIteratorError14) {
+                if (!_didIteratorError15) {
                   _context32.next = 46;
                   break;
                 }
 
-                throw _iteratorError14;
+                throw _iteratorError15;
 
               case 46:
                 return _context32.finish(43);
@@ -2314,27 +2347,27 @@ var SFSyncManager = exports.SFSyncManager = function () {
     value: function callQueuedCallbacks(response) {
       var allCallbacks = this.queuedCallbacks;
       if (allCallbacks.length) {
-        var _iteratorNormalCompletion15 = true;
-        var _didIteratorError15 = false;
-        var _iteratorError15 = undefined;
+        var _iteratorNormalCompletion16 = true;
+        var _didIteratorError16 = false;
+        var _iteratorError16 = undefined;
 
         try {
-          for (var _iterator15 = allCallbacks[Symbol.iterator](), _step15; !(_iteratorNormalCompletion15 = (_step15 = _iterator15.next()).done); _iteratorNormalCompletion15 = true) {
-            var eachCallback = _step15.value;
+          for (var _iterator16 = allCallbacks[Symbol.iterator](), _step16; !(_iteratorNormalCompletion16 = (_step16 = _iterator16.next()).done); _iteratorNormalCompletion16 = true) {
+            var eachCallback = _step16.value;
 
             eachCallback(response);
           }
         } catch (err) {
-          _didIteratorError15 = true;
-          _iteratorError15 = err;
+          _didIteratorError16 = true;
+          _iteratorError16 = err;
         } finally {
           try {
-            if (!_iteratorNormalCompletion15 && _iterator15.return) {
-              _iterator15.return();
+            if (!_iteratorNormalCompletion16 && _iterator16.return) {
+              _iterator16.return();
             }
           } finally {
-            if (_didIteratorError15) {
-              throw _iteratorError15;
+            if (_didIteratorError16) {
+              throw _iteratorError16;
             }
           }
         }
@@ -2387,7 +2420,7 @@ var SFSyncManager = exports.SFSyncManager = function () {
               case 0:
                 return _context40.abrupt("return", new Promise(function () {
                   var _ref40 = _asyncToGenerator( /*#__PURE__*/regeneratorRuntime.mark(function _callee39(resolve, reject) {
-                    var allDirtyItems, info, isContinuationSync, submitLimit, subItems, params, _iteratorNormalCompletion16, _didIteratorError16, _iteratorError16, _iterator16, _step16, item;
+                    var allDirtyItems, info, isContinuationSync, submitLimit, subItems, params, _iteratorNormalCompletion17, _didIteratorError17, _iteratorError17, _iterator17, _step17, item;
 
                     return regeneratorRuntime.wrap(function _callee39$(_context39) {
                       while (1) {
@@ -2497,14 +2530,14 @@ var SFSyncManager = exports.SFSyncManager = function () {
                             });
 
                           case 34:
-                            _iteratorNormalCompletion16 = true;
-                            _didIteratorError16 = false;
-                            _iteratorError16 = undefined;
+                            _iteratorNormalCompletion17 = true;
+                            _didIteratorError17 = false;
+                            _iteratorError17 = undefined;
                             _context39.prev = 37;
 
 
-                            for (_iterator16 = subItems[Symbol.iterator](); !(_iteratorNormalCompletion16 = (_step16 = _iterator16.next()).done); _iteratorNormalCompletion16 = true) {
-                              item = _step16.value;
+                            for (_iterator17 = subItems[Symbol.iterator](); !(_iteratorNormalCompletion17 = (_step17 = _iterator17.next()).done); _iteratorNormalCompletion17 = true) {
+                              item = _step17.value;
 
                               // Reset dirty counter to 0, since we're about to sync it.
                               // This means anyone marking the item as dirty after this will cause it so sync again and not be cleared on sync completion.
@@ -2517,26 +2550,26 @@ var SFSyncManager = exports.SFSyncManager = function () {
                           case 41:
                             _context39.prev = 41;
                             _context39.t0 = _context39["catch"](37);
-                            _didIteratorError16 = true;
-                            _iteratorError16 = _context39.t0;
+                            _didIteratorError17 = true;
+                            _iteratorError17 = _context39.t0;
 
                           case 45:
                             _context39.prev = 45;
                             _context39.prev = 46;
 
-                            if (!_iteratorNormalCompletion16 && _iterator16.return) {
-                              _iterator16.return();
+                            if (!_iteratorNormalCompletion17 && _iterator17.return) {
+                              _iterator17.return();
                             }
 
                           case 48:
                             _context39.prev = 48;
 
-                            if (!_didIteratorError16) {
+                            if (!_didIteratorError17) {
                               _context39.next = 51;
                               break;
                             }
 
-                            throw _iteratorError16;
+                            throw _iteratorError17;
 
                           case 51:
                             return _context39.finish(48);
@@ -2664,7 +2697,7 @@ var SFSyncManager = exports.SFSyncManager = function () {
       var _ref42 = _asyncToGenerator( /*#__PURE__*/regeneratorRuntime.mark(function _callee42(syncedItems, response, options) {
         var _this11 = this;
 
-        var itemsToClearAsDirty, _iteratorNormalCompletion17, _didIteratorError17, _iteratorError17, _iterator17, _step17, item, allSavedUUIDs, retrieved, omitFields, saved, unsaved, majorDataChangeThreshold;
+        var itemsToClearAsDirty, _iteratorNormalCompletion18, _didIteratorError18, _iteratorError18, _iterator18, _step18, item, allSavedUUIDs, retrieved, omitFields, saved, unsaved, majorDataChangeThreshold;
 
         return regeneratorRuntime.wrap(function _callee42$(_context42) {
           while (1) {
@@ -2672,13 +2705,13 @@ var SFSyncManager = exports.SFSyncManager = function () {
               case 0:
                 // Check to make sure any subItem hasn't been marked as dirty again while a sync was ongoing
                 itemsToClearAsDirty = [];
-                _iteratorNormalCompletion17 = true;
-                _didIteratorError17 = false;
-                _iteratorError17 = undefined;
+                _iteratorNormalCompletion18 = true;
+                _didIteratorError18 = false;
+                _iteratorError18 = undefined;
                 _context42.prev = 4;
 
-                for (_iterator17 = syncedItems[Symbol.iterator](); !(_iteratorNormalCompletion17 = (_step17 = _iterator17.next()).done); _iteratorNormalCompletion17 = true) {
-                  item = _step17.value;
+                for (_iterator18 = syncedItems[Symbol.iterator](); !(_iteratorNormalCompletion18 = (_step18 = _iterator18.next()).done); _iteratorNormalCompletion18 = true) {
+                  item = _step18.value;
 
                   if (item.dirtyCount == 0) {
                     // Safe to clear as dirty
@@ -2691,26 +2724,26 @@ var SFSyncManager = exports.SFSyncManager = function () {
               case 8:
                 _context42.prev = 8;
                 _context42.t0 = _context42["catch"](4);
-                _didIteratorError17 = true;
-                _iteratorError17 = _context42.t0;
+                _didIteratorError18 = true;
+                _iteratorError18 = _context42.t0;
 
               case 12:
                 _context42.prev = 12;
                 _context42.prev = 13;
 
-                if (!_iteratorNormalCompletion17 && _iterator17.return) {
-                  _iterator17.return();
+                if (!_iteratorNormalCompletion18 && _iterator18.return) {
+                  _iterator18.return();
                 }
 
               case 15:
                 _context42.prev = 15;
 
-                if (!_didIteratorError17) {
+                if (!_didIteratorError18) {
                   _context42.next = 18;
                   break;
                 }
 
-                throw _iteratorError17;
+                throw _iteratorError18;
 
               case 18:
                 return _context42.finish(15);
@@ -2930,7 +2963,7 @@ var SFSyncManager = exports.SFSyncManager = function () {
     key: "handleUnsavedItemsResponse",
     value: function () {
       var _ref44 = _asyncToGenerator( /*#__PURE__*/regeneratorRuntime.mark(function _callee44(unsaved) {
-        var _iteratorNormalCompletion18, _didIteratorError18, _iteratorError18, _iterator18, _step18, mapping, itemResponse, item, error, dup;
+        var _iteratorNormalCompletion19, _didIteratorError19, _iteratorError19, _iterator19, _step19, mapping, itemResponse, item, error, dup;
 
         return regeneratorRuntime.wrap(function _callee44$(_context44) {
           while (1) {
@@ -2947,19 +2980,19 @@ var SFSyncManager = exports.SFSyncManager = function () {
 
                 console.log("Handle Conflicted Items:", unsaved);
 
-                _iteratorNormalCompletion18 = true;
-                _didIteratorError18 = false;
-                _iteratorError18 = undefined;
+                _iteratorNormalCompletion19 = true;
+                _didIteratorError19 = false;
+                _iteratorError19 = undefined;
                 _context44.prev = 6;
-                _iterator18 = unsaved[Symbol.iterator]();
+                _iterator19 = unsaved[Symbol.iterator]();
 
               case 8:
-                if (_iteratorNormalCompletion18 = (_step18 = _iterator18.next()).done) {
+                if (_iteratorNormalCompletion19 = (_step19 = _iterator19.next()).done) {
                   _context44.next = 31;
                   break;
                 }
 
-                mapping = _step18.value;
+                mapping = _step19.value;
                 itemResponse = mapping.item;
                 _context44.t0 = SFJS.itemTransformer;
                 _context44.t1 = [itemResponse];
@@ -3014,7 +3047,7 @@ var SFSyncManager = exports.SFSyncManager = function () {
                 }
 
               case 28:
-                _iteratorNormalCompletion18 = true;
+                _iteratorNormalCompletion19 = true;
                 _context44.next = 8;
                 break;
 
@@ -3025,26 +3058,26 @@ var SFSyncManager = exports.SFSyncManager = function () {
               case 33:
                 _context44.prev = 33;
                 _context44.t3 = _context44["catch"](6);
-                _didIteratorError18 = true;
-                _iteratorError18 = _context44.t3;
+                _didIteratorError19 = true;
+                _iteratorError19 = _context44.t3;
 
               case 37:
                 _context44.prev = 37;
                 _context44.prev = 38;
 
-                if (!_iteratorNormalCompletion18 && _iterator18.return) {
-                  _iterator18.return();
+                if (!_iteratorNormalCompletion19 && _iterator19.return) {
+                  _iterator19.return();
                 }
 
               case 40:
                 _context44.prev = 40;
 
-                if (!_didIteratorError18) {
+                if (!_didIteratorError19) {
                   _context44.next = 43;
                   break;
                 }
 
-                throw _iteratorError18;
+                throw _iteratorError19;
 
               case 43:
                 return _context44.finish(40);
@@ -3093,6 +3126,7 @@ var SFItem = exports.SFItem = function () {
 
     this.appData = {};
     this.content = {};
+    this.referencingObjects = [];
     this.updateFromJSON(json_obj);
 
     if (!this.uuid) {
@@ -3110,11 +3144,15 @@ var SFItem = exports.SFItem = function () {
       // Manually merge top level data instead of wholesale merge
       this.created_at = json.created_at;
       this.updated_at = json.updated_at;
-      this.content_type = json.content_type;
       this.deleted = json.deleted;
       this.uuid = json.uuid;
       this.enc_item_key = json.enc_item_key;
       this.auth_hash = json.auth_hash;
+
+      // Check if object has getter for content_type, and if so, skip
+      if (!this.content_type) {
+        this.content_type = json.content_type;
+      }
 
       // this.content = json.content will copy it by reference rather than value. So we need to do a deep merge after.
       // json.content can still be a string here. We copy it to this.content, then do a deep merge to transfer over all values.
@@ -3226,6 +3264,19 @@ var SFItem = exports.SFItem = function () {
       });
       this.content.references = references;
     }
+
+    // When another object has a relationship with us, we push that object into memory here.
+    // We use this so that when `this` is deleted, we're able to update the references of those other objects.
+    // For example, a Note has a one way relationship with a Tag. If a Tag is deleted, we want to update
+    // the Note's references to remove the tag relationship.
+
+  }, {
+    key: "setIsBeingReferencedBy",
+    value: function setIsBeingReferencedBy(item) {
+      if (!_.find(this.referencingObjects), { uuid: item.uuid }) {
+        this.referencingObjects.push(item);
+      }
+    }
   }, {
     key: "hasRelationshipWithItem",
     value: function hasRelationshipWithItem(item) {
@@ -3246,29 +3297,29 @@ var SFItem = exports.SFItem = function () {
     key: "potentialItemOfInterestHasChangedItsUUID",
     value: function potentialItemOfInterestHasChangedItsUUID(newItem, oldUUID, newUUID) {
       // optional override
-      var _iteratorNormalCompletion19 = true;
-      var _didIteratorError19 = false;
-      var _iteratorError19 = undefined;
+      var _iteratorNormalCompletion20 = true;
+      var _didIteratorError20 = false;
+      var _iteratorError20 = undefined;
 
       try {
-        for (var _iterator19 = this.content.references[Symbol.iterator](), _step19; !(_iteratorNormalCompletion19 = (_step19 = _iterator19.next()).done); _iteratorNormalCompletion19 = true) {
-          var reference = _step19.value;
+        for (var _iterator20 = this.content.references[Symbol.iterator](), _step20; !(_iteratorNormalCompletion20 = (_step20 = _iterator20.next()).done); _iteratorNormalCompletion20 = true) {
+          var reference = _step20.value;
 
           if (reference.uuid == oldUUID) {
             reference.uuid = newUUID;
           }
         }
       } catch (err) {
-        _didIteratorError19 = true;
-        _iteratorError19 = err;
+        _didIteratorError20 = true;
+        _iteratorError20 = err;
       } finally {
         try {
-          if (!_iteratorNormalCompletion19 && _iterator19.return) {
-            _iterator19.return();
+          if (!_iteratorNormalCompletion20 && _iterator20.return) {
+            _iterator20.return();
           }
         } finally {
-          if (_didIteratorError19) {
-            throw _iteratorError19;
+          if (_didIteratorError20) {
+            throw _iteratorError20;
           }
         }
       }
@@ -3353,27 +3404,27 @@ var SFItem = exports.SFItem = function () {
         if (!obj) {
           return obj;
         }
-        var _iteratorNormalCompletion20 = true;
-        var _didIteratorError20 = false;
-        var _iteratorError20 = undefined;
+        var _iteratorNormalCompletion21 = true;
+        var _didIteratorError21 = false;
+        var _iteratorError21 = undefined;
 
         try {
-          for (var _iterator20 = keys[Symbol.iterator](), _step20; !(_iteratorNormalCompletion20 = (_step20 = _iterator20.next()).done); _iteratorNormalCompletion20 = true) {
-            var key = _step20.value;
+          for (var _iterator21 = keys[Symbol.iterator](), _step21; !(_iteratorNormalCompletion21 = (_step21 = _iterator21.next()).done); _iteratorNormalCompletion21 = true) {
+            var key = _step21.value;
 
             delete obj[key];
           }
         } catch (err) {
-          _didIteratorError20 = true;
-          _iteratorError20 = err;
+          _didIteratorError21 = true;
+          _iteratorError21 = err;
         } finally {
           try {
-            if (!_iteratorNormalCompletion20 && _iterator20.return) {
-              _iterator20.return();
+            if (!_iteratorNormalCompletion21 && _iterator21.return) {
+              _iterator21.return();
             }
           } finally {
-            if (_didIteratorError20) {
-              throw _iteratorError20;
+            if (_didIteratorError21) {
+              throw _iteratorError21;
             }
           }
         }

@@ -518,6 +518,7 @@ export class SFAuthManager {
       var referencedItem = this.findItem(reference.uuid);
       if(referencedItem) {
         item.addItemAsRelationship(referencedItem);
+        referencedItem.setIsBeingReferencedBy(item);
         if(markReferencesDirty) {
           referencedItem.setDirty(true);
         }
@@ -561,14 +562,14 @@ export class SFAuthManager {
 
   setItemToBeDeleted(item) {
     item.deleted = true;
-    if(!item.dummy) {
-      item.setDirty(true);
-    }
+
+    if(!item.dummy) { item.setDirty(true); }
 
     this.removeAndDirtyAllRelationshipsForItem(item);
   }
 
   removeAndDirtyAllRelationshipsForItem(item) {
+    // Handle direct relationships
     for(var reference of item.content.references) {
       var relationship = this.findItem(reference.uuid);
       if(relationship) {
@@ -579,6 +580,14 @@ export class SFAuthManager {
         }
       }
     }
+
+    // Handle indirect relationships
+    for(var object of item.referencingObjects) {
+      object.removeItemAsRelationship(item);
+      object.setDirty(true);
+    }
+
+    item.referencingObjects = [];
   }
 
   /* Used when changing encryption key */
@@ -1258,6 +1267,7 @@ export class SFItem {
   constructor(json_obj = {}) {
     this.appData = {};
     this.content = {};
+    this.referencingObjects = [];
     this.updateFromJSON(json_obj);
 
     if(!this.uuid) {
@@ -1312,11 +1322,15 @@ export class SFItem {
     // Manually merge top level data instead of wholesale merge
     this.created_at = json.created_at;
     this.updated_at = json.updated_at;
-    this.content_type = json.content_type;
     this.deleted = json.deleted;
     this.uuid = json.uuid;
     this.enc_item_key = json.enc_item_key;
     this.auth_hash = json.auth_hash;
+
+    // Check if object has getter for content_type, and if so, skip
+    if(!this.content_type) {
+      this.content_type = json.content_type;
+    }
 
     // this.content = json.content will copy it by reference rather than value. So we need to do a deep merge after.
     // json.content can still be a string here. We copy it to this.content, then do a deep merge to transfer over all values.
@@ -1411,6 +1425,16 @@ export class SFItem {
     var references = this.content.references || [];
     references = references.filter((r) => {return r.uuid != item.uuid});
     this.content.references = references;
+  }
+
+  // When another object has a relationship with us, we push that object into memory here.
+  // We use this so that when `this` is deleted, we're able to update the references of those other objects.
+  // For example, a Note has a one way relationship with a Tag. If a Tag is deleted, we want to update
+  // the Note's references to remove the tag relationship.
+  setIsBeingReferencedBy(item) {
+    if(!_.find(this.referencingObjects), {uuid: item.uuid}) {
+      this.referencingObjects.push(item);
+    }
   }
 
   hasRelationshipWithItem(item) {

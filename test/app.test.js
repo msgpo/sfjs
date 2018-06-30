@@ -105,8 +105,8 @@ describe('app models', () => {
     var item1 = modelManager.findItem(params1.uuid);
     var item2 = modelManager.findItem(params2.uuid);
 
-    // relatedObjects was only temporarily enabled for items to test this case.
-    // expect(item1.relatedObjects.length).to.equal(1);
+    expect(item1.referencingObjects.length).to.equal(0);
+    expect(item2.referencingObjects.length).to.equal(1);
   });
 
   it('fixes relationship integrity', () => {
