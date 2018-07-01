@@ -163,8 +163,14 @@ describe('online syncing', () => {
     })).to.be.fulfilled.then(async () => {
       return expect(syncManager.sync()).to.be.fulfilled.then(async (response) => {
         expect(response).to.be.ok;
-        let models = await Factory.globalStorageManager().getAllModels();
-        expect(models.length).to.equal(totalItemCount);
+
+        let memModels = modelManager.allItems;
+        expect(memModels.length).to.equal(totalItemCount);
+
+        console.log("Checking storage models");
+
+        let storedModels = await Factory.globalStorageManager().getAllModels();
+        expect(storedModels.length).to.equal(totalItemCount);
       })
     })
   }).timeout(5000);
@@ -196,6 +202,67 @@ describe('online syncing', () => {
       })
     })
   }).timeout(5000);
+
+  it('duplicating an item should maintian its relationships', async () => {
+    var originalItem1 = Factory.createItem();
+    originalItem1.content_type = "Foo";
+
+    var originalItem2 = Factory.createItem();
+    originalItem2.content_type = "Bar";
+
+    originalItem1.addItemAsRelationship(originalItem2);
+    totalItemCount += 2;
+    modelManager.mapResponseItemsToLocalModels([originalItem1, originalItem2]);
+
+    originalItem1 = modelManager.findItem(originalItem1.uuid);
+    originalItem2 = modelManager.findItem(originalItem2.uuid);
+
+    expect(originalItem1).to.be.ok;
+    expect(originalItem2).to.be.ok;
+
+    expect(originalItem2.referencingObjects.length).to.equal(1);
+    expect(originalItem2.referencingObjects).to.include(originalItem1);
+
+    originalItem1.setDirty(true);
+    originalItem2.setDirty(true);
+
+    await syncManager.sync();
+    await syncManager.clearSyncToken();
+
+    expect(modelManager.allItems.length).to.equal(totalItemCount);
+
+    originalItem1.content.title = `${Math.random()}`
+    originalItem1.setDirty(true);
+
+    // wait about 1s, which is the value the dev server will ignore conflicting changes
+    return expect(new Promise((resolve, reject) => {
+      setTimeout(function () {
+        resolve();
+      }, 1100);
+    })).to.be.fulfilled.then(async () => {
+      return expect(syncManager.sync()).to.be.fulfilled.then(async (response) => {
+        // item should now be conflicted and a copy created
+        totalItemCount++;
+        expect(modelManager.allItems.length).to.equal(totalItemCount);
+        let models = modelManager.allItemsMatchingTypes(["Foo"]);
+        var item1 = models[0];
+        var item2 = models[1];
+
+        expect(item2.conflict_of).to.equal(item1.uuid);
+        // Two items now link to this original object
+        expect(originalItem2.referencingObjects.length).to.equal(2);
+        expect(originalItem2.referencingObjects[0]).to.not.equal(originalItem2.referencingObjects[1]);
+
+        expect(originalItem1.referencingObjects.length).to.equal(0);
+        expect(item1.referencingObjects.length).to.equal(0);
+        expect(item2.referencingObjects.length).to.equal(0);
+
+        expect(item1.content.references.length).to.equal(1);
+        expect(item2.content.references.length).to.equal(1);
+        expect(originalItem2.content.references.length).to.equal(0);
+      })
+    })
+  }).timeout(10000);
 
   let largeItemCount = 300;
 

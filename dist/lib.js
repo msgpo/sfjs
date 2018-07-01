@@ -128,8 +128,8 @@ export class SFAuthManager {
       var requestUrl = url + "/auth";
       var params = _.merge({password: keys.pw, email: email}, authParams);
 
-      this.httpManager.postAbsolute(requestUrl, params, (response) => {
-        this.handleAuthResponse(response, email, url, authParams, keys);
+      this.httpManager.postAbsolute(requestUrl, params, async (response) => {
+        await this.handleAuthResponse(response, email, url, authParams, keys);
         resolve(response);
       }, (response) => {
         console.error("Registration error", response);
@@ -164,7 +164,7 @@ export class SFAuthManager {
     if(url) { await this.storageManager.setItem("server", url);}
     await this.storageManager.setItem("auth_params", JSON.stringify(authParams));
     await this.storageManager.setItem("jwt", response.token);
-    this.saveKeys(keys);
+    return this.saveKeys(keys);
   }
 }
 ;class SFHttpManager {
@@ -273,6 +273,8 @@ export class SFAuthManager {
 
   resetLocalMemory() {
     this.items.length = 0;
+    this.itemsPendingRemoval.length = 0;
+    this.missedReferences.length = 0;
   }
 
   get allItems() {
@@ -486,6 +488,12 @@ export class SFAuthManager {
     return dup;
   }
 
+  addDuplicatedItem(dup, original) {
+    this.addItem(dup);
+    dup.conflict_of = original.uuid;
+    dup.setDirty(true);
+  }
+
   addItem(item, globalOnly = false) {
     this.addItems([item], globalOnly);
   }
@@ -518,7 +526,6 @@ export class SFAuthManager {
       var referencedItem = this.findItem(reference.uuid);
       if(referencedItem) {
         item.addItemAsRelationship(referencedItem);
-        referencedItem.setIsBeingReferencedBy(item);
         if(markReferencesDirty) {
           referencedItem.setDirty(true);
         }
@@ -554,10 +561,6 @@ export class SFAuthManager {
     for(var item of items) {
       item.setDirty(false);
     }
-  }
-
-  clearAllDirtyItems() {
-    this.clearDirtyItems(this.getDirtyItems());
   }
 
   setItemToBeDeleted(item) {
@@ -1142,6 +1145,7 @@ export class SFStorageManager {
 
     // Create copies of items or alternate their uuids if neccessary
     var unsaved = response.unsaved;
+    // don't `await`. This function calls sync, so if you wait, it will call sync without having completed the sync we're in.
     this.handleUnsavedItemsResponse(unsaved)
 
     await this.writeItemsToLocalStorage(saved, false);
@@ -1250,13 +1254,17 @@ export class SFStorageManager {
 
         var dup = this.modelManager.createDuplicateItem(itemResponse);
         if(!itemResponse.deleted && !item.isItemContentEqualWith(dup)) {
-          this.modelManager.addItem(dup);
-          dup.conflict_of = item.uuid;
-          dup.setDirty(true);
+          this.modelManager.addDuplicatedItem(dup, item);
         }
       }
     }
 
+    // This will immediately result in "Sync op in progress" and sync will be queued.
+    // That's ok. You actually want a sync op in progress so that the new items is saved to disk right away.
+    // If you add a timeout here of 100ms, you'll avoid sync op in progress, but it will be a few ms before the items
+    // are saved to disk, meaning that the user may see All changes saved a few ms before changes are saved to disk.
+    // You could also just write to disk manually here, but syncing here is 100% sure to trigger sync op in progress as that's
+    // where it's being called from.
     this.sync(null, {additionalFields: ["created_at", "updated_at"]});
   }
 }
@@ -1409,6 +1417,8 @@ export class SFItem {
   }
 
   addItemAsRelationship(item) {
+    item.setIsBeingReferencedBy(this);
+
     if(this.hasRelationshipWithItem(item)) {
       return;
     }
