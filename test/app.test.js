@@ -138,11 +138,17 @@ describe('app models', () => {
     expect(item1.content.references.length).to.equal(1);
     expect(item2.content.references.length).to.equal(1);
 
+    expect(item1.referencingObjects).to.include(item2);
+    expect(item2.referencingObjects).to.include(item1);
+
     item1.removeItemAsRelationship(item2);
     item2.removeItemAsRelationship(item1);
 
     expect(item1.content.references.length).to.equal(0);
     expect(item2.content.references.length).to.equal(0);
+
+    expect(item1.referencingObjects.length).to.equal(0);
+    expect(item2.referencingObjects.length).to.equal(0);
   });
 
   it('properly handles uuid alternation', () => {

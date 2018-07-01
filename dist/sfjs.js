@@ -3401,6 +3401,8 @@ var SFItem = exports.SFItem = function () {
   }, {
     key: "removeItemAsRelationship",
     value: function removeItemAsRelationship(item) {
+      item.setIsNoLongerBeingReferencedBy(this);
+
       var references = this.content.references || [];
       references = references.filter(function (r) {
         return r.uuid != item.uuid;
@@ -3419,6 +3421,11 @@ var SFItem = exports.SFItem = function () {
       if (!_.find(this.referencingObjects), { uuid: item.uuid }) {
         this.referencingObjects.push(item);
       }
+    }
+  }, {
+    key: "setIsNoLongerBeingReferencedBy",
+    value: function setIsNoLongerBeingReferencedBy(item) {
+      _.remove(this.referencingObjects, { uuid: item.uuid });
     }
   }, {
     key: "hasRelationshipWithItem",
