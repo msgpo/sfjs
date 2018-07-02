@@ -303,13 +303,18 @@ export class SFAuthManager {
     // Set to deleted, then run through mapping function so that observers can be notified
     item.deleted = true;
     item.content.references = [];
-    item.setDirty(true);
+    // Don't set dirty, because we don't need to sync old item. alternating uuid only occurs in two cases:
+    // signing in and merging offline data, or when a uuid-conflict occurs. In both cases, the original item never
+    // saves to a server, so doesn't need to be synced.
+    // informModelsOfUUIDChangeForItem may set this object to dirty, but we want to undo that here, so that the item gets deleted
+    // right away through the mapping function.
+    item.setDirty(false);
     this.mapResponseItemsToLocalModels([item], SFModelManager.MappingSourceLocalSaved);
 
     // add new item
     this.addItem(newItem);
     newItem.setDirty(true);
-    this.markAllReferencesDirtyForItem(newItem);
+    this.resolveReferencesForItem(newItem);
 
     return newItem;
   }
@@ -602,14 +607,6 @@ export class SFAuthManager {
     }
   }
 
-  markAllReferencesDirtyForItem(item, dontUpdateClientDate) {
-    var ids = item.content.references.map((r) => {return r.uuid});
-    var referencedObjects = this.findItems(ids);
-    referencedObjects.forEach(function(reference){
-      reference.setDirty(true, dontUpdateClientDate);
-    })
-  }
-
   removeItemLocally(item, callback) {
     _.remove(this.items, {uuid: item.uuid});
 
@@ -863,7 +860,7 @@ export class SFStorageManager {
     if(alternateUUIDs) {
       for(var item of originalItems) {
         // Update: the last params has been removed. Defaults to true.
-        // alternateUUIDForItem last param is a boolean that controls whether the original item
+        // Old: alternateUUIDForItem last param is a boolean that controls whether the original item
         // should be removed locally after new item is created. We set this to true, since during sign in,
         // all item ids are alternated, and we only want one final copy of the entire data set.
         // Passing false can be desired sometimes, when for example the app has signed out the user,
@@ -1473,6 +1470,7 @@ export class SFItem {
     for(var reference of this.content.references) {
       if(reference.uuid == oldUUID) {
         reference.uuid = newUUID;
+        this.setDirty(true);
       }
     }
   }

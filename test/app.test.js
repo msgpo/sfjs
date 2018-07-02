@@ -153,31 +153,36 @@ describe('app models', () => {
 
   it('properly handles uuid alternation', () => {
     let modelManager = createModelManager();
-    var item1 = createItem();
-    var item2 = createItem();
-    modelManager.addItem(item1);
-    modelManager.addItem(item2);
+    var originalItem1 = createItem();
+    var originalItem2 = createItem();
+    modelManager.addItem(originalItem1);
+    modelManager.addItem(originalItem2);
 
-    item1.addItemAsRelationship(item2);
-    item2.addItemAsRelationship(item1);
+    originalItem1.addItemAsRelationship(originalItem2);
+    originalItem2.addItemAsRelationship(originalItem1);
 
-    return expect(modelManager.alternateUUIDForItem(item1)).to.be.fulfilled.then(async (alternatedItem) => {
+    return expect(modelManager.alternateUUIDForItem(originalItem1)).to.be.fulfilled.then(async (alternatedItem1) => {
 
-      expect(item1.uuid).to.not.equal(alternatedItem.uuid);
+      expect(modelManager.allItems.length).to.equal(2);
 
-      expect(item1.content.references.length).to.equal(0);
+      // item 1 now is at the end of the array
+      var item1 = modelManager.allItems[1];
+      var item2 = modelManager.allItems[0];
+
+      expect(originalItem1.uuid).to.not.equal(alternatedItem1.uuid);
+      expect(item1.uuid).to.equal(alternatedItem1.uuid);
+
+      expect(item1.content.references.length).to.equal(1);
       expect(item2.content.references.length).to.equal(1);
-      expect(alternatedItem.content.references.length).to.equal(1);
+      expect(alternatedItem1.content.references.length).to.equal(1);
 
-      expect(item1.hasRelationshipWithItem(item2)).to.equal(false);
-      expect(item2.hasRelationshipWithItem(item1)).to.equal(false);
+      expect(item1.hasRelationshipWithItem(item2)).to.equal(true);
+      expect(item2.hasRelationshipWithItem(item1)).to.equal(true);
 
-      expect(item2.hasRelationshipWithItem(alternatedItem)).to.equal(true);
-      expect(alternatedItem.hasRelationshipWithItem(item2)).to.equal(true);
+      expect(item2.hasRelationshipWithItem(alternatedItem1)).to.equal(true);
+      expect(alternatedItem1.hasRelationshipWithItem(item2)).to.equal(true);
 
-      expect(item1.dirty).to.equal(true);
-      expect(alternatedItem.dirty).to.equal(true);
-      expect(item2.dirty).to.equal(true);
+      expect(alternatedItem1.dirty).to.equal(true);
     })
   });
 });

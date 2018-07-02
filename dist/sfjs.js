@@ -799,13 +799,18 @@ var SFModelManager = exports.SFModelManager = function () {
                 // Set to deleted, then run through mapping function so that observers can be notified
                 item.deleted = true;
                 item.content.references = [];
-                item.setDirty(true);
+                // Don't set dirty, because we don't need to sync old item. alternating uuid only occurs in two cases:
+                // signing in and merging offline data, or when a uuid-conflict occurs. In both cases, the original item never
+                // saves to a server, so doesn't need to be synced.
+                // informModelsOfUUIDChangeForItem may set this object to dirty, but we want to undo that here, so that the item gets deleted
+                // right away through the mapping function.
+                item.setDirty(false);
                 this.mapResponseItemsToLocalModels([item], SFModelManager.MappingSourceLocalSaved);
 
                 // add new item
                 this.addItem(newItem);
                 newItem.setDirty(true);
-                this.markAllReferencesDirtyForItem(newItem);
+                this.resolveReferencesForItem(newItem);
 
                 return _context13.abrupt("return", newItem);
 
@@ -1395,17 +1400,6 @@ var SFModelManager = exports.SFModelManager = function () {
           }
         }
       }
-    }
-  }, {
-    key: "markAllReferencesDirtyForItem",
-    value: function markAllReferencesDirtyForItem(item, dontUpdateClientDate) {
-      var ids = item.content.references.map(function (r) {
-        return r.uuid;
-      });
-      var referencedObjects = this.findItems(ids);
-      referencedObjects.forEach(function (reference) {
-        reference.setDirty(true, dontUpdateClientDate);
-      });
     }
   }, {
     key: "removeItemLocally",
@@ -3457,6 +3451,7 @@ var SFItem = exports.SFItem = function () {
 
           if (reference.uuid == oldUUID) {
             reference.uuid = newUUID;
+            this.setDirty(true);
           }
         }
       } catch (err) {
