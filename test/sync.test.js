@@ -203,7 +203,7 @@ describe('online syncing', () => {
     })
   }).timeout(5000);
 
-  it.only("should sync an item twice if it's marked dirty while a sync is ongoing", async () => {
+  it("should sync an item twice if it's marked dirty while a sync is ongoing", async () => {
     // create an item and sync it
     var item = Factory.createItem();
     item.setDirty(true);
@@ -220,6 +220,22 @@ describe('online syncing', () => {
     })).to.be.fulfilled.then(() => {
       expect(modelManager.getDirtyItems().length).to.equal(1);
     })
+  }).timeout(5000);
+
+  it("marking an item dirty then saving to disk should retain that dirty state when restored", async () => {
+    // create an item and sync it
+    var item = Factory.createItem();
+    modelManager.addItem(item);
+    await syncManager.markAllItemsDirtyAndSaveOffline(false);
+    modelManager.resetLocalMemory();
+    expect(modelManager.allItems.length).to.equal(0);
+
+    await syncManager.loadLocalItems();
+    expect(modelManager.allItems.length).to.equal(1);
+
+    item = modelManager.allItems[0];
+    expect(item.dirty).to.equal(true);
+    return true;
   }).timeout(5000);
 
   it('duplicating an item should maintian its relationships', async () => {

@@ -1636,6 +1636,34 @@ export class SFItem {
     return JSON.stringify(left) === JSON.stringify(right);
   }
 
+  satisfiesPredicate(rootPredicate) {
+
+    const objectSatisfiesPredicate = (obj, predicate) => {
+      for(var key of Object.keys(predicate)) {
+        var predicateValue = predicate[key];
+        var candidateValue = obj[key];
+        if(typeof predicateValue == 'object') {
+          // Check nested properties
+          if(!candidateValue) {
+            // predicateValue is 'object' but candidateValue is null
+            return false;
+          }
+
+          if(!objectSatisfiesPredicate(candidateValue, predicateValue)) {
+            return false;
+          }
+        }
+        else if(candidateValue != predicateValue) {
+          return false;
+        }
+      }
+      return true;
+    }
+
+    return objectSatisfiesPredicate(this, rootPredicate);
+
+  }
+
   /*
   Dates
   */

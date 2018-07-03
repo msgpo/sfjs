@@ -3762,6 +3762,55 @@ var SFItem = exports.SFItem = function () {
 
       return JSON.stringify(left) === JSON.stringify(right);
     }
+  }, {
+    key: "satisfiesPredicate",
+    value: function satisfiesPredicate(rootPredicate) {
+
+      var objectSatisfiesPredicate = function objectSatisfiesPredicate(obj, predicate) {
+        var _iteratorNormalCompletion27 = true;
+        var _didIteratorError27 = false;
+        var _iteratorError27 = undefined;
+
+        try {
+          for (var _iterator27 = Object.keys(predicate)[Symbol.iterator](), _step27; !(_iteratorNormalCompletion27 = (_step27 = _iterator27.next()).done); _iteratorNormalCompletion27 = true) {
+            var key = _step27.value;
+
+            var predicateValue = predicate[key];
+            var candidateValue = obj[key];
+            if ((typeof predicateValue === "undefined" ? "undefined" : _typeof(predicateValue)) == 'object') {
+              // Check nested properties
+              if (!candidateValue) {
+                // predicateValue is 'object' but candidateValue is null
+                return false;
+              }
+
+              if (!objectSatisfiesPredicate(candidateValue, predicateValue)) {
+                return false;
+              }
+            } else if (candidateValue != predicateValue) {
+              return false;
+            }
+          }
+        } catch (err) {
+          _didIteratorError27 = true;
+          _iteratorError27 = err;
+        } finally {
+          try {
+            if (!_iteratorNormalCompletion27 && _iterator27.return) {
+              _iterator27.return();
+            }
+          } finally {
+            if (_didIteratorError27) {
+              throw _iteratorError27;
+            }
+          }
+        }
+
+        return true;
+      };
+
+      return objectSatisfiesPredicate(this, rootPredicate);
+    }
 
     /*
     Dates

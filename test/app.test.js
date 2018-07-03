@@ -403,4 +403,27 @@ describe("items", () => {
     expect(item1.content.references.length).to.equal(0);
     expect(item2.content.references.length).to.equal(0);
   });
+
+  it.only('item predicate matching', () => {
+    let item = new SFItem({
+      content_type: "Item",
+      content: {
+        title: "Hello",
+        desc: "World",
+        tags: ["1", "2", "3"]
+      },
+    })
+
+    expect(item.satisfiesPredicate({content_type: "Foo"})).to.equal(false);
+    expect(item.satisfiesPredicate({content_type: "Item"})).to.equal(true);
+
+    expect(item.satisfiesPredicate({content: {title: "Foo"}})).to.equal(false);
+    expect(item.satisfiesPredicate({content: {title: "Hello"}})).to.equal(true);
+
+    // It can't handle arrays yet.
+    // expect(item.satisfiesPredicate({content: {tags: ["1"]}})).to.equal(false);
+    // expect(item.satisfiesPredicate({content: {tags: ["1", "2", "3"]}})).to.equal(true);
+  });
+
+
 })
