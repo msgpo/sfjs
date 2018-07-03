@@ -489,12 +489,16 @@ export class SFAuthManager {
    */
   createDuplicateItem(itemResponse) {
     var dup = this.createItem(itemResponse, true);
-    this.resolveReferencesForItem(dup);
     return dup;
   }
 
   addDuplicatedItem(dup, original) {
     this.addItem(dup);
+    // the duplicate should inherit the original's relationships
+    for(var referencingObject of original.referencingObjects) {
+      referencingObject.addItemAsRelationship(dup);
+    }
+    this.resolveReferencesForItem(dup);
     dup.conflict_of = original.uuid;
     dup.setDirty(true);
   }
@@ -619,6 +623,35 @@ export class SFAuthManager {
   /*
   Archives
   */
+
+  importItems(externalItems) {
+    var itemsToBeMapped = [];
+    for(var itemData of externalItems) {
+      var existing = this.findItem(itemData.uuid);
+      if(existing && !existing.errorDecrypting) {
+        // if the item already exists, check to see if it's different from the import data.
+        // If it's the same, do nothing, otherwise, create a copy.
+        itemData.uuid = null;
+        var dup = this.createDuplicateItem(itemData);
+        if(!itemData.deleted && !existing.isItemContentEqualWith(dup)) {
+          // Data differs
+          this.addDuplicatedItem(dup, existing);
+          itemsToBeMapped.push(dup);
+        }
+      } else {
+        // it doesn't exist, push it into items to be mapped
+        itemsToBeMapped.push(itemData);
+      }
+    }
+
+    var items = this.mapResponseItemsToLocalModels(itemsToBeMapped, SFModelManager.MappingSourceFileImport);
+    for(var item of items) {
+      item.setDirty(true, true);
+      item.deleted = false;
+    }
+
+    return items;
+  }
 
   async getAllItemsJSONData(keys, authParams, protocolVersion, returnNullIfEmpty) {
     return Promise.all(this.allItems.map((item) => {
@@ -1332,6 +1365,16 @@ export class SFItem {
     this.enc_item_key = json.enc_item_key;
     this.auth_hash = json.auth_hash;
 
+
+    // When mapping responses from a server, these client-side values will be missing.
+    // So we only want to update them when an explicit value is present.
+    if(json.errorDecrypting !== undefined) {
+      this.errorDecrypting = json.errorDecrypting;
+    }
+    if(json.conflict_of !== undefined) {
+      this.conflict_of = json.conflict_of;
+    }
+
     // Check if object has getter for content_type, and if so, skip
     if(!this.content_type) {
       this.content_type = json.content_type;
@@ -1441,7 +1484,7 @@ export class SFItem {
   // For example, a Note has a one way relationship with a Tag. If a Tag is deleted, we want to update
   // the Note's references to remove the tag relationship.
   setIsBeingReferencedBy(item) {
-    if(!_.find(this.referencingObjects), {uuid: item.uuid}) {
+    if(!_.find(this.referencingObjects, {uuid: item.uuid})) {
       this.referencingObjects.push(item);
     }
   }
