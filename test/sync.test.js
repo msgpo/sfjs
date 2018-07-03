@@ -203,6 +203,25 @@ describe('online syncing', () => {
     })
   }).timeout(5000);
 
+  it.only("should sync an item twice if it's marked dirty while a sync is ongoing", async () => {
+    // create an item and sync it
+    var item = Factory.createItem();
+    item.setDirty(true);
+    modelManager.addItem(item);
+    syncManager.sync();
+    setTimeout(function () {
+      item.setDirty(true);
+    }, 10);
+
+    return expect(new Promise((resolve, reject) => {
+      setTimeout(function () {
+        resolve();
+      }, 300);
+    })).to.be.fulfilled.then(() => {
+      expect(modelManager.getDirtyItems().length).to.equal(1);
+    })
+  }).timeout(5000);
+
   it('duplicating an item should maintian its relationships', async () => {
     var originalItem1 = Factory.createItem();
     originalItem1.content_type = "Foo";

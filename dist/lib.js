@@ -363,7 +363,7 @@ export class SFAuthManager {
     var models = [], processedObjects = [], modelsToNotifyObserversOf = [];
 
     // first loop should add and process items
-    for (var json_obj of items) {
+    for(var json_obj of items) {
       if((!json_obj.content_type || !json_obj.content) && !json_obj.deleted && !json_obj.errorDecrypting) {
         // An item that is not deleted should never have empty content
         console.error("Server response item is corrupt:", json_obj);
@@ -424,10 +424,10 @@ export class SFAuthManager {
     }
 
     // // second loop should process references
-    for (var index in processedObjects) {
-      var json_obj = processedObjects[index];
+    for(let [index, json_obj] of processedObjects.entries()) {
+      var model = models[index];
       if(json_obj.content) {
-        this.resolveReferencesForItem(models[index]);
+        this.resolveReferencesForItem(model);
       }
       var missedRefs = this.missedReferences.filter((r) => {return r.reference_uuid == json_obj.uuid});
       for(var ref of missedRefs) {
@@ -435,6 +435,8 @@ export class SFAuthManager {
       }
       // remove handled refs
       this.missedReferences = this.missedReferences.filter((r) => {return r.reference_uuid != json_obj.uuid});
+
+      model.didFinishSyncing();
     }
 
     this.notifySyncObserversOfModels(modelsToNotifyObserversOf, source, sourceKey);
@@ -641,6 +643,9 @@ export class SFAuthManager {
       } else {
         // it doesn't exist, push it into items to be mapped
         itemsToBeMapped.push(itemData);
+        if(existing.errorDecrypting) {
+          existing.errorDecrypting = false;
+        }
       }
     }
 
@@ -856,7 +861,7 @@ export class SFStorageManager {
           resolve();
         }).catch((error) => {
           // on error
-          console.log("Error writing items", error);
+          console.error("Error writing items", error);
           this.syncStatus.localError = error;
           this.syncStatusDidChange();
           reject();
@@ -1365,14 +1370,13 @@ export class SFItem {
     this.enc_item_key = json.enc_item_key;
     this.auth_hash = json.auth_hash;
 
-
-    // When mapping responses from a server, these client-side values will be missing.
-    // So we only want to update them when an explicit value is present.
-    if(json.errorDecrypting !== undefined) {
-      this.errorDecrypting = json.errorDecrypting;
-    }
-    if(json.conflict_of !== undefined) {
-      this.conflict_of = json.conflict_of;
+    // When updating from server response (as opposed to local json response), these keys will be missing.
+    // So we only want to update these values if they are explicitly present.
+    let clientKeys = ["errorDecrypting", "conflict_of", "dirty", "dirtyCount"];
+    for(var key of clientKeys) {
+      if(json[key] !== undefined) {
+        this[key] = json[key];
+      }
     }
 
     // Check if object has getter for content_type, and if so, skip
@@ -1501,6 +1505,10 @@ export class SFItem {
   }
 
   isBeingRemovedLocally() {
+
+  }
+
+  didFinishSyncing() {
 
   }
 
