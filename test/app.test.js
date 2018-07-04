@@ -414,15 +414,73 @@ describe("items", () => {
       },
     })
 
-    expect(item.satisfiesPredicate({content_type: "Foo"})).to.equal(false);
-    expect(item.satisfiesPredicate({content_type: "Item"})).to.equal(true);
+    expect(item.satisfiesPredicate(new SFPredicate("content_type", "=", "Foo"))).to.equal(false);
+    expect(item.satisfiesPredicate(new SFPredicate("content_type", "=", "Item"))).to.equal(true);
 
-    expect(item.satisfiesPredicate({content: {title: "Foo"}})).to.equal(false);
-    expect(item.satisfiesPredicate({content: {title: "Hello"}})).to.equal(true);
+    expect(item.satisfiesPredicate(new SFPredicate("content.title", "=", "Foo"))).to.equal(false);
+    expect(item.satisfiesPredicate(new SFPredicate("content.title", "=", "Hello"))).to.equal(true);
 
-    // It can't handle arrays yet.
-    // expect(item.satisfiesPredicate({content: {tags: ["1"]}})).to.equal(false);
-    // expect(item.satisfiesPredicate({content: {tags: ["1", "2", "3"]}})).to.equal(true);
+    expect(item.satisfiesPredicate(new SFPredicate("content.tags", "=", ["1"]))).to.equal(false);
+    expect(item.satisfiesPredicate(new SFPredicate("content.tags", "=", ["1", "2", "3"]))).to.equal(true);
+  });
+
+  it.only('model manager predicate matching', () => {
+    let modelManager = createModelManager();
+    let item = new SFItem({
+      content_type: "Item",
+      content: {
+        title: "Hello",
+        desc: "World",
+        tags: ["1", "2", "3"]
+      },
+      updated_at:  new Date()
+    })
+
+    modelManager.addItem(item);
+    var predicate = new SFPredicate("content.title", "=", "ello");
+    expect(modelManager.itemsMatchingPredicate(predicate).length).to.equal(0);
+
+    predicate.keypath = "content.desc";
+    expect(modelManager.itemsMatchingPredicate(predicate).length).to.equal(0);
+
+    predicate.keypath = "content.title";
+    predicate.value = "Hello";
+    expect(modelManager.itemsMatchingPredicate(predicate).length).to.equal(1);
+
+    predicate.keypath = "content.tags.length";
+    predicate.value = 2;
+    expect(modelManager.itemsMatchingPredicate(predicate).length).to.equal(0);
+
+    predicate.value = 3;
+    expect(modelManager.itemsMatchingPredicate(predicate).length).to.equal(1);
+
+    predicate.operator = "<";
+    expect(modelManager.itemsMatchingPredicate(predicate).length).to.equal(0);
+
+    predicate.operator = "<=";
+    expect(modelManager.itemsMatchingPredicate(predicate).length).to.equal(1);
+
+    predicate.operator = ">";
+    expect(modelManager.itemsMatchingPredicate(predicate).length).to.equal(0);
+
+    predicate.keypath = "updated_at";
+    predicate.operator = ">"
+    var date = new Date();
+    date.setSeconds(date.getSeconds() + 1);
+    predicate.value = date;
+    expect(modelManager.itemsMatchingPredicate(predicate).length).to.equal(0);
+
+    predicate.operator = "<"
+    expect(modelManager.itemsMatchingPredicate(predicate).length).to.equal(1);
+
+    // multi matching
+    var predicate1 = new SFPredicate("content_type", "=", "Item");
+    var predicate2 = new SFPredicate("content.title", "=", "SHello");
+    expect(modelManager.itemsMatchingPredicates([predicate1, predicate2]).length).to.equal(0);
+
+    var predicate1 = new SFPredicate("content_type", "=", "Item");
+    var predicate2 = new SFPredicate("content.title", "=", "Hello");
+    expect(modelManager.itemsMatchingPredicates([predicate1, predicate2]).length).to.equal(1);
   });
 
 

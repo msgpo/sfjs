@@ -277,18 +277,6 @@ export class SFAuthManager {
     this.missedReferences.length = 0;
   }
 
-  get allItems() {
-    return this.items.filter(function(item){
-      return !item.dummy;
-    })
-  }
-
-  get extensions() {
-    return this._extensions.filter(function(ext){
-      return !ext.deleted;
-    })
-  }
-
   async alternateUUIDForItem(item) {
     // We need to clone this item and give it a new uuid, then delete item with old uuid from db (you can't modify uuid's in our indexeddb setup)
     var newItem = this.createItem(item);
@@ -327,28 +315,6 @@ export class SFAuthManager {
     for(var model of this.items) {
       model.potentialItemOfInterestHasChangedItsUUID(newItem, oldUUID, newUUID);
     }
-  }
-
-  allItemsMatchingTypes(contentTypes) {
-    return this.allItems.filter(function(item){
-      return (_.includes(contentTypes, item.content_type) || _.includes(contentTypes, "*")) && !item.dummy;
-    })
-  }
-
-  validItemsForContentType(contentType) {
-    return this.allItems.filter((item) => {
-      return item.content_type == contentType && !item.errorDecrypting;
-    });
-  }
-
-  findItem(itemId) {
-    return _.find(this.items, {uuid: itemId});
-  }
-
-  findItems(ids) {
-    return this.items.filter((item) => {
-      return ids.includes(item.uuid);
-    })
   }
 
   didSyncModelsOffline(items) {
@@ -619,6 +585,63 @@ export class SFAuthManager {
     item.isBeingRemovedLocally();
 
     this.itemsPendingRemoval.push(item.uuid);
+  }
+
+  /* Searching */
+
+  get allItems() {
+    return this.items.filter(function(item){
+      return !item.dummy;
+    })
+  }
+
+  get extensions() {
+    return this._extensions.filter(function(ext){
+      return !ext.deleted;
+    })
+  }
+
+  allItemsMatchingTypes(contentTypes) {
+    return this.allItems.filter(function(item){
+      return (_.includes(contentTypes, item.content_type) || _.includes(contentTypes, "*")) && !item.dummy;
+    })
+  }
+
+  validItemsForContentType(contentType) {
+    return this.allItems.filter((item) => {
+      return item.content_type == contentType && !item.errorDecrypting;
+    });
+  }
+
+  findItem(itemId) {
+    return _.find(this.items, {uuid: itemId});
+  }
+
+  findItems(ids) {
+    return this.items.filter((item) => {
+      return ids.includes(item.uuid);
+    })
+  }
+
+  itemsMatchingPredicate(predicate) {
+    return this.itemsMatchingPredicates([predicate]);
+  }
+
+  itemsMatchingPredicates(predicates) {
+    return this.filterItemsWithPredicates(this.allItems, predicates);
+  }
+
+  filterItemsWithPredicates(items, predicates) {
+    var results = items.filter((item) => {
+      for(var predicate of predicates)  {
+        if(!item.satisfiesPredicate(predicate)) {
+          return false;
+        }
+      }
+      return true;
+    })
+
+    return results;
   }
 
 
@@ -1636,32 +1659,38 @@ export class SFItem {
     return JSON.stringify(left) === JSON.stringify(right);
   }
 
-  satisfiesPredicate(rootPredicate) {
+  satisfiesPredicate(predicate) {
+    /*
+    Predicate is an SFPredicate having properties:
+    {
+      keypath: String,
+      operator: String,
+      value: object
+    }
+     */
 
-    const objectSatisfiesPredicate = (obj, predicate) => {
-      for(var key of Object.keys(predicate)) {
-        var predicateValue = predicate[key];
-        var candidateValue = obj[key];
-        if(typeof predicateValue == 'object') {
-          // Check nested properties
-          if(!candidateValue) {
-            // predicateValue is 'object' but candidateValue is null
-            return false;
-          }
-
-          if(!objectSatisfiesPredicate(candidateValue, predicateValue)) {
-            return false;
-          }
-        }
-        else if(candidateValue != predicateValue) {
-          return false;
-        }
+    var valueAtKeyPath = predicate.keypath.split('.').reduce((previous, current) => {return previous[current]}, this);
+    if(Array.isArray(valueAtKeyPath)) {
+      if(predicate.operator != "=") {
+        console.error(`Arrays don't support the ${predicate.operator} operator.`);
+        return false;
       }
-      return true;
+
+      return JSON.stringify(valueAtKeyPath) == JSON.stringify(predicate.value);
+    }
+    if(predicate.operator == "=") {
+      return valueAtKeyPath == predicate.value;
+    } else if(predicate.operator == "<")  {
+      return valueAtKeyPath < predicate.value;
+    } else if(predicate.operator == ">")  {
+      return valueAtKeyPath > predicate.value;
+    } else if(predicate.operator == "<=")  {
+      return valueAtKeyPath <= predicate.value;
+    } else if(predicate.operator == ">=")  {
+      return valueAtKeyPath >= predicate.value;
     }
 
-    return objectSatisfiesPredicate(this, rootPredicate);
-
+    return false;
   }
 
   /*
@@ -1770,6 +1799,13 @@ export class SFItem {
   }
 
 
+}
+;export class SFPredicate {
+  constructor(keypath, operator, value) {
+    this.keypath = keypath;
+    this.operator = operator;
+    this.value = value;
+  }
 }
 ;/* Abstract class. Instantiate an instance of either SFCryptoJS (uses cryptojs) or SFCryptoWeb (uses web crypto) */
 
@@ -2366,6 +2402,7 @@ if(typeof window !== 'undefined' && window !== null) {
     window.SFStorageManager = SFStorageManager;
     window.SFSyncManager = SFSyncManager;
     window.SFAuthManager = SFAuthManager;
+    window.SFPredicate = SFPredicate;
   } catch (e) {
     console.log("Exception while exporting window variables", e);
   }
