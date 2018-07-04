@@ -410,7 +410,17 @@ describe("items", () => {
       content: {
         title: "Hello",
         desc: "World",
-        tags: ["1", "2", "3"]
+        numbers: ["1", "2", "3"],
+        tags: [
+          {
+            title: "foo",
+            id: Math.random()
+          },
+          {
+            title: "bar",
+            id: Math.random()
+          }
+        ]
       },
     })
 
@@ -420,23 +430,43 @@ describe("items", () => {
     expect(item.satisfiesPredicate(new SFPredicate("content.title", "=", "Foo"))).to.equal(false);
     expect(item.satisfiesPredicate(new SFPredicate("content.title", "=", "Hello"))).to.equal(true);
 
-    expect(item.satisfiesPredicate(new SFPredicate("content.tags", "=", ["1"]))).to.equal(false);
-    expect(item.satisfiesPredicate(new SFPredicate("content.tags", "=", ["1", "2", "3"]))).to.equal(true);
+    expect(item.satisfiesPredicate(new SFPredicate("content.numbers", "=", ["1"]))).to.equal(false);
+    expect(item.satisfiesPredicate(new SFPredicate("content.numbers", "=", ["1", "2", "3"]))).to.equal(true);
+
+    expect(item.satisfiesPredicate(new SFPredicate("content.foobar.length", "=", 0))).to.equal(false);
+
+    expect(item.satisfiesPredicate(new SFPredicate("content.tags", "includes", new SFPredicate("title", "=", "bar")))).to.equal(true);
+    expect(item.satisfiesPredicate(new SFPredicate("content.tags", "includes", new SFPredicate("title", "=", "foobar")))).to.equal(false);
+    expect(item.satisfiesPredicate(new SFPredicate("content.tags", "includes", new SFPredicate("title", "=", "foo")))).to.equal(true);
   });
 
   it.only('model manager predicate matching', () => {
     let modelManager = createModelManager();
-    let item = new SFItem({
+    let item1 = new SFItem({
       content_type: "Item",
       content: {
         title: "Hello",
         desc: "World",
-        tags: ["1", "2", "3"]
+        numbers: ["1", "2", "3"],
+        tags: [
+          {
+            title: "foo",
+            id: Math.random()
+          },
+          {
+            title: "foobar",
+            id: Math.random()
+          },
+          {
+            title: "bar",
+            id: Math.random()
+          }
+        ]
       },
       updated_at:  new Date()
     })
 
-    modelManager.addItem(item);
+    modelManager.addItem(item1);
     var predicate = new SFPredicate("content.title", "=", "ello");
     expect(modelManager.itemsMatchingPredicate(predicate).length).to.equal(0);
 
@@ -447,7 +477,7 @@ describe("items", () => {
     predicate.value = "Hello";
     expect(modelManager.itemsMatchingPredicate(predicate).length).to.equal(1);
 
-    predicate.keypath = "content.tags.length";
+    predicate.keypath = "content.numbers.length";
     predicate.value = 2;
     expect(modelManager.itemsMatchingPredicate(predicate).length).to.equal(0);
 
@@ -473,6 +503,16 @@ describe("items", () => {
     predicate.operator = "<"
     expect(modelManager.itemsMatchingPredicate(predicate).length).to.equal(1);
 
+    predicate.keypath = "updated_at";
+    predicate.operator = "<"
+    predicate.value = "30.days.ago";
+    expect(modelManager.itemsMatchingPredicate(predicate).length).to.equal(0);
+    predicate.operator = ">"
+    expect(modelManager.itemsMatchingPredicate(predicate).length).to.equal(1);
+
+    predicate.value = "1.hours.ago";
+    expect(modelManager.itemsMatchingPredicate(predicate).length).to.equal(1);
+
     // multi matching
     var predicate1 = new SFPredicate("content_type", "=", "Item");
     var predicate2 = new SFPredicate("content.title", "=", "SHello");
@@ -481,6 +521,23 @@ describe("items", () => {
     var predicate1 = new SFPredicate("content_type", "=", "Item");
     var predicate2 = new SFPredicate("content.title", "=", "Hello");
     expect(modelManager.itemsMatchingPredicates([predicate1, predicate2]).length).to.equal(1);
+
+    expect(modelManager.itemsMatchingPredicate(new SFPredicate("content.title", "startsWith", "H")).length).to.equal(1);
+
+    let item2 = new SFItem({
+      content_type: "Item",
+      content: {
+        tags: [
+          {
+            title: "foobar",
+            id: Math.random()
+          }
+        ]
+      },
+    })
+
+    modelManager.addItem(item2);
+    expect(modelManager.itemsMatchingPredicate(new SFPredicate("content.tags", "includes", new SFPredicate("title", "startsWith", "f"))).length).to.equal(2);
   });
 
 

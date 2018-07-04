@@ -3822,31 +3822,7 @@ var SFItem = exports.SFItem = function () {
         value: object
       }
        */
-
-      var valueAtKeyPath = predicate.keypath.split('.').reduce(function (previous, current) {
-        return previous[current];
-      }, this);
-      if (Array.isArray(valueAtKeyPath)) {
-        if (predicate.operator != "=") {
-          console.error("Arrays don't support the " + predicate.operator + " operator.");
-          return false;
-        }
-
-        return JSON.stringify(valueAtKeyPath) == JSON.stringify(predicate.value);
-      }
-      if (predicate.operator == "=") {
-        return valueAtKeyPath == predicate.value;
-      } else if (predicate.operator == "<") {
-        return valueAtKeyPath < predicate.value;
-      } else if (predicate.operator == ">") {
-        return valueAtKeyPath > predicate.value;
-      } else if (predicate.operator == "<=") {
-        return valueAtKeyPath <= predicate.value;
-      } else if (predicate.operator == ">=") {
-        return valueAtKeyPath >= predicate.value;
-      }
-
-      return false;
+      return SFPredicate.ItemSatisfiesPredicate(this, predicate);
     }
 
     /*
@@ -4196,13 +4172,122 @@ var SFItemParams = exports.SFItemParams = function () {
 }();
 
 ;
-var SFPredicate = exports.SFPredicate = function SFPredicate(keypath, operator, value) {
-  _classCallCheck(this, SFPredicate);
+var SFPredicate = exports.SFPredicate = function () {
+  function SFPredicate(keypath, operator, value) {
+    _classCallCheck(this, SFPredicate);
 
-  this.keypath = keypath;
-  this.operator = operator;
-  this.value = value;
-};
+    this.keypath = keypath;
+    this.operator = operator;
+    this.value = value;
+  }
+
+  _createClass(SFPredicate, null, [{
+    key: "ObjectSatisfiesPredicate",
+    value: function ObjectSatisfiesPredicate(object, predicate) {
+      var valueAtKeyPath = predicate.keypath.split('.').reduce(function (previous, current) {
+        return previous && previous[current];
+      }, object);
+
+      var predicateValue = predicate.value;
+      if (typeof predicateValue == 'string' && predicateValue.includes(".ago")) {
+        predicateValue = this.DateFromString(predicateValue);
+      }
+
+      if (valueAtKeyPath == undefined) {
+        if (predicate.value == undefined) {
+          // both are undefined, so technically matching
+          return true;
+        } else {
+          return false;
+        }
+      }
+
+      if (Array.isArray(valueAtKeyPath)) {
+        if (predicate.operator == "includes") {
+          if ((typeof predicateValue === "undefined" ? "undefined" : _typeof(predicateValue)) == 'object') {
+            var matchingObjects = [];
+            var innerPredicate = predicateValue;
+            var _iteratorNormalCompletion28 = true;
+            var _didIteratorError28 = false;
+            var _iteratorError28 = undefined;
+
+            try {
+              for (var _iterator28 = valueAtKeyPath[Symbol.iterator](), _step28; !(_iteratorNormalCompletion28 = (_step28 = _iterator28.next()).done); _iteratorNormalCompletion28 = true) {
+                var obj = _step28.value;
+
+                if (this.ObjectSatisfiesPredicate(obj, innerPredicate)) {
+                  return true;
+                }
+              }
+            } catch (err) {
+              _didIteratorError28 = true;
+              _iteratorError28 = err;
+            } finally {
+              try {
+                if (!_iteratorNormalCompletion28 && _iterator28.return) {
+                  _iterator28.return();
+                }
+              } finally {
+                if (_didIteratorError28) {
+                  throw _iteratorError28;
+                }
+              }
+            }
+
+            return false;
+          } else {
+            return valueAtKeyPath.includes(predicateValue);
+          }
+        }
+
+        if (predicate.operator != "=") {
+          console.error("Arrays do not support the " + predicate.operator + " operator.");
+          return false;
+        }
+
+        return JSON.stringify(valueAtKeyPath) == JSON.stringify(predicateValue);
+      }
+
+      if (predicate.operator == "=") {
+        return valueAtKeyPath == predicateValue;
+      } else if (predicate.operator == "<") {
+        return valueAtKeyPath < predicateValue;
+      } else if (predicate.operator == ">") {
+        return valueAtKeyPath > predicateValue;
+      } else if (predicate.operator == "<=") {
+        return valueAtKeyPath <= predicateValue;
+      } else if (predicate.operator == ">=") {
+        return valueAtKeyPath >= predicateValue;
+      } else if (predicate.operator == "startsWith") {
+        return valueAtKeyPath.startsWith(predicateValue);
+      }
+
+      return false;
+    }
+  }, {
+    key: "ItemSatisfiesPredicate",
+    value: function ItemSatisfiesPredicate(item, predicate) {
+      return this.ObjectSatisfiesPredicate(item, predicate);
+    }
+  }, {
+    key: "DateFromString",
+    value: function DateFromString(string) {
+      // x.days.ago, x.hours.ago
+      var comps = string.split(".");
+      var unit = comps[1];
+      var date = new Date();
+      var offset = parseInt(comps[0]);
+      if (unit == "days") {
+        date.setDate(date.getDate() - offset);
+      } else if (unit == "hours") {
+        date.setHours(date.getHours() - offset);
+      }
+      return date;
+    }
+  }]);
+
+  return SFPredicate;
+}();
 
 ; /* Abstract class. Instantiate an instance of either SFCryptoJS (uses cryptojs) or SFCryptoWeb (uses web crypto) */
 
