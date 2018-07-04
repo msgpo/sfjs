@@ -1785,6 +1785,14 @@ export class SFItem {
     this.value = value;
   }
 
+  static fromArray(array) {
+    var pred = new SFPredicate();
+    pred.keypath = array[0];
+    pred.operator = array[1];
+    pred.value = array[2];
+    return pred;
+  }
+
   static ObjectSatisfiesPredicate(object, predicate) {
     var valueAtKeyPath = predicate.keypath.split('.').reduce((previous, current) => {
       return previous && previous[current]
@@ -1806,7 +1814,10 @@ export class SFItem {
 
     if(Array.isArray(valueAtKeyPath)) {
       if(predicate.operator == "includes") {
-        if(typeof(predicateValue) == 'object') {
+        if(typeof(predicateValue) == 'object' || Array.isArray(predicateValue)) {
+          if(Array.isArray(predicateValue)) {
+            predicateValue = SFPredicate.fromArray(predicateValue);
+          }
           var matchingObjects = [];
           var innerPredicate = predicateValue;
           for(var obj of valueAtKeyPath) {
@@ -1846,6 +1857,9 @@ export class SFItem {
   }
 
   static ItemSatisfiesPredicate(item, predicate) {
+    if(Array.isArray(predicate)) {
+      predicate = SFPredicate.fromArray(predicate);
+    }
     return this.ObjectSatisfiesPredicate(item, predicate);
   }
 

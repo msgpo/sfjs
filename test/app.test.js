@@ -435,9 +435,16 @@ describe("items", () => {
 
     expect(item.satisfiesPredicate(new SFPredicate("content.foobar.length", "=", 0))).to.equal(false);
 
+    expect(item.satisfiesPredicate(new SFPredicate("content.tags", "includes", ["title", "=", "bar"]))).to.equal(true);
     expect(item.satisfiesPredicate(new SFPredicate("content.tags", "includes", new SFPredicate("title", "=", "bar")))).to.equal(true);
     expect(item.satisfiesPredicate(new SFPredicate("content.tags", "includes", new SFPredicate("title", "=", "foobar")))).to.equal(false);
     expect(item.satisfiesPredicate(new SFPredicate("content.tags", "includes", new SFPredicate("title", "=", "foo")))).to.equal(true);
+
+    item.setAppDataItem("archived", true);
+    expect(item.satisfiesPredicate(new SFPredicate("archived", "=", true))).to.equal(true);
+    expect(item.satisfiesPredicate(["archived", "=", true])).to.equal(true);
+    expect(item.satisfiesPredicate(JSON.parse('["archived", "=", true]'))).to.equal(true);
+    expect(item.satisfiesPredicate(JSON.parse('["archived", "=", false]'))).to.equal(false);
   });
 
   it.only('model manager predicate matching', () => {
@@ -538,6 +545,11 @@ describe("items", () => {
 
     modelManager.addItem(item2);
     expect(modelManager.itemsMatchingPredicate(new SFPredicate("content.tags", "includes", new SFPredicate("title", "startsWith", "f"))).length).to.equal(2);
+
+    expect(modelManager.itemsMatchingPredicate(new SFPredicate("archived", "=", true)).length).to.equal(0);
+    var contentPred = new SFPredicate("content_type", "=", "Item");
+    item2.setAppDataItem("archived", true);
+    expect(modelManager.itemsMatchingPredicates([contentPred, new SFPredicate("archived", "=", true)]).length).to.equal(1);
   });
 
 

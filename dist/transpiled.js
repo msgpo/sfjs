@@ -4069,6 +4069,15 @@ var SFPredicate = exports.SFPredicate = function () {
   }
 
   _createClass(SFPredicate, null, [{
+    key: "fromArray",
+    value: function fromArray(array) {
+      var pred = new SFPredicate();
+      pred.keypath = array[0];
+      pred.operator = array[1];
+      pred.value = array[2];
+      return pred;
+    }
+  }, {
     key: "ObjectSatisfiesPredicate",
     value: function ObjectSatisfiesPredicate(object, predicate) {
       var valueAtKeyPath = predicate.keypath.split('.').reduce(function (previous, current) {
@@ -4091,7 +4100,10 @@ var SFPredicate = exports.SFPredicate = function () {
 
       if (Array.isArray(valueAtKeyPath)) {
         if (predicate.operator == "includes") {
-          if ((typeof predicateValue === "undefined" ? "undefined" : _typeof(predicateValue)) == 'object') {
+          if ((typeof predicateValue === "undefined" ? "undefined" : _typeof(predicateValue)) == 'object' || Array.isArray(predicateValue)) {
+            if (Array.isArray(predicateValue)) {
+              predicateValue = SFPredicate.fromArray(predicateValue);
+            }
             var matchingObjects = [];
             var innerPredicate = predicateValue;
             var _iteratorNormalCompletion28 = true;
@@ -4154,6 +4166,9 @@ var SFPredicate = exports.SFPredicate = function () {
   }, {
     key: "ItemSatisfiesPredicate",
     value: function ItemSatisfiesPredicate(item, predicate) {
+      if (Array.isArray(predicate)) {
+        predicate = SFPredicate.fromArray(predicate);
+      }
       return this.ObjectSatisfiesPredicate(item, predicate);
     }
   }, {
