@@ -4202,13 +4202,10 @@ var SFPredicate = exports.SFPredicate = function () {
         predicateValue = this.DateFromString(predicateValue);
       }
 
+      var falseyValues = [false, "", null, undefined, NaN];
+
       if (valueAtKeyPath == undefined) {
-        if (predicate.value == undefined) {
-          // both are undefined, so technically matching
-          return true;
-        } else {
-          return false;
-        }
+        return falseyValues.includes(predicate.value);
       }
 
       if (predicate.operator == "=") {

@@ -1803,20 +1803,17 @@ export class SFItem {
       predicateValue = this.DateFromString(predicateValue);
     }
 
+    const falseyValues = [false, "", null, undefined, NaN];
+
     if(valueAtKeyPath == undefined) {
-      if(predicate.value == undefined) {
-        // both are undefined, so technically matching
-        return true;
-      } else {
-        return false;
-      }
+      return falseyValues.includes(predicate.value);
     }
 
     if(predicate.operator == "=") {
       // Use array comparison
       if(Array.isArray(valueAtKeyPath)) {
         return JSON.stringify(valueAtKeyPath) == JSON.stringify(predicateValue);
-      } else  {
+      } else {
         return valueAtKeyPath == predicateValue;
       }
     } else if(predicate.operator == "<")  {
