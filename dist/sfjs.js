@@ -4211,57 +4211,13 @@ var SFPredicate = exports.SFPredicate = function () {
         }
       }
 
-      if (Array.isArray(valueAtKeyPath)) {
-        if (predicate.operator == "includes") {
-          if ((typeof predicateValue === "undefined" ? "undefined" : _typeof(predicateValue)) == 'object' || Array.isArray(predicateValue)) {
-            if (Array.isArray(predicateValue)) {
-              predicateValue = SFPredicate.fromArray(predicateValue);
-            }
-            var matchingObjects = [];
-            var innerPredicate = predicateValue;
-            var _iteratorNormalCompletion28 = true;
-            var _didIteratorError28 = false;
-            var _iteratorError28 = undefined;
-
-            try {
-              for (var _iterator28 = valueAtKeyPath[Symbol.iterator](), _step28; !(_iteratorNormalCompletion28 = (_step28 = _iterator28.next()).done); _iteratorNormalCompletion28 = true) {
-                var obj = _step28.value;
-
-                if (this.ObjectSatisfiesPredicate(obj, innerPredicate)) {
-                  return true;
-                }
-              }
-            } catch (err) {
-              _didIteratorError28 = true;
-              _iteratorError28 = err;
-            } finally {
-              try {
-                if (!_iteratorNormalCompletion28 && _iterator28.return) {
-                  _iterator28.return();
-                }
-              } finally {
-                if (_didIteratorError28) {
-                  throw _iteratorError28;
-                }
-              }
-            }
-
-            return false;
-          } else {
-            return valueAtKeyPath.includes(predicateValue);
-          }
-        }
-
-        if (predicate.operator != "=") {
-          console.error("Arrays do not support the " + predicate.operator + " operator.");
-          return false;
-        }
-
-        return JSON.stringify(valueAtKeyPath) == JSON.stringify(predicateValue);
-      }
-
       if (predicate.operator == "=") {
-        return valueAtKeyPath == predicateValue;
+        // Use array comparison
+        if (Array.isArray(valueAtKeyPath)) {
+          return JSON.stringify(valueAtKeyPath) == JSON.stringify(predicateValue);
+        } else {
+          return valueAtKeyPath == predicateValue;
+        }
       } else if (predicate.operator == "<") {
         return valueAtKeyPath < predicateValue;
       } else if (predicate.operator == ">") {
@@ -4272,9 +4228,58 @@ var SFPredicate = exports.SFPredicate = function () {
         return valueAtKeyPath >= predicateValue;
       } else if (predicate.operator == "startsWith") {
         return valueAtKeyPath.startsWith(predicateValue);
+      } else if (predicate.operator == "in") {
+        return predicateValue.indexOf(valueAtKeyPath) != -1;
+      } else if (predicate.operator == "includes") {
+        return this.resolveIncludesPredicate(valueAtKeyPath, predicateValue);
       }
 
       return false;
+    }
+  }, {
+    key: "resolveIncludesPredicate",
+    value: function resolveIncludesPredicate(valueAtKeyPath, predicateValue) {
+      // includes can be a string  or a predicate (in array form)
+      if (typeof predicateValue == 'string') {
+        // if string, simply check if the valueAtKeyPath includes the predicate value
+        return valueAtKeyPath.includes(predicateValue);
+      } else {
+        // is a predicate array or predicate object
+        var innerPredicate;
+        if (Array.isArray(predicateValue)) {
+          innerPredicate = SFPredicate.fromArray(predicateValue);
+        } else {
+          innerPredicate = predicateValue;
+        }
+        var _iteratorNormalCompletion28 = true;
+        var _didIteratorError28 = false;
+        var _iteratorError28 = undefined;
+
+        try {
+          for (var _iterator28 = valueAtKeyPath[Symbol.iterator](), _step28; !(_iteratorNormalCompletion28 = (_step28 = _iterator28.next()).done); _iteratorNormalCompletion28 = true) {
+            var obj = _step28.value;
+
+            if (this.ObjectSatisfiesPredicate(obj, innerPredicate)) {
+              return true;
+            }
+          }
+        } catch (err) {
+          _didIteratorError28 = true;
+          _iteratorError28 = err;
+        } finally {
+          try {
+            if (!_iteratorNormalCompletion28 && _iterator28.return) {
+              _iterator28.return();
+            }
+          } finally {
+            if (_didIteratorError28) {
+              throw _iteratorError28;
+            }
+          }
+        }
+
+        return false;
+      }
     }
   }, {
     key: "ItemSatisfiesPredicate",

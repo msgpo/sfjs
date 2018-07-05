@@ -419,6 +419,10 @@ describe("items", () => {
           {
             title: "bar",
             id: Math.random()
+          },
+          {
+            title: "far",
+            id: Math.random()
           }
         ]
       },
@@ -536,7 +540,11 @@ describe("items", () => {
       content: {
         tags: [
           {
-            title: "foobar",
+            title: "sobar",
+            id: Math.random()
+          },
+          {
+            title: "foobart",
             id: Math.random()
           }
         ]
@@ -544,6 +552,11 @@ describe("items", () => {
     })
 
     modelManager.addItem(item2);
+
+    expect(modelManager.itemsMatchingPredicate(new SFPredicate("content.tags", "includes", ["title", "includes", "bar"])).length).to.equal(2);
+    expect(modelManager.itemsMatchingPredicate(new SFPredicate("content.tags", "includes", ["title", "in", ["sobar"]])).length).to.equal(1);
+    expect(modelManager.itemsMatchingPredicate(new SFPredicate("content.tags", "includes", ["title", "in", ["sobar", "foobar"]])).length).to.equal(2);
+
     expect(modelManager.itemsMatchingPredicate(new SFPredicate("content.tags", "includes", new SFPredicate("title", "startsWith", "f"))).length).to.equal(2);
 
     expect(modelManager.itemsMatchingPredicate(new SFPredicate("archived", "=", true)).length).to.equal(0);
