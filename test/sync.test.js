@@ -41,7 +41,7 @@ describe("local storage manager", () => {
 describe('offline syncing', () => {
   let modelManager = Factory.createModelManager();
   let syncManager = new SFSyncManager(modelManager, Factory.globalStorageManager(), Factory.globalHttpManager());
-  syncManager.setEventHandler(() => {
+  syncManager.addEventHandler(() => {
 
   })
 
@@ -94,10 +94,6 @@ describe('online syncing', () => {
   let authManager = Factory.globalAuthManager();
   let modelManager = Factory.createModelManager();
   let syncManager = new SFSyncManager(modelManager, Factory.globalStorageManager(), Factory.globalHttpManager());
-
-  syncManager.setEventHandler(() => {
-
-  })
 
   syncManager.setKeyRequestHandler(async () => {
     return {
@@ -337,7 +333,7 @@ describe('online syncing', () => {
     let localModelManager = Factory.createModelManager();
     let localSyncManager = new SFSyncManager(localModelManager, Factory.globalStorageManager(), Factory.globalHttpManager());
     localSyncManager.setKeyRequestHandler(syncManager.keyRequestHandler);
-    localSyncManager.setEventHandler(syncManager.eventHandler);
+    localSyncManager.addEventHandler(syncManager.eventHandler);
     expect(localModelManager.allItems.length).to.equal(0);
 
     await localSyncManager.loadLocalItems();

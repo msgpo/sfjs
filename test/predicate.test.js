@@ -47,7 +47,7 @@ const createItem = () => {
 
 
 
-describe.only("predicates", () => {
+describe("predicates", () => {
   it('test equality', () => {
     let item = createItem();
 
