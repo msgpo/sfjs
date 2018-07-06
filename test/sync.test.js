@@ -204,6 +204,7 @@ describe('online syncing', () => {
     var item = Factory.createItem();
     item.setDirty(true);
     modelManager.addItem(item);
+    totalItemCount++;
     syncManager.sync();
     setTimeout(function () {
       item.setDirty(true);
@@ -222,14 +223,15 @@ describe('online syncing', () => {
     // create an item and sync it
     var item = Factory.createItem();
     modelManager.addItem(item);
+    totalItemCount++;
     await syncManager.markAllItemsDirtyAndSaveOffline(false);
     modelManager.resetLocalMemory();
     expect(modelManager.allItems.length).to.equal(0);
 
     await syncManager.loadLocalItems();
-    expect(modelManager.allItems.length).to.equal(1);
+    expect(modelManager.allItems.length).to.equal(totalItemCount);
 
-    item = modelManager.allItems[0];
+    item = modelManager.findItem(item.uuid);
     expect(item.dirty).to.equal(true);
     return true;
   }).timeout(5000);
@@ -313,6 +315,16 @@ describe('online syncing', () => {
     })
   }).timeout(15000);
 
+  it("load local items", async () => {
+    let localModelManager = Factory.createModelManager();
+    let localSyncManager = new SFSyncManager(localModelManager, Factory.globalStorageManager(), Factory.globalHttpManager());
+    localSyncManager.setKeyRequestHandler(syncManager.keyRequestHandler);
+    expect(localModelManager.allItems.length).to.equal(0);
+
+    await localSyncManager.loadLocalItems();
+    expect(localModelManager.allItems.length).to.equal(totalItemCount);
+  });
+
   it("should sign in and retrieve large number of items", async () => {
     // logout
     syncManager.clearSyncToken();
@@ -328,17 +340,6 @@ describe('online syncing', () => {
       expect(models.length).to.equal(totalItemCount);
     })
   }).timeout(15000);
-
-  it("load local items", async () => {
-    let localModelManager = Factory.createModelManager();
-    let localSyncManager = new SFSyncManager(localModelManager, Factory.globalStorageManager(), Factory.globalHttpManager());
-    localSyncManager.setKeyRequestHandler(syncManager.keyRequestHandler);
-    localSyncManager.addEventHandler(syncManager.eventHandler);
-    expect(localModelManager.allItems.length).to.equal(0);
-
-    await localSyncManager.loadLocalItems();
-    expect(localModelManager.allItems.length).to.equal(totalItemCount);
-  });
 });
 
 describe('sync params', () => {
