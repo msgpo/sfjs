@@ -1556,7 +1556,7 @@ var SFModelManager = exports.SFModelManager = function () {
           } else {
             // it doesn't exist, push it into items to be mapped
             itemsToBeMapped.push(itemData);
-            if (existing.errorDecrypting) {
+            if (existing && existing.errorDecrypting) {
               existing.errorDecrypting = false;
             }
           }
@@ -1650,13 +1650,6 @@ var SFModelManager = exports.SFModelManager = function () {
     get: function get() {
       return this.items.filter(function (item) {
         return !item.dummy;
-      });
-    }
-  }, {
-    key: "extensions",
-    get: function get() {
-      return this._extensions.filter(function (ext) {
-        return !ext.deleted;
       });
     }
   }]);

@@ -595,12 +595,6 @@ export class SFAuthManager {
     })
   }
 
-  get extensions() {
-    return this._extensions.filter(function(ext){
-      return !ext.deleted;
-    })
-  }
-
   allItemsMatchingTypes(contentTypes) {
     return this.allItems.filter(function(item){
       return (_.includes(contentTypes, item.content_type) || _.includes(contentTypes, "*")) && !item.dummy;
@@ -666,7 +660,7 @@ export class SFAuthManager {
       } else {
         // it doesn't exist, push it into items to be mapped
         itemsToBeMapped.push(itemData);
-        if(existing.errorDecrypting) {
+        if(existing && existing.errorDecrypting) {
           existing.errorDecrypting = false;
         }
       }
