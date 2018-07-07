@@ -4786,6 +4786,9 @@ var SFPredicate = exports.SFPredicate = function () {
         return predicateValue.indexOf(valueAtKeyPath) != -1;
       } else if (predicate.operator == "includes") {
         return this.resolveIncludesPredicate(valueAtKeyPath, predicateValue);
+      } else if (predicate.operator == "matches") {
+        var regex = new RegExp(predicateValue);
+        return regex.test(valueAtKeyPath);
       }
 
       return false;

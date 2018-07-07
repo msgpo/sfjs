@@ -183,4 +183,17 @@ describe("predicates", () => {
     modelManager.addItem(item);
     expect(modelManager.itemsMatchingPredicate(new SFPredicate("pinned", "=", false)).length).to.equal(1);
   })
+
+  it("regex", () => {
+    var item = createItem();
+    item.content.title = "123";
+    let modelManager = createModelManager();
+    modelManager.addItem(item);
+    // match only letters
+    var predicate = new SFPredicate("content.title", "matches", "^[a-zA-Z]+$");
+    expect(modelManager.itemsMatchingPredicate(predicate).length).to.equal(0);
+
+    item.content.title = "abc";
+    expect(modelManager.itemsMatchingPredicate(predicate).length).to.equal(1);
+  })
 })
