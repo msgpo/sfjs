@@ -23,6 +23,13 @@ export class SFAuthManager {
     return this._keys;
   }
 
+  async getAuthParams() {
+    if(!this._authParams) {
+      this._authParams = JSON.parse(await this.storageManager.getItem("auth_params"));
+    }
+    return this._authParams;
+  }
+
   async getAuthParamsForEmail(url, email, extraParams) {
     return new Promise((resolve, reject) => {
       var requestUrl = url + "/auth/params";
@@ -698,6 +705,12 @@ export class SFAuthManager {
     })
   }
 
+  invalidItems() {
+    return this.allItems.filter((item) => {
+      return item.errorDecrypting;
+    });
+  }
+
   validItemsForContentType(contentType) {
     return this.allItems.filter((item) => {
       return item.content_type == contentType && !item.errorDecrypting;
@@ -772,9 +785,9 @@ export class SFAuthManager {
     return items;
   }
 
-  async getAllItemsJSONData(keys, authParams, protocolVersion, returnNullIfEmpty) {
+  async getAllItemsJSONData(keys, authParams, returnNullIfEmpty) {
     return Promise.all(this.allItems.map((item) => {
-      var itemParams = new SFItemParams(item, keys, protocolVersion);
+      var itemParams = new SFItemParams(item, keys, authParams);
       return itemParams.paramsForExportFile();
     })).then((items) => {
       if(returnNullIfEmpty && items.length == 0) {
@@ -960,7 +973,7 @@ export class SFStorageManager {
       let info = await this.getActiveKeyInfo();
 
       Promise.all(items.map(async (item) => {
-        var itemParams = new SFItemParams(item, info.keys, info.version);
+        var itemParams = new SFItemParams(item, info.keys, info.auth_params);
         itemParams = await itemParams.paramsForLocalStorage();
         if(offlineOnly) {
           delete itemParams.dirty;
@@ -1197,7 +1210,7 @@ export class SFStorageManager {
       params.limit = 150;
 
       await Promise.all(subItems.map((item) => {
-        var itemParams = new SFItemParams(item, info.keys, info.version);
+        var itemParams = new SFItemParams(item, info.keys, info.auth_params);
         itemParams.additionalFields = options.additionalFields;
         return itemParams.paramsForSync();
       })).then((itemsParams) => {
@@ -1484,6 +1497,7 @@ export class SFItem {
     this.uuid = json.uuid;
     this.enc_item_key = json.enc_item_key;
     this.auth_hash = json.auth_hash;
+    this.auth_params = json.auth_params;
 
     // When updating from server response (as opposed to local json response), these keys will be missing.
     // So we only want to update these values if they are explicitly present.
@@ -1800,10 +1814,16 @@ export class SFItem {
 }
 ;export class SFItemParams {
 
-  constructor(item, keys, version) {
+  constructor(item, keys, auth_params) {
     this.item = item;
     this.keys = keys;
-    this.version = version || SFJS.version();
+    this.auth_params = auth_params;
+
+    if(this.keys && !this.auth_params) {
+      console.trace();
+      console.error("SFItemParams.auth_params must be supplied if supplying keys.");
+    }
+    // this.version = version || SFJS.version();
   }
 
   async paramsForExportFile(includeDeleted) {
@@ -1840,10 +1860,10 @@ export class SFItem {
       // Items should always be encrypted for export files. Only respect item.doNotEncrypt for remote sync params.
       var doNotEncrypt = this.item.doNotEncrypt() && !this.forExportFile;
       if(this.keys && !doNotEncrypt) {
-        var encryptedParams = await SFJS.itemTransformer.encryptItem(this.item, this.keys, this.version);
+        var encryptedParams = await SFJS.itemTransformer.encryptItem(this.item, this.keys, this.auth_params);
         _.merge(params, encryptedParams);
 
-        if(this.version !== "001") {
+        if(this.auth_params.version !== "001") {
           params.auth_hash = null;
         }
       }
@@ -2295,38 +2315,39 @@ export class SFCryptoWeb extends SFAbstractCrypto {
     this.crypto = crypto;
   }
 
-  async _private_encryptString(string, encryptionKey, authKey, uuid, version) {
+  async _private_encryptString(string, encryptionKey, authKey, uuid, auth_params) {
     var fullCiphertext, contentCiphertext;
-    if(version === "001") {
+    if(auth_params.version === "001") {
       contentCiphertext = await this.crypto.encryptText(string, encryptionKey, null);
-      fullCiphertext = version + contentCiphertext;
+      fullCiphertext = auth_params.version + contentCiphertext;
     } else {
       var iv = await this.crypto.generateRandomKey(128);
       contentCiphertext = await this.crypto.encryptText(string, encryptionKey, iv);
-      var ciphertextToAuth = [version, uuid, iv, contentCiphertext].join(":");
+      var ciphertextToAuth = [auth_params.version, uuid, iv, contentCiphertext].join(":");
       var authHash = await this.crypto.hmac256(ciphertextToAuth, authKey);
-      fullCiphertext = [version, authHash, uuid, iv, contentCiphertext].join(":");
+      var authParamsString = await this.crypto.base64(JSON.stringify(auth_params));
+      fullCiphertext = [auth_params.version, authHash, uuid, iv, contentCiphertext, authParamsString].join(":");
     }
 
     return fullCiphertext;
   }
 
-  async encryptItem(item, keys, version = "003") {
+  async encryptItem(item, keys, auth_params) {
     var params = {};
     // encrypt item key
     var item_key = await this.crypto.generateItemEncryptionKey();
-    if(version === "001") {
+    if(auth_params.version === "001") {
       // legacy
       params.enc_item_key = await this.crypto.encryptText(item_key, keys.mk, null);
     } else {
-      params.enc_item_key = await this._private_encryptString(item_key, keys.mk, keys.ak, item.uuid, version);
+      params.enc_item_key = await this._private_encryptString(item_key, keys.mk, keys.ak, item.uuid, auth_params);
     }
 
     // encrypt content
     var ek = await this.crypto.firstHalfOfKey(item_key);
     var ak = await this.crypto.secondHalfOfKey(item_key);
-    var ciphertext = await this._private_encryptString(JSON.stringify(item.createContentJSONFromProperties()), ek, ak, item.uuid, version);
-    if(version === "001") {
+    var ciphertext = await this._private_encryptString(JSON.stringify(item.createContentJSONFromProperties()), ek, ak, item.uuid, auth_params);
+    if(auth_params.version === "001") {
       var authHash = await this.crypto.hmac256(ciphertext, ak);
       params.auth_hash = authHash;
     }
@@ -2355,9 +2376,10 @@ export class SFCryptoWeb extends SFAbstractCrypto {
         uuid: components[2],
         iv: components[3],
         contentCiphertext: components[4],
+        authParams: components[5],
         ciphertextToAuth: [components[0], components[2], components[3], components[4]].join(":"),
         encryptionKey: encryptionKey,
-        authKey: authKey
+        authKey: authKey,
       }
     }
   }
@@ -2414,6 +2436,10 @@ export class SFCryptoWeb extends SFAbstractCrypto {
     var ek = await this.crypto.firstHalfOfKey(item_key);
     var ak = await this.crypto.secondHalfOfKey(item_key);
     var itemParams = this.encryptionComponentsFromString(item.content, ek, ak);
+
+    try {
+      item.auth_params = JSON.parse(await this.crypto.base64Decode(itemParams.authParams));
+    } catch (e) {} 
 
     // return if uuid in auth hash does not match item uuid. Signs of tampering.
     if(itemParams.uuid && itemParams.uuid !== item.uuid) {

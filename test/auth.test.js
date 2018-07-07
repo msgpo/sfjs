@@ -42,22 +42,65 @@ describe("basic auth", () => {
     })
   })
 
-  it("successfully changes password", (done) => {
+  it("successfully changes password", async () => {
+    let modelManager = Factory.createModelManager();
+    let storageManager = Factory.globalStorageManager();
+    let syncManager = new SFSyncManager(modelManager, storageManager, Factory.globalHttpManager());
+
+    syncManager.setKeyRequestHandler(async () => {
+      return {
+        offline: false,
+        keys: await Factory.globalAuthManager().keys(),
+        auth_params: await Factory.globalAuthManager().getAuthParams(),
+      };
+    })
+
+    var totalItemCount = 105;
+    for(var i = 0; i < totalItemCount; i++) {
+      var item = Factory.createItem();
+      item.setDirty(true);
+      modelManager.addItem(item);
+    }
+
+    await syncManager.sync();
+
     var strict = false;
 
-    Factory.globalStandardFile().crypto.generateInitialKeysAndAuthParamsForUser(email, password).then((result) => {
-      var newKeys = result.keys;
-      var newAuthParams = result.authParams;
+    var result = await Factory.globalStandardFile().crypto.generateInitialKeysAndAuthParamsForUser(email, password);
+    var newKeys = result.keys;
+    var newAuthParams = result.authParams;
 
-      Factory.globalAuthManager().changePassword(email, _keys.pw, newKeys, newAuthParams).then((response) => {
-        expect(response.error).to.not.be.ok;
+    var response = await Factory.globalAuthManager().changePassword(email, _keys.pw, newKeys, newAuthParams);
+    expect(response.error).to.not.be.ok;
 
-        Factory.globalAuthManager().login(url, email, password, strict, null).then((response) => {
-          expect(response.error).to.not.be.ok;
-          done();
-        })
-      })
-    })
-  })
+    expect(modelManager.allItems.length).to.equal(totalItemCount);
+    expect(modelManager.invalidItems().length).to.equal(0);
+
+    modelManager.setAllItemsDirty();
+    await syncManager.sync();
+
+    // create conflict for an item
+    var item = modelManager.allItems[0];
+    item.content.foo = "bar";
+    item.setDirty(true);
+    totalItemCount++;
+
+    // clear sync token, clear storage, download all items, and ensure none of them have error decrypting
+    await syncManager.clearSyncToken();
+    await syncManager.sync();
+    await syncManager.clearSyncToken();
+    await storageManager.clearAllModels();
+    modelManager.resetLocalMemory();
+
+    expect(modelManager.allItems.length).to.equal(0);
+
+    await syncManager.sync();
+
+    expect(modelManager.allItems.length).to.equal(totalItemCount);
+    expect(modelManager.invalidItems().length).to.equal(0);
+
+    var loginResponse = await Factory.globalAuthManager().login(url, email, password, strict, null);
+    expect(loginResponse.error).to.not.be.ok;
+  }).timeout(20000);
 
 })

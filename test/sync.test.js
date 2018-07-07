@@ -41,9 +41,6 @@ describe("local storage manager", () => {
 describe('offline syncing', () => {
   let modelManager = Factory.createModelManager();
   let syncManager = new SFSyncManager(modelManager, Factory.globalStorageManager(), Factory.globalHttpManager());
-  syncManager.addEventHandler(() => {
-
-  })
 
   syncManager.setKeyRequestHandler(async () => {
     return {
@@ -98,6 +95,7 @@ describe('online syncing', () => {
   syncManager.setKeyRequestHandler(async () => {
     return {
       keys: await authManager.keys(),
+      auth_params: await authManager.getAuthParams(),
       offline: false
     };
   })
@@ -359,7 +357,7 @@ describe('sync params', () => {
 
   it("returns valid encrypted params for syncing", async () => {
     var item = Factory.createItem();
-    var itemParams = await new SFItemParams(item, _keys).paramsForSync();
+    var itemParams = await new SFItemParams(item, _keys, _authParams).paramsForSync();
     expect(itemParams.enc_item_key).to.not.be.null;
     expect(itemParams.uuid).to.not.be.null;
     expect(itemParams.auth_hash).to.be.null;
@@ -385,7 +383,7 @@ describe('sync params', () => {
 
   it("returns additional fields for local storage", async () => {
     var item = Factory.createItem();
-    var itemParams = await new SFItemParams(item, _keys).paramsForLocalStorage();
+    var itemParams = await new SFItemParams(item, _keys, _authParams).paramsForLocalStorage();
     expect(itemParams.enc_item_key).to.not.be.null;
     expect(itemParams.auth_hash).to.be.null;
     expect(itemParams.uuid).to.not.be.null;
@@ -401,7 +399,7 @@ describe('sync params', () => {
 
   it("omits deleted for export file", async () => {
     var item = Factory.createItem();
-    var itemParams = await new SFItemParams(item, _keys).paramsForExportFile();
+    var itemParams = await new SFItemParams(item, _keys, _authParams).paramsForExportFile();
     expect(itemParams.enc_item_key).to.not.be.null;
     expect(itemParams.uuid).to.not.be.null;
     expect(itemParams.content_type).to.not.be.null;
@@ -415,7 +413,7 @@ describe('sync params', () => {
   it("items with error decrypting should remain as is", async () => {
     var item = Factory.createItem();
     item.errorDecrypting = true;
-    var itemParams = await new SFItemParams(item, _keys).paramsForSync();
+    var itemParams = await new SFItemParams(item, _keys, _authParams).paramsForSync();
     expect(itemParams.content).to.eql(item.content);
     expect(itemParams.enc_item_key).to.not.be.null;
     expect(itemParams.uuid).to.not.be.null;
