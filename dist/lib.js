@@ -261,9 +261,10 @@ export class SFAuthManager {
 
     this.loadMigrations();
 
-    this.syncManager.addEventHandler((event, data) => {
+    this.syncManager.addEventHandler(async (event, data) => {
       var dataLoadedEvent = event == "local-data-loaded";
       var syncCompleteEvent = event == "sync:completed";
+
       if(dataLoadedEvent || syncCompleteEvent) {
         if(dataLoadedEvent) {
           this.receivedLocalDataEvent = true;
@@ -273,10 +274,20 @@ export class SFAuthManager {
 
         // We want to run pending migrations only after local data has been loaded, and a sync has been completed.
         if(this.receivedLocalDataEvent && this.receivedSyncCompletedEvent) {
+          if(data && data.initialSync) {
+            // If initial online sync, clear any completed migrations that occurred while offline, so they can run again now
+            // that we have updated user items.
+            await this.clearCompletedMigrations();
+          }
           this.runPendingMigrations();
         }
       }
     })
+  }
+
+  async clearCompletedMigrations() {
+    var completed = await this.getCompletedMigrations();
+    completed.length = 0;
   }
 
   loadMigrations() {
@@ -291,9 +302,14 @@ export class SFAuthManager {
 
   async runPendingMigrations() {
     var pending = await this.getPendingMigrations();
+
+    // run in pre loop, keeping in mind that a migration may be run twice: when offline then again when signing in.
+    // we need to reset the items to a new array.
+    for(var migration of pending) {
+      migration.items = [];
+    }
     for(var item of this.modelManager.allItems) {
       for(var migration of pending) {
-        if(!migration.items) {migration.items = []}
         if(item.content_type == migration.content_type) {
           migration.items.push(item);
         }
@@ -1236,8 +1252,8 @@ export class SFStorageManager {
             console.log("Caught sync success exception:", e);
           }
         }, (response, statusCode) => {
-          this.handleSyncError(response, statusCode, allDirtyItems).then(() => {
-            resolve(response);
+          this.handleSyncError(response, statusCode, allDirtyItems).then((errorResponse) => {
+            resolve(errorResponse);
           });
         });
       }
@@ -1245,24 +1261,6 @@ export class SFStorageManager {
         console.log("Sync exception caught:", e);
       }
     });
-  }
-
-  async handleSyncError(response, statusCode, allDirtyItems) {
-    if(statusCode == 401) {
-      alert("Your session has expired. New changes will not be pulled in. Please sign out and sign back in to refresh your session.");
-    }
-    console.log("Sync error: ", response);
-    var error = response ? response.error : {message: "Could not connect to server."};
-
-    this.syncStatus.syncOpInProgress = false;
-    this.syncStatus.error = error;
-    this.writeItemsToLocalStorage(allDirtyItems, false);
-
-    this.stopCheckingIfSyncIsTakingTooLong();
-
-    this.notifyEvent("sync:error", error);
-
-    this.callQueuedCallbacks({error: "Sync error"});
   }
 
   async handleSyncSuccess(syncedItems, response, options) {
@@ -1276,8 +1274,6 @@ export class SFStorageManager {
     }
     this.modelManager.clearDirtyItems(itemsToClearAsDirty);
     this.syncStatus.error = null;
-
-    this.notifyEvent("sync:updated_token", await this.getSyncToken());
 
     // Filter retrieved_items to remove any items that may be in saved_items for this complete sync operation
     // When signing in, and a user requires many round trips to complete entire retrieval of data, an item may be saved
@@ -1315,6 +1311,8 @@ export class SFStorageManager {
 
     this.syncStatus.syncOpInProgress = false;
     this.syncStatus.current += syncedItems.length;
+
+    let isInitialSync = (await this.getSyncToken()) == null;
 
     // set the sync token at the end, so that if any errors happen above, you can resync
     this.setSyncToken(response.sync_token);
@@ -1354,12 +1352,41 @@ export class SFStorageManager {
       }
 
       this.callQueuedCallbacks(response);
-      this.notifyEvent("sync:completed", {retrievedItems: this.allRetreivedItems, savedItems: this.allSavedItems});
+      this.notifyEvent("sync:completed", {retrievedItems: this.allRetreivedItems, savedItems: this.allSavedItems, initialSync: isInitialSync});
 
       this.allRetreivedItems = [];
       this.allSavedItems = [];
+
+      return response;
     }
   }
+
+  async handleSyncError(response, statusCode, allDirtyItems) {
+    if(statusCode == 401) {
+      alert("Your session has expired. New changes will not be pulled in. Please sign out and sign back in to refresh your session.");
+    }
+
+    console.log("Sync error: ", response);
+
+    if(!response) {
+      response = {error: {message: "Could not connect to server."}};
+    }
+
+    this.syncStatus.syncOpInProgress = false;
+    this.syncStatus.error = response.error;
+
+    this.writeItemsToLocalStorage(allDirtyItems, false);
+    this.modelManager.didSyncModelsOffline(allDirtyItems);
+
+    this.stopCheckingIfSyncIsTakingTooLong();
+
+    this.notifyEvent("sync:error", response.error);
+
+    this.callQueuedCallbacks({error: "Sync error"});
+
+    return response;
+  }
+
 
   async handleItemsResponse(responseItems, omitFields, source) {
     var keys = (await this.getActiveKeyInfo()).keys;

@@ -8,7 +8,7 @@ import Factory from './lib/factory.js';
 chai.use(chaiAsPromised);
 var expect = chai.expect;
 
-describe('migrations', () => {
+describe.only('migrations', () => {
   var email = Factory.globalStandardFile().crypto.generateUUIDSync();
   var password = Factory.globalStandardFile().crypto.generateUUIDSync();
 
@@ -20,22 +20,22 @@ describe('migrations', () => {
     })
   })
 
-  let authManager = Factory.globalAuthManager();
-  let modelManager = Factory.createModelManager();
-  modelManager.addItem(Factory.createItem());
-  let syncManager = new SFSyncManager(modelManager, Factory.globalStorageManager(), Factory.globalHttpManager());
-
-  syncManager.setKeyRequestHandler(async () => {
-    return {
-      keys: await authManager.keys(),
-      auth_params: await authManager.getAuthParams(),
-      offline: false
-    };
-  })
-
-  let migrationManager = new SFMigrationManager(modelManager, syncManager, Factory.globalStorageManager());
-
   it("should not run migrations until local data loading and sync is complete", async () => {
+    let authManager = Factory.globalAuthManager();
+    let modelManager = Factory.createModelManager();
+    modelManager.addItem(Factory.createItem());
+    let syncManager = new SFSyncManager(modelManager, Factory.globalStorageManager(), Factory.globalHttpManager());
+
+    syncManager.setKeyRequestHandler(async () => {
+      return {
+        keys: await authManager.keys(),
+        auth_params: await authManager.getAuthParams(),
+        offline: false
+      };
+    })
+
+    var migrationManager = new SFMigrationManager(modelManager, syncManager, Factory.globalStorageManager());
+
     migrationManager.registeredMigrations = () => {
       return [
         {
@@ -73,6 +73,21 @@ describe('migrations', () => {
   })
 
   it("should handle running multiple migrations", async () => {
+    let authManager = Factory.globalAuthManager();
+    let modelManager = Factory.createModelManager();
+    modelManager.addItem(Factory.createItem());
+    let syncManager = new SFSyncManager(modelManager, Factory.globalStorageManager(), Factory.globalHttpManager());
+
+    syncManager.setKeyRequestHandler(async () => {
+      return {
+        keys: await authManager.keys(),
+        auth_params: await authManager.getAuthParams(),
+        offline: false
+      };
+    })
+
+    var migrationManager = new SFMigrationManager(modelManager, syncManager, Factory.globalStorageManager());
+
     let randValue1 = Math.random();
     let randValue2 = Math.random();
     migrationManager.registeredMigrations = () => {
@@ -111,5 +126,79 @@ describe('migrations', () => {
     expect(item.content.foo).to.equal(randValue2);
   })
 
+  it("should run migrations while offline, then again after signing in", async () => {
+    // go offline
+    let authManager = Factory.globalAuthManager();
+    await Factory.globalStorageManager().clearAllData();
+    await Factory.globalStorageManager().setItem("server", Factory.serverURL());
+    let modelManager = Factory.createModelManager();
+    let syncManager = new SFSyncManager(modelManager, Factory.globalStorageManager(), Factory.globalHttpManager());
+
+    var migrationManager = new SFMigrationManager(modelManager, syncManager, Factory.globalStorageManager());
+
+    var params1 = Factory.createItem();
+    modelManager.addItem(params1);
+
+    let randValue = Math.random();
+    migrationManager.registeredMigrations = () => {
+      return [
+        {
+          name: "migration-1",
+          content_type: "Note",
+          handler: (items) => {
+            for(var item of items) {
+              item.content.foo = randValue;
+            }
+          }
+        }
+      ]
+    }
+
+    syncManager.setKeyRequestHandler(async () => {
+      return {
+        offline: true
+      };
+    })
+
+    migrationManager.loadMigrations();
+
+    await syncManager.sync();
+    var pending = await migrationManager.getPendingMigrations();
+    var completed = await migrationManager.getCompletedMigrations();
+    expect(pending.length).to.equal(1);
+    expect(completed.length).to.equal(0);
+
+    await syncManager.loadLocalItems();
+    // should be completed now
+    var pending = await migrationManager.getPendingMigrations();
+    var completed = await migrationManager.getCompletedMigrations();
+    expect(pending.length).to.equal(0);
+    expect(completed.length).to.equal(1);
+
+    var item1 = modelManager.findItem(params1.uuid);
+    expect(item1.content.foo).to.equal(randValue);
+
+    var params = Factory.createItem();
+    modelManager.addItem(params);
+    var item = modelManager.findItem(params.uuid);
+    expect(item.content.foo).to.not.equal(randValue);
+
+    // sign in, migrations should run again
+    var email = Factory.globalStandardFile().crypto.generateUUIDSync();
+    var password = Factory.globalStandardFile().crypto.generateUUIDSync();
+    await Factory.newRegisteredUser(email, password);
+
+    syncManager.setKeyRequestHandler(async () => {
+      return {
+        keys: await authManager.keys(),
+        auth_params: await authManager.getAuthParams(),
+        offline: false
+      };
+    })
+
+    await syncManager.sync();
+    var item = modelManager.findItem(params.uuid);
+    expect(item.content.foo).to.equal(randValue);
+  })
 
 });
