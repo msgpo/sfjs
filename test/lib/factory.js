@@ -29,7 +29,12 @@ export default class Factory {
   }
 
   static globalHttpManager() {
-    if(_globalHttpManager == null) { _globalHttpManager = new SFHttpManager(_globalStorageManager); }
+    if(_globalHttpManager == null) {
+      _globalHttpManager = new SFHttpManager();
+      _globalHttpManager.setJWTRequestHandler(async () => {
+        return this.globalStorageManager().getItem("jwt");;
+      })
+    }
     return _globalHttpManager;
   }
 

@@ -8,7 +8,7 @@ import Factory from './lib/factory.js';
 chai.use(chaiAsPromised);
 var expect = chai.expect;
 
-describe.only('migrations', () => {
+describe('migrations', () => {
   var email = Factory.globalStandardFile().crypto.generateUUIDSync();
   var password = Factory.globalStandardFile().crypto.generateUUIDSync();
 

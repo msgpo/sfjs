@@ -1,4 +1,15 @@
-export class SFAuthManager {
+export class SFAlertManager {
+
+  alert(params) {
+    window.alert(params.text);
+  }
+
+  confirm(params) {
+    return window.confirm(params.text);
+  }
+
+}
+;export class SFAuthManager {
 
   constructor(storageManager, httpManager, timeout) {
     this.httpManager = httpManager;
@@ -11,6 +22,13 @@ export class SFAuthManager {
     await this.storageManager.setItem("mk", keys.mk);
     await this.storageManager.setItem("ak", keys.ak);
   }
+
+  async signout() {
+    this._keys = null;
+    this._authParams = null;
+    return this.storageManager.clearAllData();
+  }
+
 
   async keys() {
     if(!this._keys) {
@@ -169,21 +187,25 @@ export class SFAuthManager {
 
   async handleAuthResponse(response, email, url, authParams, keys) {
     if(url) { await this.storageManager.setItem("server", url);}
+    this._authParams = authParams;
     await this.storageManager.setItem("auth_params", JSON.stringify(authParams));
     await this.storageManager.setItem("jwt", response.token);
     return this.saveKeys(keys);
   }
 }
-;class SFHttpManager {
+;export class SFHttpManager {
 
-  constructor(storageManager, timeout) {
+  constructor(timeout) {
     // calling callbacks in a $timeout allows UI to update
     this.$timeout = timeout || setTimeout.bind(window);
-    this.storageManager = storageManager;
+  }
+
+  setJWTRequestHandler(handler) {
+    this.jwtRequestHandler = handler;
   }
 
   async setAuthHeadersForRequest(request) {
-    var token = await this.storageManager.getItem("jwt");
+    var token = await this.jwtRequestHandler();
     if(token) {
       request.setRequestHeader('Authorization', 'Bearer ' + token);
     }
@@ -391,7 +413,7 @@ export class SFAuthManager {
     this.missedReferences = [];
   }
 
-  resetLocalMemory() {
+  handleSignout() {
     this.items.length = 0;
     this.itemsPendingRemoval.length = 0;
     this.missedReferences.length = 0;
@@ -400,7 +422,7 @@ export class SFAuthManager {
   async alternateUUIDForItem(item) {
     // We need to clone this item and give it a new uuid, then delete item with old uuid from db (you can't modify uuid's in our indexeddb setup)
     var newItem = this.createItem(item);
-    newItem.uuid = SFJS.crypto.generateUUIDSync();
+    newItem.uuid = await SFJS.crypto.generateUUID();
 
     // Update uuids of relationships
     newItem.informReferencesOfUUIDChange(item.uuid, newItem.uuid);
@@ -478,6 +500,11 @@ export class SFAuthManager {
       }
 
       let contentType = json_obj["content_type"] || (item && item.content_type);
+      var unknownContentType = this.acceptableContentTypes && !this.acceptableContentTypes.includes(contentType);
+      if(unknownContentType) {
+        continue;
+      }
+
       var isDirtyItemPendingDelete = false;
       if(json_obj.deleted == true) {
         if(json_obj.dirty) {
@@ -828,15 +855,15 @@ export class SFStorageManager {
 
   /* Simple Key/Value Storage */
 
-  async setItem(key, value, vaultKey) {
+  async setItem(key, value) {
 
   }
 
-  async getItem(key, vault) {
+  async getItem(key) {
 
   }
 
-  async removeItem(key, vault) {
+  async removeItem(key) {
 
   }
 
@@ -881,6 +908,10 @@ export class SFStorageManager {
 
   constructor(modelManager, storageManager, httpManager, timeout, interval) {
 
+    SFSyncManager.KeyRequestLoadLocal == "KeyRequestLoadLocal";
+    SFSyncManager.KeyRequestSaveLocal == "KeyRequestSaveLocal";
+    SFSyncManager.KeyRequestLoadSaveAccount == "KeyRequestLoadSaveAccount";
+
     this.httpManager = httpManager;
     this.modelManager = modelManager;
     this.storageManager = storageManager;
@@ -896,6 +927,10 @@ export class SFStorageManager {
 
   async getServerURL() {
     return await this.storageManager.getItem("server") || window._default_sf_server;
+  }
+
+  async getSyncURL() {
+    return await this.getServerURL() + "/items/sync";
   }
 
   registerSyncStatusObserver(callback) {
@@ -922,13 +957,20 @@ export class SFStorageManager {
     sync:updated_token
     sync:error
     major-data-change
+    local-data-loaded
+    sync-session-invalid
      */
     this.eventHandlers.push(handler);
+    return handler;
+  }
+
+  removeEventHandler(handler) {
+    _.pull(this.eventHandlers, handler);
   }
 
   notifyEvent(syncEvent, data) {
     for(var handler of this.eventHandlers) {
-      handler(syncEvent, data);
+      handler(syncEvent, data || {});
     }
   }
 
@@ -936,19 +978,22 @@ export class SFStorageManager {
     this.keyRequestHandler = handler;
   }
 
-  async getActiveKeyInfo() {
+
+
+  async getActiveKeyInfo(request) {
+    // request can be one of [KeyRequestSaveLocal, KeyRequestLoadLocal, KeyRequestLoadSaveAccount]
     // keyRequestHandler is set externally by using class. It should return an object of this format:
     /*
     {
       keys: {pw, mk, ak}
-      version,
+      auth_params,
       offline: true/false
     }
     */
     return this.keyRequestHandler();
   }
 
-  async loadLocalItems() {
+  async loadLocalItems(incrementalCallback) {
     return this.storageManager.getAllModels().then((items) => {
       // break it up into chunks to make interface more responsive for large item counts
       let total = items.length;
@@ -958,7 +1003,7 @@ export class SFStorageManager {
 
       var decryptNext = async () => {
         var subitems = items.slice(current, current + iteration);
-        var processedSubitems = await this.handleItemsResponse(subitems, null, SFModelManager.MappingSourceLocalRetrieved);
+        var processedSubitems = await this.handleItemsResponse(subitems, null, SFModelManager.MappingSourceLocalRetrieved, SFSyncManager.KeyRequestLoadLocal);
         processed.push(processedSubitems);
 
         current += subitems.length;
@@ -966,6 +1011,7 @@ export class SFStorageManager {
         if(current < total) {
           return new Promise((innerResolve, innerReject) => {
             this.$timeout(() => {
+              incrementalCallback && incrementalCallback();
               decryptNext().then(innerResolve);
             });
           });
@@ -986,7 +1032,7 @@ export class SFStorageManager {
         return;
       }
 
-      let info = await this.getActiveKeyInfo();
+      let info = await this.getActiveKeyInfo(SFSyncManager.KeyRequestSaveLocal);
 
       Promise.all(items.map(async (item) => {
         var itemParams = new SFItemParams(item, info.keys, info.auth_params);
@@ -1058,10 +1104,6 @@ export class SFStorageManager {
     return this.writeItemsToLocalStorage(allItems, false);
   }
 
-  async getSyncURL() {
-    return await this.getServerURL() + "/items/sync";
-  }
-
   async setSyncToken(token) {
     this._syncToken = token;
     await this.storageManager.setItem("syncToken", token);
@@ -1072,13 +1114,6 @@ export class SFStorageManager {
       this._syncToken = await this.storageManager.getItem("syncToken");
     }
     return this._syncToken;
-  }
-
-  async clearSyncToken() {
-    this._syncToken = null;
-    this._cursorToken = null;
-    return this.storageManager.removeItem("syncToken");
-
   }
 
   async setCursorToken(token) {
@@ -1174,7 +1209,7 @@ export class SFStorageManager {
         return;
       }
 
-      let info = await this.getActiveKeyInfo();
+      let info = await this.getActiveKeyInfo(SFSyncManager.KeyRequestLoadSaveAccount);
 
       // we want to write all dirty items to disk only if the user is offline, or if the sync op fails
       // if the sync op succeeds, these items will be written to disk by handling the "saved_items" response from the server
@@ -1209,6 +1244,8 @@ export class SFStorageManager {
       if(this.syncStatus.current > this.syncStatus.total) {
         this.syncStatus.total = this.syncStatus.current;
       }
+
+      this.syncStatusDidChange();
 
       // when doing a sync request that returns items greater than the limit, and thus subsequent syncs are required,
       // we want to keep track of all retreived items, then save to local storage only once all items have been retrieved,
@@ -1286,10 +1323,11 @@ export class SFStorageManager {
 
     // Map retrieved items to local data
     // Note that deleted items will not be returned
-    var retrieved = await this.handleItemsResponse(response.retrieved_items, null, SFModelManager.MappingSourceRemoteRetrieved);
+    var retrieved = await this.handleItemsResponse(response.retrieved_items, null, SFModelManager.MappingSourceRemoteRetrieved, SFSyncManager.KeyRequestLoadSaveAccount);
 
     // Append items to master list of retrieved items for this ongoing sync operation
     this.allRetreivedItems = this.allRetreivedItems.concat(retrieved);
+    this.syncStatus.retrievedCount = this.allRetreivedItems.length;
 
     // Merge only metadata for saved items
     // we write saved items to disk now because it clears their dirty status then saves
@@ -1297,7 +1335,7 @@ export class SFStorageManager {
     var omitFields = ["content", "auth_hash"];
 
     // Map saved items to local data
-    var saved = await this.handleItemsResponse(response.saved_items, omitFields, SFModelManager.MappingSourceRemoteSaved);
+    var saved = await this.handleItemsResponse(response.saved_items, omitFields, SFModelManager.MappingSourceRemoteSaved, SFSyncManager.KeyRequestLoadSaveAccount);
 
     // Append items to master list of saved items for this ongoing sync operation
     this.allSavedItems = this.allSavedItems.concat(saved);
@@ -1311,6 +1349,8 @@ export class SFStorageManager {
 
     this.syncStatus.syncOpInProgress = false;
     this.syncStatus.current += syncedItems.length;
+
+    this.syncStatusDidChange();
 
     let isInitialSync = (await this.getSyncToken()) == null;
 
@@ -1339,6 +1379,8 @@ export class SFStorageManager {
 
     else {
       await this.writeItemsToLocalStorage(this.allRetreivedItems, false);
+      this.syncStatus.retrievedCount = 0;
+      this.syncStatusDidChange();
 
       // The number of changed items that constitute a major change
       // This is used by the desktop app to create backups
@@ -1352,7 +1394,7 @@ export class SFStorageManager {
       }
 
       this.callQueuedCallbacks(response);
-      this.notifyEvent("sync:completed", {retrievedItems: this.allRetreivedItems, savedItems: this.allSavedItems, initialSync: isInitialSync});
+      this.notifyEvent("sync:completed", {retrievedItems: this.allRetreivedItems, savedItems: this.allSavedItems, unsavedItems: unsaved, initialSync: isInitialSync});
 
       this.allRetreivedItems = [];
       this.allSavedItems = [];
@@ -1363,7 +1405,7 @@ export class SFStorageManager {
 
   async handleSyncError(response, statusCode, allDirtyItems) {
     if(statusCode == 401) {
-      alert("Your session has expired. New changes will not be pulled in. Please sign out and sign back in to refresh your session.");
+      this.notifyEvent("sync-session-invalid");
     }
 
     console.log("Sync error: ", response);
@@ -1374,6 +1416,7 @@ export class SFStorageManager {
 
     this.syncStatus.syncOpInProgress = false;
     this.syncStatus.error = response.error;
+    this.syncStatusDidChange();
 
     this.writeItemsToLocalStorage(allDirtyItems, false);
     this.modelManager.didSyncModelsOffline(allDirtyItems);
@@ -1388,8 +1431,8 @@ export class SFStorageManager {
   }
 
 
-  async handleItemsResponse(responseItems, omitFields, source) {
-    var keys = (await this.getActiveKeyInfo()).keys;
+  async handleItemsResponse(responseItems, omitFields, source, keyRequest) {
+    var keys = (await this.getActiveKeyInfo(keyRequest)).keys;
     await SFJS.itemTransformer.decryptMultipleItems(responseItems, keys);
     var items = this.modelManager.mapResponseItemsToLocalModelsOmittingFields(responseItems, omitFields, source);
 
@@ -1409,10 +1452,10 @@ export class SFStorageManager {
     return items;
   }
 
-  refreshErroredItems() {
+  async refreshErroredItems() {
     var erroredItems = this.modelManager.allItems.filter((item) => {return item.errorDecrypting == true});
     if(erroredItems.length > 0) {
-      this.handleItemsResponse(erroredItems, null, SFModelManager.MappingSourceLocalRetrieved);
+      return this.handleItemsResponse(erroredItems, null, SFModelManager.MappingSourceLocalRetrieved, SFSyncManager.KeyRequestLoadSaveAccount);
     }
   }
 
@@ -1423,7 +1466,7 @@ export class SFStorageManager {
 
     for(let mapping of unsaved) {
       var itemResponse = mapping.item;
-      await SFJS.itemTransformer.decryptMultipleItems([itemResponse], (await this.getActiveKeyInfo()).keys);
+      await SFJS.itemTransformer.decryptMultipleItems([itemResponse], (await this.getActiveKeyInfo(SFSyncManager.KeyRequestLoadSaveAccount)).keys);
       var item = this.modelManager.findItem(itemResponse.uuid);
 
       // Could be deleted
@@ -1457,6 +1500,19 @@ export class SFStorageManager {
     // where it's being called from.
     this.sync(null, {additionalFields: ["created_at", "updated_at"]});
   }
+
+  async handleSignout() {
+    this._syncToken = null;
+    this._cursorToken = null;
+    this._queuedCallbacks = [];
+    this.syncStatus = {};
+  }
+
+  async clearSyncToken() {
+    this._syncToken = null;
+    this._cursorToken = null;
+    return this.storageManager.removeItem("syncToken");
+  }
 }
 ;var dateFormatter;
 
@@ -1469,7 +1525,10 @@ export class SFItem {
     this.updateFromJSON(json_obj);
 
     if(!this.uuid) {
-      this.uuid = SFJS.crypto.generateUUIDSync();
+      // on React Native, this method will not exist. UUID gen will be handled manually via async methods.
+      if(typeof(SFJS) !== "undefined" && SFJS.crypto.generateUUIDSync) {
+        this.uuid = SFJS.crypto.generateUUIDSync();
+      }
     }
 
     if(!this.content.references) {
@@ -1734,6 +1793,11 @@ export class SFItem {
 
   get locked() {
     return this.getAppDataItem("locked");
+  }
+
+  // May be used by clients to display the human readable type for this item. Should be overriden by subclasses.
+  get displayName() {
+    return "Item";
   }
 
   hasRawClientUpdatedAtValue() {
@@ -2057,6 +2121,10 @@ export class SFAbstractCrypto {
       });
       return uuid;
     }
+  }
+
+  async generateUUID()  {
+    return this.generateUUIDSync();
   }
 
   async decryptText({ciphertextToAuth, contentCiphertext, encryptionKey, iv, authHash, authKey} = {}, requiresAuth) {
@@ -2533,13 +2601,16 @@ export class SFCryptoWeb extends SFAbstractCrypto {
       // IE and Edge do not support pbkdf2 in WebCrypto, therefore we need to use CryptoJS
       var IEOrEdge = document.documentMode || /Edge/.test(navigator.userAgent);
 
-      if(cryptoInstance) {
-        this.crypto = cryptoInstance;
-      } else if(!IEOrEdge && (window.crypto && window.crypto.subtle)) {
+      if(!IEOrEdge && (window.crypto && window.crypto.subtle)) {
         this.crypto = new SFCryptoWeb();
       } else {
         this.crypto = new SFCryptoJS();
       }
+    }
+
+    // This must be placed outside window check, as it's used in native.
+    if(cryptoInstance) {
+      this.crypto = cryptoInstance;
     }
 
     this.itemTransformer = new SFItemTransformer(this.crypto);
@@ -2603,8 +2674,9 @@ export class SFCryptoWeb extends SFAbstractCrypto {
   defaultPasswordGenerationCost() {
     return this.costMinimumForVersion(this.version());
   }
-
 }
+
+// import '../vendor/lodash/lodash.custom.js';
 
 if(typeof window !== 'undefined' && window !== null) {
   // window is for some reason defined in React Native, but throws an exception when you try to set to it
@@ -2622,6 +2694,7 @@ if(typeof window !== 'undefined' && window !== null) {
     window.SFSyncManager = SFSyncManager;
     window.SFAuthManager = SFAuthManager;
     window.SFMigrationManager = SFMigrationManager;
+    window.SFAlertManager = SFAlertManager;
     window.SFPredicate = SFPredicate;
   } catch (e) {
     console.log("Exception while exporting window variables", e);

@@ -223,7 +223,7 @@ describe('online syncing', () => {
     modelManager.addItem(item);
     totalItemCount++;
     await syncManager.markAllItemsDirtyAndSaveOffline(false);
-    modelManager.resetLocalMemory();
+    modelManager.handleSignout();
     expect(modelManager.allItems.length).to.equal(0);
 
     await syncManager.loadLocalItems();

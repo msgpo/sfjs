@@ -2,7 +2,6 @@ import '../dist/regenerator.js';
 import '../dist/sfjs.js';
 import '../node_modules/chai/chai.js';
 import './vendor/chai-as-promised-built.js';
-import '../vendor/lodash/lodash.custom.js';
 
 SFItem.AppDomain = "org.standardnotes.sn";
 

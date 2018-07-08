@@ -90,7 +90,7 @@ describe("basic auth", () => {
     await syncManager.sync();
     await syncManager.clearSyncToken();
     await storageManager.clearAllModels();
-    modelManager.resetLocalMemory();
+    modelManager.handleSignout();
 
     expect(modelManager.allItems.length).to.equal(0);
 
