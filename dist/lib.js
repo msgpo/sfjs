@@ -908,9 +908,9 @@ export class SFStorageManager {
 
   constructor(modelManager, storageManager, httpManager, timeout, interval) {
 
-    SFSyncManager.KeyRequestLoadLocal == "KeyRequestLoadLocal";
-    SFSyncManager.KeyRequestSaveLocal == "KeyRequestSaveLocal";
-    SFSyncManager.KeyRequestLoadSaveAccount == "KeyRequestLoadSaveAccount";
+    SFSyncManager.KeyRequestLoadLocal = "KeyRequestLoadLocal";
+    SFSyncManager.KeyRequestSaveLocal = "KeyRequestSaveLocal";
+    SFSyncManager.KeyRequestLoadSaveAccount = "KeyRequestLoadSaveAccount";
 
     this.httpManager = httpManager;
     this.modelManager = modelManager;
@@ -978,8 +978,6 @@ export class SFStorageManager {
     this.keyRequestHandler = handler;
   }
 
-
-
   async getActiveKeyInfo(request) {
     // request can be one of [KeyRequestSaveLocal, KeyRequestLoadLocal, KeyRequestLoadSaveAccount]
     // keyRequestHandler is set externally by using class. It should return an object of this format:
@@ -990,7 +988,11 @@ export class SFStorageManager {
       offline: true/false
     }
     */
-    return this.keyRequestHandler();
+    return this.keyRequestHandler(request);
+  }
+
+  initialDataLoaded() {
+    return this._initialDataLoaded;
   }
 
   async loadLocalItems(incrementalCallback) {
@@ -1018,6 +1020,7 @@ export class SFStorageManager {
         } else {
           // Completed
           this.notifyEvent("local-data-loaded");
+          this._initialDataLoaded = true;
         }
       }
 
@@ -1154,6 +1157,9 @@ export class SFStorageManager {
   }
 
   beginCheckingIfSyncIsTakingTooLong() {
+    if(this.syncStatus.checker) {
+      this.stopCheckingIfSyncIsTakingTooLong();
+    }
     this.syncStatus.checker = this.$interval(function(){
       // check to see if the ongoing sync is taking too long, alert the user
       var secondsPassed = (new Date() - this.syncStatus.syncStart) / 1000;
@@ -1171,6 +1177,7 @@ export class SFStorageManager {
     } else {
       clearInterval(this.syncStatus.checker);
     }
+    this.syncStatus.checker = null;
   }
 
   lockSyncing() {

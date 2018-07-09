@@ -2379,9 +2379,9 @@ var SFSyncManager = exports.SFSyncManager = function () {
   function SFSyncManager(modelManager, storageManager, httpManager, timeout, interval) {
     _classCallCheck(this, SFSyncManager);
 
-    SFSyncManager.KeyRequestLoadLocal == "KeyRequestLoadLocal";
-    SFSyncManager.KeyRequestSaveLocal == "KeyRequestSaveLocal";
-    SFSyncManager.KeyRequestLoadSaveAccount == "KeyRequestLoadSaveAccount";
+    SFSyncManager.KeyRequestLoadLocal = "KeyRequestLoadLocal";
+    SFSyncManager.KeyRequestSaveLocal = "KeyRequestSaveLocal";
+    SFSyncManager.KeyRequestLoadSaveAccount = "KeyRequestLoadSaveAccount";
 
     this.httpManager = httpManager;
     this.modelManager = modelManager;
@@ -2546,7 +2546,7 @@ var SFSyncManager = exports.SFSyncManager = function () {
           while (1) {
             switch (_context36.prev = _context36.next) {
               case 0:
-                return _context36.abrupt("return", this.keyRequestHandler());
+                return _context36.abrupt("return", this.keyRequestHandler(request));
 
               case 1:
               case "end":
@@ -2562,6 +2562,11 @@ var SFSyncManager = exports.SFSyncManager = function () {
 
       return getActiveKeyInfo;
     }()
+  }, {
+    key: "initialDataLoaded",
+    value: function initialDataLoaded() {
+      return this._initialDataLoaded;
+    }
   }, {
     key: "loadLocalItems",
     value: function () {
@@ -2612,8 +2617,9 @@ var SFSyncManager = exports.SFSyncManager = function () {
                             case 10:
                               // Completed
                               _this10.notifyEvent("local-data-loaded");
+                              _this10._initialDataLoaded = true;
 
-                            case 11:
+                            case 12:
                             case "end":
                               return _context37.stop();
                           }
@@ -3176,6 +3182,9 @@ var SFSyncManager = exports.SFSyncManager = function () {
   }, {
     key: "beginCheckingIfSyncIsTakingTooLong",
     value: function beginCheckingIfSyncIsTakingTooLong() {
+      if (this.syncStatus.checker) {
+        this.stopCheckingIfSyncIsTakingTooLong();
+      }
       this.syncStatus.checker = this.$interval(function () {
         // check to see if the ongoing sync is taking too long, alert the user
         var secondsPassed = (new Date() - this.syncStatus.syncStart) / 1000;
@@ -3194,6 +3203,7 @@ var SFSyncManager = exports.SFSyncManager = function () {
       } else {
         clearInterval(this.syncStatus.checker);
       }
+      this.syncStatus.checker = null;
     }
   }, {
     key: "lockSyncing",
