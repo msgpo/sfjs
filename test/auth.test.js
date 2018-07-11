@@ -70,7 +70,7 @@ describe("basic auth", () => {
     var newKeys = result.keys;
     var newAuthParams = result.authParams;
 
-    var response = await Factory.globalAuthManager().changePassword(email, _keys.pw, newKeys, newAuthParams);
+    var response = await Factory.globalAuthManager().changePassword(url, email, _keys.pw, newKeys, newAuthParams);
     expect(response.error).to.not.be.ok;
 
     expect(modelManager.allItems.length).to.equal(totalItemCount);
@@ -84,6 +84,9 @@ describe("basic auth", () => {
     item.content.foo = "bar";
     item.setDirty(true);
     totalItemCount++;
+
+    // Wait so that sync conflict can be created
+    await Factory.sleep(1.1);
 
     // clear sync token, clear storage, download all items, and ensure none of them have error decrypting
     await syncManager.clearSyncToken();

@@ -1,20 +1,51 @@
 export class SFAlertManager {
 
-  alert(params) {
-    window.alert(params.text);
+  async alert(params) {
+    return new Promise((resolve, reject) => {
+      window.alert(params.text);
+      resolve();
+    })
   }
 
-  confirm(params) {
-    return window.confirm(params.text);
+  async confirm(params) {
+    return new Promise((resolve, reject) => {
+      if(window.confirm(params.text)) {
+        resolve();
+      } else {
+        reject();
+      }
+    });
   }
 
 }
 ;export class SFAuthManager {
 
-  constructor(storageManager, httpManager, timeout) {
+  constructor(storageManager, httpManager, alertManager, timeout) {
+    SFAuthManager.DidSignOutEvent = "DidSignOutEvent";
+    SFAuthManager.WillSignInEvent = "WillSignInEvent";
+    SFAuthManager.DidSignInEvent = "DidSignInEvent";
+
     this.httpManager = httpManager;
     this.storageManager = storageManager;
+    this.alertManager = alertManager || new SFAlertManager();
     this.$timeout = timeout || setTimeout.bind(window);
+
+    this.eventHandlers = [];
+  }
+
+  addEventHandler(handler) {
+    this.eventHandlers.push(handler);
+    return handler;
+  }
+
+  removeEventHandler(handler) {
+    _.pull(this.eventHandlers, handler);
+  }
+
+  notifyEvent(event, data) {
+    for(var handler of this.eventHandlers) {
+      handler(event, data || {});
+    }
   }
 
   async saveKeys(keys) {
@@ -23,12 +54,17 @@ export class SFAlertManager {
     await this.storageManager.setItem("ak", keys.ak);
   }
 
-  async signout() {
+  async signout(clearAllData) {
     this._keys = null;
     this._authParams = null;
-    return this.storageManager.clearAllData();
+    if(clearAllData) {
+      return this.storageManager.clearAllData().then(() => {
+        this.notifyEvent(SFAuthManager.DidSignOutEvent);
+      })
+    } else {
+      this.notifyEvent(SFAuthManager.DidSignOutEvent);
+    }
   }
-
 
   async keys() {
     if(!this._keys) {
@@ -43,7 +79,8 @@ export class SFAlertManager {
 
   async getAuthParams() {
     if(!this._authParams) {
-      this._authParams = JSON.parse(await this.storageManager.getItem("auth_params"));
+      var data = await this.storageManager.getItem("auth_params");
+      this._authParams = JSON.parse(data);
     }
     return this._authParams;
   }
@@ -65,6 +102,9 @@ export class SFAlertManager {
 
   async login(url, email, password, strictSignin, extraParams) {
     return new Promise(async (resolve, reject) => {
+
+      this.notifyEvent(SFAuthManager.WillSignInEvent);
+
       let authParams = await this.getAuthParamsForEmail(url, email, extraParams);
 
       // SF3 requires a unique identifier in the auth params
@@ -94,11 +134,17 @@ export class SFAlertManager {
       }
 
       if(SFJS.isProtocolVersionOutdated(authParams.version)) {
-        let message = `The encryption version for your account, ${authParams.version}, is outdated and requires upgrade. You may proceed with login, but are advised to follow prompts for Security Updates once inside. Please visit standardnotes.org/help/security for more information.\n\nClick 'OK' to proceed with login.`
-        if(!confirm(message)) {
+        let message = `The encryption version for your account, ${authParams.version}, is outdated and requires upgrade. You may proceed with login, but are advised to perform a security update using the web or desktop application. Please visit standardnotes.org/help/security for more information.`
+        var abort = false;
+        await this.alertManager.confirm({
+          title: "Update Needed",
+          text: message,
+          confirmButtonText: "Sign In",
+        }).catch(() => {
           resolve({error: {}});
-          return;
-        }
+          abort = true;
+        })
+        if(abort) {return;}
       }
 
       if(!SFJS.supportsPasswordDerivationCost(authParams.pw_cost)) {
@@ -131,8 +177,9 @@ export class SFAlertManager {
       var requestUrl = url + "/auth/sign_in";
       var params = _.merge({password: keys.pw, email: email}, extraParams);
 
-      this.httpManager.postAbsolute(requestUrl, params, (response) => {
-        this.handleAuthResponse(response, email, url, authParams, keys);
+      this.httpManager.postAbsolute(requestUrl, params, async (response) => {
+        this.notifyEvent(SFAuthManager.DidSignInEvent);
+        await this.handleAuthResponse(response, email, url, authParams, keys);
         this.$timeout(() => resolve(response));
       }, (response) => {
         console.error("Error logging in", response);
@@ -166,15 +213,15 @@ export class SFAlertManager {
     });
   }
 
-  async changePassword(email, current_server_pw, newKeys, newAuthParams) {
+  async changePassword(url, email, current_server_pw, newKeys, newAuthParams) {
     return new Promise(async (resolve, reject) => {
       let newServerPw = newKeys.pw;
 
-      var requestUrl = await this.storageManager.getItem("server") + "/auth/change_pw";
+      var requestUrl = url + "/auth/change_pw";
       var params = _.merge({new_password: newServerPw, current_password: current_server_pw}, newAuthParams);
 
-      this.httpManager.postAbsolute(requestUrl, params, (response) => {
-        this.handleAuthResponse(response, email, null, newAuthParams, newKeys);
+      this.httpManager.postAbsolute(requestUrl, params, async (response) => {
+        await this.handleAuthResponse(response, email, null, newAuthParams, newKeys);
         resolve(response);
       }, (response) => {
         if(typeof response !== 'object') {
@@ -1189,7 +1236,6 @@ export class SFStorageManager {
   }
 
   async sync(options = {}) {
-
     return new Promise(async (resolve, reject) => {
 
       if(this.syncLocked) {
@@ -1411,6 +1457,7 @@ export class SFStorageManager {
   }
 
   async handleSyncError(response, statusCode, allDirtyItems) {
+    console.log("Sync error", response);
     if(statusCode == 401) {
       this.notifyEvent("sync-session-invalid");
     }
@@ -1918,7 +1965,6 @@ export class SFItem {
     this.auth_params = auth_params;
 
     if(this.keys && !this.auth_params) {
-      console.trace();
       console.error("SFItemParams.auth_params must be supplied if supplying keys.");
     }
     // this.version = version || SFJS.version();
@@ -1950,8 +1996,6 @@ export class SFItem {
   }
 
   async __params() {
-
-    console.assert(!this.item.dummy, "Item is dummy, should not have gotten here.", this.item.dummy)
 
     var params = {uuid: this.item.uuid, content_type: this.item.content_type, deleted: this.item.deleted, created_at: this.item.created_at};
     if(!this.item.errorDecrypting) {

@@ -77,6 +77,14 @@ export default class Factory {
     return "http://localhost:3000";
   }
 
+  static sleep(seconds) {
+    return new Promise((resolve, reject) => {
+      setTimeout(function () {
+        resolve();
+      }, seconds * 1000);
+    })
+  }
+
   static async newRegisteredUser(email, password) {
     let url = this.serverURL();
     if(!email) email = sf_default.crypto.generateUUIDSync();
