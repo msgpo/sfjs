@@ -436,7 +436,7 @@ export class SFAlertManager {
 }
 ;export class SFModelManager {
 
-  constructor() {
+  constructor(timeout) {
     SFModelManager.MappingSourceRemoteRetrieved = "MappingSourceRemoteRetrieved";
     SFModelManager.MappingSourceRemoteSaved = "MappingSourceRemoteSaved";
     SFModelManager.MappingSourceLocalSaved = "MappingSourceLocalSaved";
@@ -453,6 +453,8 @@ export class SFAlertManager {
         SFModelManager.MappingSourceRemoteActionRetrieved
       ].includes(source);
     }
+
+    this.$timeout = timeout || setTimeout.bind(window);
 
     this.itemSyncObservers = [];
     this.itemsPendingRemoval = [];
@@ -606,10 +608,11 @@ export class SFAlertManager {
 
   /* Note that this function is public, and can also be called manually (desktopManager uses it) */
   notifySyncObserversOfModels(models, source, sourceKey) {
-    for(var observer of this.itemSyncObservers) {
-      var allRelevantItems = observer.type == "*" ? models : models.filter(function(item){return item.content_type == observer.type});
+    // Make sure `let` is used in the for loops instead of `var`, as we will be using a timeout below.
+    for(let observer of this.itemSyncObservers) {
+      var allRelevantItems = observer.type == "*" ? models : models.filter((item) => {return item.content_type == observer.type});
       var validItems = [], deletedItems = [];
-      for(var item of allRelevantItems) {
+      for(let item of allRelevantItems) {
         if(item.deleted) {
           deletedItems.push(item);
         } else {
@@ -618,9 +621,19 @@ export class SFAlertManager {
       }
 
       if(allRelevantItems.length > 0) {
-        observer.callback(allRelevantItems, validItems, deletedItems, source, sourceKey);
+        this._callSyncObserverCallbackWithTimeout(observer, allRelevantItems, validItems, deletedItems, source, sourceKey);
       }
     }
+  }
+
+  /*
+    Rather than running this inline in a for loop, which causes problems and requires all variables to be declared with `let`,
+    we'll do it here so it's more explicit and less confusing.
+   */
+  _callSyncObserverCallbackWithTimeout(observer, allRelevantItems, validItems, deletedItems, source, sourceKey) {
+    this.$timeout(() => {
+      observer.callback(allRelevantItems, validItems, deletedItems, source, sourceKey);
+    })
   }
 
   createItem(json_obj, dontNotifyObservers) {
@@ -1042,16 +1055,15 @@ export class SFStorageManager {
     return this._initialDataLoaded;
   }
 
-  async loadLocalItems(incrementalCallback) {
+  async loadLocalItems(incrementalCallback, batchSize = 50) {
     return this.storageManager.getAllModels().then((items) => {
       // break it up into chunks to make interface more responsive for large item counts
       let total = items.length;
-      let iteration = 50;
       var current = 0;
       var processed = [];
 
       var decryptNext = async () => {
-        var subitems = items.slice(current, current + iteration);
+        var subitems = items.slice(current, current + batchSize);
         var processedSubitems = await this.handleItemsResponse(subitems, null, SFModelManager.MappingSourceLocalRetrieved, SFSyncManager.KeyRequestLoadLocal);
         processed.push(processedSubitems);
 
@@ -1060,7 +1072,7 @@ export class SFStorageManager {
         if(current < total) {
           return new Promise((innerResolve, innerReject) => {
             this.$timeout(() => {
-              incrementalCallback && incrementalCallback();
+              incrementalCallback && incrementalCallback(current, total);
               decryptNext().then(innerResolve);
             });
           });
@@ -2726,8 +2738,6 @@ export class SFCryptoWeb extends SFAbstractCrypto {
     return this.costMinimumForVersion(this.version());
   }
 }
-
-// import '../vendor/lodash/lodash.custom.js';
 
 if(typeof window !== 'undefined' && window !== null) {
   // window is for some reason defined in React Native, but throws an exception when you try to set to it

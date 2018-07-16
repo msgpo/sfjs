@@ -1364,7 +1364,7 @@ var SFMigrationManager = exports.SFMigrationManager = function () {
 
 ;
 var SFModelManager = exports.SFModelManager = function () {
-  function SFModelManager() {
+  function SFModelManager(timeout) {
     _classCallCheck(this, SFModelManager);
 
     SFModelManager.MappingSourceRemoteRetrieved = "MappingSourceRemoteRetrieved";
@@ -1379,6 +1379,8 @@ var SFModelManager = exports.SFModelManager = function () {
     SFModelManager.isMappingSourceRetrieved = function (source) {
       return [SFModelManager.MappingSourceRemoteRetrieved, SFModelManager.MappingSourceComponentRetrieved, SFModelManager.MappingSourceRemoteActionRetrieved].includes(source);
     };
+
+    this.$timeout = timeout || setTimeout.bind(window);
 
     this.itemSyncObservers = [];
     this.itemsPendingRemoval = [];
@@ -1695,6 +1697,49 @@ var SFModelManager = exports.SFModelManager = function () {
   }, {
     key: "notifySyncObserversOfModels",
     value: function notifySyncObserversOfModels(models, source, sourceKey) {
+      var _this9 = this;
+
+      var _loop2 = function _loop2(observer) {
+        allRelevantItems = observer.type == "*" ? models : models.filter(function (item) {
+          return item.content_type == observer.type;
+        });
+        validItems = [];
+        deletedItems = [];
+        var _iteratorNormalCompletion12 = true;
+        var _didIteratorError12 = false;
+        var _iteratorError12 = undefined;
+
+        try {
+          for (var _iterator12 = allRelevantItems[Symbol.iterator](), _step12; !(_iteratorNormalCompletion12 = (_step12 = _iterator12.next()).done); _iteratorNormalCompletion12 = true) {
+            var item = _step12.value;
+
+            if (item.deleted) {
+              deletedItems.push(item);
+            } else {
+              validItems.push(item);
+            }
+          }
+        } catch (err) {
+          _didIteratorError12 = true;
+          _iteratorError12 = err;
+        } finally {
+          try {
+            if (!_iteratorNormalCompletion12 && _iterator12.return) {
+              _iterator12.return();
+            }
+          } finally {
+            if (_didIteratorError12) {
+              throw _iteratorError12;
+            }
+          }
+        }
+
+        if (allRelevantItems.length > 0) {
+          _this9._callSyncObserverCallbackWithTimeout(observer, allRelevantItems, validItems, deletedItems, source, sourceKey);
+        }
+      };
+
+      // Make sure `let` is used in the for loops instead of `var`, as we will be using a timeout below.
       var _iteratorNormalCompletion11 = true;
       var _didIteratorError11 = false;
       var _iteratorError11 = undefined;
@@ -1702,44 +1747,10 @@ var SFModelManager = exports.SFModelManager = function () {
       try {
         for (var _iterator11 = this.itemSyncObservers[Symbol.iterator](), _step11; !(_iteratorNormalCompletion11 = (_step11 = _iterator11.next()).done); _iteratorNormalCompletion11 = true) {
           var observer = _step11.value;
+          var allRelevantItems;
+          var validItems, deletedItems;
 
-          var allRelevantItems = observer.type == "*" ? models : models.filter(function (item) {
-            return item.content_type == observer.type;
-          });
-          var validItems = [],
-              deletedItems = [];
-          var _iteratorNormalCompletion12 = true;
-          var _didIteratorError12 = false;
-          var _iteratorError12 = undefined;
-
-          try {
-            for (var _iterator12 = allRelevantItems[Symbol.iterator](), _step12; !(_iteratorNormalCompletion12 = (_step12 = _iterator12.next()).done); _iteratorNormalCompletion12 = true) {
-              var item = _step12.value;
-
-              if (item.deleted) {
-                deletedItems.push(item);
-              } else {
-                validItems.push(item);
-              }
-            }
-          } catch (err) {
-            _didIteratorError12 = true;
-            _iteratorError12 = err;
-          } finally {
-            try {
-              if (!_iteratorNormalCompletion12 && _iterator12.return) {
-                _iterator12.return();
-              }
-            } finally {
-              if (_didIteratorError12) {
-                throw _iteratorError12;
-              }
-            }
-          }
-
-          if (allRelevantItems.length > 0) {
-            observer.callback(allRelevantItems, validItems, deletedItems, source, sourceKey);
-          }
+          _loop2(observer);
         }
       } catch (err) {
         _didIteratorError11 = true;
@@ -1755,6 +1766,19 @@ var SFModelManager = exports.SFModelManager = function () {
           }
         }
       }
+    }
+
+    /*
+      Rather than running this inline in a for loop, which causes problems and requires all variables to be declared with `let`,
+      we'll do it here so it's more explicit and less confusing.
+     */
+
+  }, {
+    key: "_callSyncObserverCallbackWithTimeout",
+    value: function _callSyncObserverCallbackWithTimeout(observer, allRelevantItems, validItems, deletedItems, source, sourceKey) {
+      this.$timeout(function () {
+        observer.callback(allRelevantItems, validItems, deletedItems, source, sourceKey);
+      });
     }
   }, {
     key: "createItem",
@@ -1835,13 +1859,13 @@ var SFModelManager = exports.SFModelManager = function () {
   }, {
     key: "addItems",
     value: function addItems(items) {
-      var _this9 = this;
+      var _this10 = this;
 
       var globalOnly = arguments.length > 1 && arguments[1] !== undefined ? arguments[1] : false;
 
       items.forEach(function (item) {
-        if (!_.find(_this9.items, { uuid: item.uuid })) {
-          _this9.items.push(item);
+        if (!_.find(_this10.items, { uuid: item.uuid })) {
+          _this10.items.push(item);
         }
       });
     }
@@ -2634,10 +2658,10 @@ var SFSyncManager = exports.SFSyncManager = function () {
   }, {
     key: "syncStatusDidChange",
     value: function syncStatusDidChange() {
-      var _this10 = this;
+      var _this11 = this;
 
       this.syncStatusObservers.forEach(function (observer) {
-        observer.callback(_this10.syncStatus);
+        observer.callback(_this11.syncStatus);
       });
     }
   }, {
@@ -2727,8 +2751,9 @@ var SFSyncManager = exports.SFSyncManager = function () {
     key: "loadLocalItems",
     value: function () {
       var _ref43 = _asyncToGenerator( /*#__PURE__*/regeneratorRuntime.mark(function _callee42(incrementalCallback) {
-        var _this11 = this;
+        var _this12 = this;
 
+        var batchSize = arguments.length > 1 && arguments[1] !== undefined ? arguments[1] : 50;
         return regeneratorRuntime.wrap(function _callee42$(_context42) {
           while (1) {
             switch (_context42.prev = _context42.next) {
@@ -2736,7 +2761,6 @@ var SFSyncManager = exports.SFSyncManager = function () {
                 return _context42.abrupt("return", this.storageManager.getAllModels().then(function (items) {
                   // break it up into chunks to make interface more responsive for large item counts
                   var total = items.length;
-                  var iteration = 50;
                   var current = 0;
                   var processed = [];
 
@@ -2747,9 +2771,9 @@ var SFSyncManager = exports.SFSyncManager = function () {
                         while (1) {
                           switch (_context41.prev = _context41.next) {
                             case 0:
-                              subitems = items.slice(current, current + iteration);
+                              subitems = items.slice(current, current + batchSize);
                               _context41.next = 3;
-                              return _this11.handleItemsResponse(subitems, null, SFModelManager.MappingSourceLocalRetrieved, SFSyncManager.KeyRequestLoadLocal);
+                              return _this12.handleItemsResponse(subitems, null, SFModelManager.MappingSourceLocalRetrieved, SFSyncManager.KeyRequestLoadLocal);
 
                             case 3:
                               processedSubitems = _context41.sent;
@@ -2764,23 +2788,23 @@ var SFSyncManager = exports.SFSyncManager = function () {
                               }
 
                               return _context41.abrupt("return", new Promise(function (innerResolve, innerReject) {
-                                _this11.$timeout(function () {
-                                  incrementalCallback && incrementalCallback();
+                                _this12.$timeout(function () {
+                                  incrementalCallback && incrementalCallback(current, total);
                                   decryptNext().then(innerResolve);
                                 });
                               }));
 
                             case 10:
                               // Completed
-                              _this11.notifyEvent("local-data-loaded");
-                              _this11._initialDataLoaded = true;
+                              _this12.notifyEvent("local-data-loaded");
+                              _this12._initialDataLoaded = true;
 
                             case 12:
                             case "end":
                               return _context41.stop();
                           }
                         }
-                      }, _callee41, _this11);
+                      }, _callee41, _this12);
                     }));
 
                     return function decryptNext() {
@@ -2799,7 +2823,7 @@ var SFSyncManager = exports.SFSyncManager = function () {
         }, _callee42, this);
       }));
 
-      function loadLocalItems(_x59) {
+      function loadLocalItems(_x60) {
         return _ref43.apply(this, arguments);
       }
 
@@ -2809,7 +2833,7 @@ var SFSyncManager = exports.SFSyncManager = function () {
     key: "writeItemsToLocalStorage",
     value: function () {
       var _ref45 = _asyncToGenerator( /*#__PURE__*/regeneratorRuntime.mark(function _callee45(items, offlineOnly) {
-        var _this12 = this;
+        var _this13 = this;
 
         return regeneratorRuntime.wrap(function _callee45$(_context45) {
           while (1) {
@@ -2832,7 +2856,7 @@ var SFSyncManager = exports.SFSyncManager = function () {
 
                           case 3:
                             _context44.next = 5;
-                            return _this12.getActiveKeyInfo(SFSyncManager.KeyRequestSaveLocal);
+                            return _this13.getActiveKeyInfo(SFSyncManager.KeyRequestSaveLocal);
 
                           case 5:
                             info = _context44.sent;
@@ -2862,25 +2886,25 @@ var SFSyncManager = exports.SFSyncManager = function () {
                                         return _context43.stop();
                                     }
                                   }
-                                }, _callee43, _this12);
+                                }, _callee43, _this13);
                               }));
 
-                              return function (_x64) {
+                              return function (_x65) {
                                 return _ref47.apply(this, arguments);
                               };
                             }())).then(function (params) {
-                              _this12.storageManager.saveModels(params).then(function () {
+                              _this13.storageManager.saveModels(params).then(function () {
                                 // on success
-                                if (_this12.syncStatus.localError) {
-                                  _this12.syncStatus.localError = null;
-                                  _this12.syncStatusDidChange();
+                                if (_this13.syncStatus.localError) {
+                                  _this13.syncStatus.localError = null;
+                                  _this13.syncStatusDidChange();
                                 }
                                 resolve();
                               }).catch(function (error) {
                                 // on error
                                 console.error("Error writing items", error);
-                                _this12.syncStatus.localError = error;
-                                _this12.syncStatusDidChange();
+                                _this13.syncStatus.localError = error;
+                                _this13.syncStatusDidChange();
                                 reject();
                               });
                             });
@@ -2890,10 +2914,10 @@ var SFSyncManager = exports.SFSyncManager = function () {
                             return _context44.stop();
                         }
                       }
-                    }, _callee44, _this12);
+                    }, _callee44, _this13);
                   }));
 
-                  return function (_x62, _x63) {
+                  return function (_x63, _x64) {
                     return _ref46.apply(this, arguments);
                   };
                 }()));
@@ -2906,7 +2930,7 @@ var SFSyncManager = exports.SFSyncManager = function () {
         }, _callee45, this);
       }));
 
-      function writeItemsToLocalStorage(_x60, _x61) {
+      function writeItemsToLocalStorage(_x61, _x62) {
         return _ref45.apply(this, arguments);
       }
 
@@ -2916,7 +2940,7 @@ var SFSyncManager = exports.SFSyncManager = function () {
     key: "syncOffline",
     value: function () {
       var _ref48 = _asyncToGenerator( /*#__PURE__*/regeneratorRuntime.mark(function _callee46(items) {
-        var _this13 = this;
+        var _this14 = this;
 
         var _iteratorNormalCompletion23, _didIteratorError23, _iteratorError23, _iterator23, _step23, item;
 
@@ -2978,7 +3002,7 @@ var SFSyncManager = exports.SFSyncManager = function () {
                       var item = _step24.value;
 
                       if (item.deleted) {
-                        _this13.modelManager.removeItemLocally(item);
+                        _this14.modelManager.removeItemLocally(item);
                       }
                     }
                   } catch (err) {
@@ -2996,9 +3020,9 @@ var SFSyncManager = exports.SFSyncManager = function () {
                     }
                   }
 
-                  _this13.notifyEvent("sync:completed");
+                  _this14.notifyEvent("sync:completed");
                   // Required in order for modelManager to notify sync observers
-                  _this13.modelManager.didSyncModelsOffline(items);
+                  _this14.modelManager.didSyncModelsOffline(items);
                 }));
 
               case 20:
@@ -3009,7 +3033,7 @@ var SFSyncManager = exports.SFSyncManager = function () {
         }, _callee46, this, [[3, 7, 11, 19], [12,, 14, 18]]);
       }));
 
-      function syncOffline(_x65) {
+      function syncOffline(_x66) {
         return _ref48.apply(this, arguments);
       }
 
@@ -3153,7 +3177,7 @@ var SFSyncManager = exports.SFSyncManager = function () {
         }, _callee47, this, [[5, 16, 20, 28], [21,, 23, 27], [32, 36, 40, 48], [41,, 43, 47]]);
       }));
 
-      function markAllItemsDirtyAndSaveOffline(_x66) {
+      function markAllItemsDirtyAndSaveOffline(_x67) {
         return _ref49.apply(this, arguments);
       }
 
@@ -3179,7 +3203,7 @@ var SFSyncManager = exports.SFSyncManager = function () {
         }, _callee48, this);
       }));
 
-      function setSyncToken(_x67) {
+      function setSyncToken(_x68) {
         return _ref50.apply(this, arguments);
       }
 
@@ -3255,7 +3279,7 @@ var SFSyncManager = exports.SFSyncManager = function () {
         }, _callee50, this);
       }));
 
-      function setCursorToken(_x68) {
+      function setCursorToken(_x69) {
         return _ref52.apply(this, arguments);
       }
 
@@ -3375,7 +3399,7 @@ var SFSyncManager = exports.SFSyncManager = function () {
     key: "sync",
     value: function () {
       var _ref54 = _asyncToGenerator( /*#__PURE__*/regeneratorRuntime.mark(function _callee53() {
-        var _this14 = this;
+        var _this15 = this;
 
         var options = arguments.length > 0 && arguments[0] !== undefined ? arguments[0] : {};
         return regeneratorRuntime.wrap(function _callee53$(_context53) {
@@ -3390,7 +3414,7 @@ var SFSyncManager = exports.SFSyncManager = function () {
                       while (1) {
                         switch (_context52.prev = _context52.next) {
                           case 0:
-                            if (!_this14.syncLocked) {
+                            if (!_this15.syncLocked) {
                               _context52.next = 4;
                               break;
                             }
@@ -3403,29 +3427,29 @@ var SFSyncManager = exports.SFSyncManager = function () {
 
                             if (!options) options = {};
 
-                            allDirtyItems = _this14.modelManager.getDirtyItems();
+                            allDirtyItems = _this15.modelManager.getDirtyItems();
 
                             // When a user hits the physical refresh button, we want to force refresh, in case
                             // the sync engine is stuck in some inProgress loop.
 
-                            if (!(_this14.syncStatus.syncOpInProgress && !options.force)) {
+                            if (!(_this15.syncStatus.syncOpInProgress && !options.force)) {
                               _context52.next = 12;
                               break;
                             }
 
-                            _this14.repeatOnCompletion = true;
-                            _this14.queuedCallbacks.push(resolve);
+                            _this15.repeatOnCompletion = true;
+                            _this15.queuedCallbacks.push(resolve);
 
                             // write to local storage nonetheless, since some users may see several second delay in server response.
                             // if they close the browser before the ongoing sync request completes, local changes will be lost if we dont save here
-                            _this14.writeItemsToLocalStorage(allDirtyItems, false);
+                            _this15.writeItemsToLocalStorage(allDirtyItems, false);
 
                             console.log("Sync op in progress; returning.");
                             return _context52.abrupt("return");
 
                           case 12:
                             _context52.next = 14;
-                            return _this14.getActiveKeyInfo(SFSyncManager.KeyRequestLoadSaveAccount);
+                            return _this15.getActiveKeyInfo(SFSyncManager.KeyRequestLoadSaveAccount);
 
                           case 14:
                             info = _context52.sent;
@@ -3435,51 +3459,51 @@ var SFSyncManager = exports.SFSyncManager = function () {
                               break;
                             }
 
-                            _this14.syncOffline(allDirtyItems).then(resolve);
-                            _this14.modelManager.clearDirtyItems(allDirtyItems);
+                            _this15.syncOffline(allDirtyItems).then(resolve);
+                            _this15.modelManager.clearDirtyItems(allDirtyItems);
                             return _context52.abrupt("return");
 
                           case 19:
-                            isContinuationSync = _this14.syncStatus.needsMoreSync;
+                            isContinuationSync = _this15.syncStatus.needsMoreSync;
 
 
-                            _this14.syncStatus.syncOpInProgress = true;
-                            _this14.syncStatus.syncStart = new Date();
-                            _this14.beginCheckingIfSyncIsTakingTooLong();
+                            _this15.syncStatus.syncOpInProgress = true;
+                            _this15.syncStatus.syncStart = new Date();
+                            _this15.beginCheckingIfSyncIsTakingTooLong();
 
                             submitLimit = 100;
                             subItems = allDirtyItems.slice(0, submitLimit);
 
                             if (subItems.length < allDirtyItems.length) {
                               // more items left to be synced, repeat
-                              _this14.syncStatus.needsMoreSync = true;
+                              _this15.syncStatus.needsMoreSync = true;
                             } else {
-                              _this14.syncStatus.needsMoreSync = false;
+                              _this15.syncStatus.needsMoreSync = false;
                             }
 
                             if (!isContinuationSync) {
-                              _this14.syncStatus.total = allDirtyItems.length;
-                              _this14.syncStatus.current = 0;
+                              _this15.syncStatus.total = allDirtyItems.length;
+                              _this15.syncStatus.current = 0;
                             }
 
                             // If items are marked as dirty during a long running sync request, total isn't updated
                             // This happens mostly in the case of large imports and sync conflicts where duplicated items are created
-                            if (_this14.syncStatus.current > _this14.syncStatus.total) {
-                              _this14.syncStatus.total = _this14.syncStatus.current;
+                            if (_this15.syncStatus.current > _this15.syncStatus.total) {
+                              _this15.syncStatus.total = _this15.syncStatus.current;
                             }
 
-                            _this14.syncStatusDidChange();
+                            _this15.syncStatusDidChange();
 
                             // when doing a sync request that returns items greater than the limit, and thus subsequent syncs are required,
                             // we want to keep track of all retreived items, then save to local storage only once all items have been retrieved,
                             // so that relationships remain intact
-                            if (!_this14.allRetreivedItems) {
-                              _this14.allRetreivedItems = [];
+                            if (!_this15.allRetreivedItems) {
+                              _this15.allRetreivedItems = [];
                             }
 
                             // We also want to do this for savedItems
-                            if (!_this14.allSavedItems) {
-                              _this14.allSavedItems = [];
+                            if (!_this15.allSavedItems) {
+                              _this15.allSavedItems = [];
                             }
 
                             params = {};
@@ -3545,19 +3569,19 @@ var SFSyncManager = exports.SFSyncManager = function () {
 
                           case 54:
                             _context52.next = 56;
-                            return _this14.getSyncToken();
+                            return _this15.getSyncToken();
 
                           case 56:
                             params.sync_token = _context52.sent;
                             _context52.next = 59;
-                            return _this14.getCursorToken();
+                            return _this15.getCursorToken();
 
                           case 59:
                             params.cursor_token = _context52.sent;
                             _context52.prev = 60;
-                            _context52.t1 = _this14.httpManager;
+                            _context52.t1 = _this15.httpManager;
                             _context52.next = 64;
-                            return _this14.getSyncURL();
+                            return _this15.getSyncURL();
 
                           case 64:
                             _context52.t2 = _context52.sent;
@@ -3565,7 +3589,7 @@ var SFSyncManager = exports.SFSyncManager = function () {
 
                             _context52.t4 = function (response) {
                               try {
-                                _this14.handleSyncSuccess(subItems, response, options).then(function () {
+                                _this15.handleSyncSuccess(subItems, response, options).then(function () {
                                   resolve(response);
                                 });
                               } catch (e) {
@@ -3574,7 +3598,7 @@ var SFSyncManager = exports.SFSyncManager = function () {
                             };
 
                             _context52.t5 = function (response, statusCode) {
-                              _this14.handleSyncError(response, statusCode, allDirtyItems).then(function (errorResponse) {
+                              _this15.handleSyncError(response, statusCode, allDirtyItems).then(function (errorResponse) {
                                 resolve(errorResponse);
                               });
                             };
@@ -3595,10 +3619,10 @@ var SFSyncManager = exports.SFSyncManager = function () {
                             return _context52.stop();
                         }
                       }
-                    }, _callee52, _this14, [[38, 42, 46, 54], [47,, 49, 53], [60, 71]]);
+                    }, _callee52, _this15, [[38, 42, 46, 54], [47,, 49, 53], [60, 71]]);
                   }));
 
-                  return function (_x70, _x71) {
+                  return function (_x71, _x72) {
                     return _ref55.apply(this, arguments);
                   };
                 }()));
@@ -3621,7 +3645,7 @@ var SFSyncManager = exports.SFSyncManager = function () {
     key: "handleSyncSuccess",
     value: function () {
       var _ref56 = _asyncToGenerator( /*#__PURE__*/regeneratorRuntime.mark(function _callee54(syncedItems, response, options) {
-        var _this15 = this;
+        var _this16 = this;
 
         var itemsToClearAsDirty, _iteratorNormalCompletion29, _didIteratorError29, _iteratorError29, _iterator29, _step29, item, allSavedUUIDs, retrieved, omitFields, saved, unsaved, isInitialSync, majorDataChangeThreshold;
 
@@ -3777,7 +3801,7 @@ var SFSyncManager = exports.SFSyncManager = function () {
                 return _context54.abrupt("return", new Promise(function (resolve, reject) {
                   setTimeout(function () {
                     this.sync(options).then(resolve);
-                  }.bind(_this15), 10); // wait 10ms to allow UI to update
+                  }.bind(_this16), 10); // wait 10ms to allow UI to update
                 }));
 
               case 57:
@@ -3790,7 +3814,7 @@ var SFSyncManager = exports.SFSyncManager = function () {
                 return _context54.abrupt("return", new Promise(function (resolve, reject) {
                   setTimeout(function () {
                     this.sync(options).then(resolve);
-                  }.bind(_this15), 10); // wait 10ms to allow UI to update
+                  }.bind(_this16), 10); // wait 10ms to allow UI to update
                 }));
 
               case 62:
@@ -3825,7 +3849,7 @@ var SFSyncManager = exports.SFSyncManager = function () {
         }, _callee54, this, [[4, 8, 12, 20], [13,, 15, 19]]);
       }));
 
-      function handleSyncSuccess(_x72, _x73, _x74) {
+      function handleSyncSuccess(_x73, _x74, _x75) {
         return _ref56.apply(this, arguments);
       }
 
@@ -3873,7 +3897,7 @@ var SFSyncManager = exports.SFSyncManager = function () {
         }, _callee55, this);
       }));
 
-      function handleSyncError(_x75, _x76, _x77) {
+      function handleSyncError(_x76, _x77, _x78) {
         return _ref57.apply(this, arguments);
       }
 
@@ -3924,7 +3948,7 @@ var SFSyncManager = exports.SFSyncManager = function () {
         }, _callee56, this);
       }));
 
-      function handleItemsResponse(_x78, _x79, _x80, _x81) {
+      function handleItemsResponse(_x79, _x80, _x81, _x82) {
         return _ref58.apply(this, arguments);
       }
 
@@ -4106,7 +4130,7 @@ var SFSyncManager = exports.SFSyncManager = function () {
         }, _callee58, this, [[6, 33, 37, 45], [38,, 40, 44]]);
       }));
 
-      function handleUnsavedItemsResponse(_x82) {
+      function handleUnsavedItemsResponse(_x83) {
         return _ref60.apply(this, arguments);
       }
 
@@ -4741,7 +4765,7 @@ var SFItemParams = exports.SFItemParams = function () {
         }, _callee61, this);
       }));
 
-      function paramsForExportFile(_x84) {
+      function paramsForExportFile(_x85) {
         return _ref63.apply(this, arguments);
       }
 
@@ -5213,7 +5237,7 @@ var SFAbstractCrypto = exports.SFAbstractCrypto = function () {
         }, _callee68, this);
       }));
 
-      function encryptText(_x86, _x87, _x88) {
+      function encryptText(_x87, _x88, _x89) {
         return _ref71.apply(this, arguments);
       }
 
@@ -5237,7 +5261,7 @@ var SFAbstractCrypto = exports.SFAbstractCrypto = function () {
         }, _callee69, this);
       }));
 
-      function generateRandomKey(_x89) {
+      function generateRandomKey(_x90) {
         return _ref72.apply(this, arguments);
       }
 
@@ -5299,7 +5323,7 @@ var SFAbstractCrypto = exports.SFAbstractCrypto = function () {
         }, _callee71, this);
       }));
 
-      function firstHalfOfKey(_x90) {
+      function firstHalfOfKey(_x91) {
         return _ref74.apply(this, arguments);
       }
 
@@ -5323,7 +5347,7 @@ var SFAbstractCrypto = exports.SFAbstractCrypto = function () {
         }, _callee72, this);
       }));
 
-      function secondHalfOfKey(_x91) {
+      function secondHalfOfKey(_x92) {
         return _ref75.apply(this, arguments);
       }
 
@@ -5347,7 +5371,7 @@ var SFAbstractCrypto = exports.SFAbstractCrypto = function () {
         }, _callee73, this);
       }));
 
-      function base64(_x92) {
+      function base64(_x93) {
         return _ref76.apply(this, arguments);
       }
 
@@ -5371,7 +5395,7 @@ var SFAbstractCrypto = exports.SFAbstractCrypto = function () {
         }, _callee74, this);
       }));
 
-      function base64Decode(_x93) {
+      function base64Decode(_x94) {
         return _ref77.apply(this, arguments);
       }
 
@@ -5395,7 +5419,7 @@ var SFAbstractCrypto = exports.SFAbstractCrypto = function () {
         }, _callee75, this);
       }));
 
-      function sha256(_x94) {
+      function sha256(_x95) {
         return _ref78.apply(this, arguments);
       }
 
@@ -5423,7 +5447,7 @@ var SFAbstractCrypto = exports.SFAbstractCrypto = function () {
         }, _callee76, this);
       }));
 
-      function hmac256(_x95, _x96) {
+      function hmac256(_x96, _x97) {
         return _ref79.apply(this, arguments);
       }
 
@@ -5453,7 +5477,7 @@ var SFAbstractCrypto = exports.SFAbstractCrypto = function () {
         }, _callee77, this);
       }));
 
-      function generateSalt(_x97, _x98, _x99, _x100) {
+      function generateSalt(_x98, _x99, _x100, _x101) {
         return _ref80.apply(this, arguments);
       }
 
@@ -5551,7 +5575,7 @@ var SFAbstractCrypto = exports.SFAbstractCrypto = function () {
         }, _callee79, this);
       }));
 
-      function computeEncryptionKeysForUser(_x102, _x103) {
+      function computeEncryptionKeysForUser(_x103, _x104) {
         return _ref83.apply(this, arguments);
       }
 
@@ -5595,7 +5619,7 @@ var SFAbstractCrypto = exports.SFAbstractCrypto = function () {
         }, _callee80, this);
       }));
 
-      function generateInitialKeysAndAuthParamsForUser(_x104, _x105) {
+      function generateInitialKeysAndAuthParamsForUser(_x105, _x106) {
         return _ref84.apply(this, arguments);
       }
 
@@ -5640,7 +5664,7 @@ var SFCryptoJS = exports.SFCryptoJS = function (_SFAbstractCrypto) {
         }, _callee81, this);
       }));
 
-      function pbkdf2(_x106, _x107, _x108, _x109) {
+      function pbkdf2(_x107, _x108, _x109, _x110) {
         return _ref85.apply(this, arguments);
       }
 
@@ -5702,7 +5726,7 @@ var SFCryptoWeb = exports.SFCryptoWeb = function (_SFAbstractCrypto2) {
         }, _callee82, this);
       }));
 
-      function pbkdf2(_x110, _x111, _x112, _x113) {
+      function pbkdf2(_x111, _x112, _x113, _x114) {
         return _ref86.apply(this, arguments);
       }
 
@@ -5712,7 +5736,7 @@ var SFCryptoWeb = exports.SFCryptoWeb = function (_SFAbstractCrypto2) {
     key: "generateRandomKey",
     value: function () {
       var _ref87 = _asyncToGenerator( /*#__PURE__*/regeneratorRuntime.mark(function _callee83(bits) {
-        var _this18 = this;
+        var _this19 = this;
 
         var extractable;
         return regeneratorRuntime.wrap(function _callee83$(_context83) {
@@ -5722,7 +5746,7 @@ var SFCryptoWeb = exports.SFCryptoWeb = function (_SFAbstractCrypto2) {
                 extractable = true;
                 return _context83.abrupt("return", subtleCrypto.generateKey({ name: "AES-CBC", length: bits }, extractable, ["encrypt", "decrypt"]).then(function (keyObject) {
                   return subtleCrypto.exportKey("raw", keyObject).then(function (keyData) {
-                    var key = _this18.arrayBufferToHexString(new Uint8Array(keyData));
+                    var key = _this19.arrayBufferToHexString(new Uint8Array(keyData));
                     return key;
                   }).catch(function (err) {
                     console.error("Error exporting key", err);
@@ -5739,7 +5763,7 @@ var SFCryptoWeb = exports.SFCryptoWeb = function (_SFAbstractCrypto2) {
         }, _callee83, this);
       }));
 
-      function generateRandomKey(_x114) {
+      function generateRandomKey(_x115) {
         return _ref87.apply(this, arguments);
       }
 
@@ -5819,7 +5843,7 @@ var SFCryptoWeb = exports.SFCryptoWeb = function (_SFAbstractCrypto2) {
         }, _callee85, this);
       }));
 
-      function webCryptoImportKey(_x115, _x116, _x117) {
+      function webCryptoImportKey(_x116, _x117, _x118) {
         return _ref89.apply(this, arguments);
       }
 
@@ -5829,7 +5853,7 @@ var SFCryptoWeb = exports.SFCryptoWeb = function (_SFAbstractCrypto2) {
     key: "webCryptoDeriveBits",
     value: function () {
       var _ref90 = _asyncToGenerator( /*#__PURE__*/regeneratorRuntime.mark(function _callee86(key, pw_salt, pw_cost, length) {
-        var _this19 = this;
+        var _this20 = this;
 
         var params;
         return regeneratorRuntime.wrap(function _callee86$(_context86) {
@@ -5843,7 +5867,7 @@ var SFCryptoWeb = exports.SFCryptoWeb = function (_SFAbstractCrypto2) {
                   hash: { name: "SHA-512" }
                 };
                 return _context86.abrupt("return", subtleCrypto.deriveBits(params, key, length).then(function (bits) {
-                  var key = _this19.arrayBufferToHexString(new Uint8Array(bits));
+                  var key = _this20.arrayBufferToHexString(new Uint8Array(bits));
                   return key;
                 }).catch(function (err) {
                   console.error(err);
@@ -5858,7 +5882,7 @@ var SFCryptoWeb = exports.SFCryptoWeb = function (_SFAbstractCrypto2) {
         }, _callee86, this);
       }));
 
-      function webCryptoDeriveBits(_x118, _x119, _x120, _x121) {
+      function webCryptoDeriveBits(_x119, _x120, _x121, _x122) {
         return _ref90.apply(this, arguments);
       }
 
@@ -5990,7 +6014,7 @@ var SFItemTransformer = exports.SFItemTransformer = function () {
         }, _callee87, this);
       }));
 
-      function _private_encryptString(_x122, _x123, _x124, _x125, _x126) {
+      function _private_encryptString(_x123, _x124, _x125, _x126, _x127) {
         return _ref91.apply(this, arguments);
       }
 
@@ -6077,7 +6101,7 @@ var SFItemTransformer = exports.SFItemTransformer = function () {
         }, _callee88, this);
       }));
 
-      function encryptItem(_x127, _x128, _x129) {
+      function encryptItem(_x128, _x129, _x130) {
         return _ref92.apply(this, arguments);
       }
 
@@ -6281,7 +6305,7 @@ var SFItemTransformer = exports.SFItemTransformer = function () {
         }, _callee89, this, [[3, 11], [40, 48]]);
       }));
 
-      function decryptItem(_x130, _x131) {
+      function decryptItem(_x131, _x132) {
         return _ref93.apply(this, arguments);
       }
 
@@ -6291,7 +6315,7 @@ var SFItemTransformer = exports.SFItemTransformer = function () {
     key: "decryptMultipleItems",
     value: function () {
       var _ref94 = _asyncToGenerator( /*#__PURE__*/regeneratorRuntime.mark(function _callee91(items, keys, throws) {
-        var _this20 = this;
+        var _this21 = this;
 
         var decrypt;
         return regeneratorRuntime.wrap(function _callee91$(_context91) {
@@ -6322,7 +6346,7 @@ var SFItemTransformer = exports.SFItemTransformer = function () {
 
                             _context90.prev = 4;
                             _context90.next = 7;
-                            return _this20.decryptItem(item, keys);
+                            return _this21.decryptItem(item, keys);
 
                           case 7:
                             _context90.next = 17;
@@ -6353,10 +6377,10 @@ var SFItemTransformer = exports.SFItemTransformer = function () {
                             return _context90.stop();
                         }
                       }
-                    }, _callee90, _this20, [[4, 9]]);
+                    }, _callee90, _this21, [[4, 9]]);
                   }));
 
-                  return function decrypt(_x135) {
+                  return function decrypt(_x136) {
                     return _ref95.apply(this, arguments);
                   };
                 }();
@@ -6373,7 +6397,7 @@ var SFItemTransformer = exports.SFItemTransformer = function () {
         }, _callee91, this);
       }));
 
-      function decryptMultipleItems(_x132, _x133, _x134) {
+      function decryptMultipleItems(_x133, _x134, _x135) {
         return _ref94.apply(this, arguments);
       }
 
@@ -6482,8 +6506,6 @@ var StandardFile = exports.StandardFile = function () {
 
   return StandardFile;
 }();
-
-// import '../vendor/lodash/lodash.custom.js';
 
 if (typeof window !== 'undefined' && window !== null) {
   // window is for some reason defined in React Native, but throws an exception when you try to set to it
