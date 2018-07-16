@@ -1,6 +1,6 @@
 {
   "name": "standard-file-js",
-  "version": "0.3.1",
+  "version": "0.3.2",
   "main": "dist/sfjs.js",
   "scripts": {
     "test": "mocha --require babel-register"
@@ -15,7 +15,6 @@
     "babel-register": "^6.26.0",
     "babelify": "^8.0.0",
     "chai": "^4.1.2",
-    "chai-as-promised": "^7.1.1",
     "connect": "^3.6.6",
     "grunt": "^1.0.1",
     "grunt-babel": "^6.0.0",
