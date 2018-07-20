@@ -966,7 +966,7 @@ export class SFStorageManager {
 }
 ;export class SFSyncManager {
 
-  constructor(modelManager, storageManager, httpManager, timeout, interval, syncHistory) {
+  constructor(modelManager, storageManager, httpManager, timeout, interval) {
 
     SFSyncManager.KeyRequestLoadLocal = "KeyRequestLoadLocal";
     SFSyncManager.KeyRequestSaveLocal = "KeyRequestSaveLocal";
@@ -983,9 +983,6 @@ export class SFStorageManager {
     this.syncStatus = {};
     this.syncStatusObservers = [];
     this.eventHandlers = [];
-
-    // optional
-    this.syncHistory = syncHistory;
   }
 
   async getServerURL() {
@@ -1137,8 +1134,6 @@ export class SFStorageManager {
       this.notifyEvent("sync:completed");
       // Required in order for modelManager to notify sync observers
       this.modelManager.didSyncModelsOffline(items);
-
-      return {saved_items: items};
     })
   }
 
@@ -1284,12 +1279,7 @@ export class SFStorageManager {
       // we want to write all dirty items to disk only if the user is offline, or if the sync op fails
       // if the sync op succeeds, these items will be written to disk by handling the "saved_items" response from the server
       if(info.offline) {
-        this.syncOffline(allDirtyItems).then((response) => {
-          if(this.syncHistory) {
-            this.syncHistory.addSyncResponse(response);
-          }
-          resolve(response);
-        });
+        this.syncOffline(allDirtyItems).then(resolve);
         this.modelManager.clearDirtyItems(allDirtyItems);
         return;
       }
@@ -1470,10 +1460,6 @@ export class SFStorageManager {
 
       this.callQueuedCallbacks(response);
       this.notifyEvent("sync:completed", {retrievedItems: this.allRetreivedItems, savedItems: this.allSavedItems, unsavedItems: unsaved, initialSync: isInitialSync});
-
-      if(this.syncHistory) {
-        this.syncHistory.addSyncResponse({saved_items: this.allSavedItems, retrieved_items: this.allRetreivedItems});
-      }
 
       this.allRetreivedItems = [];
       this.allSavedItems = [];
@@ -2161,47 +2147,6 @@ export class SFItem {
     return date;
   }
 }
-;export class SFSyncHistory extends SFItem {
-
-  constructor(json_obj) {
-    super(json_obj);
-  }
-
-  addSyncResponse(response) {
-    if(!this.content.entries) {
-      this.content.entries = [];
-    }
-    var entry = this.entryFromResponse(response);
-    this.content.entries.push(entry)
-  }
-
-  entryFromResponse(response) {
-    var savedItems = response.saved_items.map((item) => {
-      // create a copy
-      return new SFItem(item);
-    })
-
-    var retrievedItems = response.retrieved_items.map((item) => {
-      // create a copy
-      return new SFItem(item);
-    })
-
-    return {
-      date: new Date(),
-      saved_items: savedItems || [],
-      retrieved_items: retrievedItems || []
-    }
-  }
-
-  entries() {
-    return this.content.entries;
-  }
-
-  clear() {
-    this.content.entries = [];
-  }
-
-}
 ;/* Abstract class. Instantiate an instance of either SFCryptoJS (uses cryptojs) or SFCryptoWeb (uses web crypto) */
 
 export class SFAbstractCrypto {
@@ -2812,7 +2757,6 @@ if(typeof window !== 'undefined' && window !== null) {
     window.SFMigrationManager = SFMigrationManager;
     window.SFAlertManager = SFAlertManager;
     window.SFPredicate = SFPredicate;
-    window.SFSyncHistory = SFSyncHistory;
   } catch (e) {
     console.log("Exception while exporting window variables", e);
   }

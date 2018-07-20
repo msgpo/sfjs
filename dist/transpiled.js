@@ -2556,7 +2556,7 @@ var SFStorageManager = exports.SFStorageManager = function () {
 
 ;
 var SFSyncManager = exports.SFSyncManager = function () {
-  function SFSyncManager(modelManager, storageManager, httpManager, timeout, interval, syncHistory) {
+  function SFSyncManager(modelManager, storageManager, httpManager, timeout, interval) {
     _classCallCheck(this, SFSyncManager);
 
     SFSyncManager.KeyRequestLoadLocal = "KeyRequestLoadLocal";
@@ -2574,9 +2574,6 @@ var SFSyncManager = exports.SFSyncManager = function () {
     this.syncStatus = {};
     this.syncStatusObservers = [];
     this.eventHandlers = [];
-
-    // optional
-    this.syncHistory = syncHistory;
   }
 
   _createClass(SFSyncManager, [{
@@ -3026,8 +3023,6 @@ var SFSyncManager = exports.SFSyncManager = function () {
                   _this14.notifyEvent("sync:completed");
                   // Required in order for modelManager to notify sync observers
                   _this14.modelManager.didSyncModelsOffline(items);
-
-                  return { saved_items: items };
                 }));
 
               case 20:
@@ -3464,12 +3459,7 @@ var SFSyncManager = exports.SFSyncManager = function () {
                               break;
                             }
 
-                            _this15.syncOffline(allDirtyItems).then(function (response) {
-                              if (_this15.syncHistory) {
-                                _this15.syncHistory.addSyncResponse(response);
-                              }
-                              resolve(response);
-                            });
+                            _this15.syncOffline(allDirtyItems).then(resolve);
                             _this15.modelManager.clearDirtyItems(allDirtyItems);
                             return _context52.abrupt("return");
 
@@ -3846,16 +3836,12 @@ var SFSyncManager = exports.SFSyncManager = function () {
                 this.callQueuedCallbacks(response);
                 this.notifyEvent("sync:completed", { retrievedItems: this.allRetreivedItems, savedItems: this.allSavedItems, unsavedItems: unsaved, initialSync: isInitialSync });
 
-                if (this.syncHistory) {
-                  this.syncHistory.addSyncResponse({ saved_items: this.allSavedItems, retrieved_items: this.allRetreivedItems });
-                }
-
                 this.allRetreivedItems = [];
                 this.allSavedItems = [];
 
                 return _context54.abrupt("return", response);
 
-              case 74:
+              case 73:
               case "end":
                 return _context54.stop();
             }
@@ -5098,59 +5084,6 @@ var SFPredicate = exports.SFPredicate = function () {
   return SFPredicate;
 }();
 
-;
-var SFSyncHistory = exports.SFSyncHistory = function (_SFItem) {
-  _inherits(SFSyncHistory, _SFItem);
-
-  function SFSyncHistory(json_obj) {
-    _classCallCheck(this, SFSyncHistory);
-
-    return _possibleConstructorReturn(this, (SFSyncHistory.__proto__ || Object.getPrototypeOf(SFSyncHistory)).call(this, json_obj));
-  }
-
-  _createClass(SFSyncHistory, [{
-    key: "addSyncResponse",
-    value: function addSyncResponse(response) {
-      if (!this.content.entries) {
-        this.content.entries = [];
-      }
-      var entry = this.entryFromResponse(response);
-      this.content.entries.push(entry);
-    }
-  }, {
-    key: "entryFromResponse",
-    value: function entryFromResponse(response) {
-      var savedItems = response.saved_items.map(function (item) {
-        // create a copy
-        return new SFItem(item);
-      });
-
-      var retrievedItems = response.retrieved_items.map(function (item) {
-        // create a copy
-        return new SFItem(item);
-      });
-
-      return {
-        date: new Date(),
-        saved_items: savedItems || [],
-        retrieved_items: retrievedItems || []
-      };
-    }
-  }, {
-    key: "entries",
-    value: function entries() {
-      return this.content.entries;
-    }
-  }, {
-    key: "clear",
-    value: function clear() {
-      this.content.entries = [];
-    }
-  }]);
-
-  return SFSyncHistory;
-}(SFItem);
-
 ; /* Abstract class. Instantiate an instance of either SFCryptoJS (uses cryptojs) or SFCryptoWeb (uses web crypto) */
 
 var SFAbstractCrypto = exports.SFAbstractCrypto = function () {
@@ -5803,7 +5736,7 @@ var SFCryptoWeb = exports.SFCryptoWeb = function (_SFAbstractCrypto2) {
     key: "generateRandomKey",
     value: function () {
       var _ref87 = _asyncToGenerator( /*#__PURE__*/regeneratorRuntime.mark(function _callee83(bits) {
-        var _this20 = this;
+        var _this19 = this;
 
         var extractable;
         return regeneratorRuntime.wrap(function _callee83$(_context83) {
@@ -5813,7 +5746,7 @@ var SFCryptoWeb = exports.SFCryptoWeb = function (_SFAbstractCrypto2) {
                 extractable = true;
                 return _context83.abrupt("return", subtleCrypto.generateKey({ name: "AES-CBC", length: bits }, extractable, ["encrypt", "decrypt"]).then(function (keyObject) {
                   return subtleCrypto.exportKey("raw", keyObject).then(function (keyData) {
-                    var key = _this20.arrayBufferToHexString(new Uint8Array(keyData));
+                    var key = _this19.arrayBufferToHexString(new Uint8Array(keyData));
                     return key;
                   }).catch(function (err) {
                     console.error("Error exporting key", err);
@@ -5920,7 +5853,7 @@ var SFCryptoWeb = exports.SFCryptoWeb = function (_SFAbstractCrypto2) {
     key: "webCryptoDeriveBits",
     value: function () {
       var _ref90 = _asyncToGenerator( /*#__PURE__*/regeneratorRuntime.mark(function _callee86(key, pw_salt, pw_cost, length) {
-        var _this21 = this;
+        var _this20 = this;
 
         var params;
         return regeneratorRuntime.wrap(function _callee86$(_context86) {
@@ -5934,7 +5867,7 @@ var SFCryptoWeb = exports.SFCryptoWeb = function (_SFAbstractCrypto2) {
                   hash: { name: "SHA-512" }
                 };
                 return _context86.abrupt("return", subtleCrypto.deriveBits(params, key, length).then(function (bits) {
-                  var key = _this21.arrayBufferToHexString(new Uint8Array(bits));
+                  var key = _this20.arrayBufferToHexString(new Uint8Array(bits));
                   return key;
                 }).catch(function (err) {
                   console.error(err);
@@ -6382,7 +6315,7 @@ var SFItemTransformer = exports.SFItemTransformer = function () {
     key: "decryptMultipleItems",
     value: function () {
       var _ref94 = _asyncToGenerator( /*#__PURE__*/regeneratorRuntime.mark(function _callee91(items, keys, throws) {
-        var _this22 = this;
+        var _this21 = this;
 
         var decrypt;
         return regeneratorRuntime.wrap(function _callee91$(_context91) {
@@ -6413,7 +6346,7 @@ var SFItemTransformer = exports.SFItemTransformer = function () {
 
                             _context90.prev = 4;
                             _context90.next = 7;
-                            return _this22.decryptItem(item, keys);
+                            return _this21.decryptItem(item, keys);
 
                           case 7:
                             _context90.next = 17;
@@ -6444,7 +6377,7 @@ var SFItemTransformer = exports.SFItemTransformer = function () {
                             return _context90.stop();
                         }
                       }
-                    }, _callee90, _this22, [[4, 9]]);
+                    }, _callee90, _this21, [[4, 9]]);
                   }));
 
                   return function decrypt(_x136) {
@@ -6592,7 +6525,6 @@ if (typeof window !== 'undefined' && window !== null) {
     window.SFMigrationManager = SFMigrationManager;
     window.SFAlertManager = SFAlertManager;
     window.SFPredicate = SFPredicate;
-    window.SFSyncHistory = SFSyncHistory;
   } catch (e) {
     console.log("Exception while exporting window variables", e);
   }

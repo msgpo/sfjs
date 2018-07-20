@@ -75,7 +75,7 @@ describe('offline syncing', () => {
   });
 });
 
-describe.only('online syncing', () => {
+describe('online syncing', () => {
   var email = Factory.globalStandardFile().crypto.generateUUIDSync();
   var password = Factory.globalStandardFile().crypto.generateUUIDSync();
   var totalItemCount = 0;
@@ -91,7 +91,6 @@ describe.only('online syncing', () => {
   let authManager = Factory.globalAuthManager();
   let modelManager = Factory.createModelManager();
   let syncManager = new SFSyncManager(modelManager, Factory.globalStorageManager(), Factory.globalHttpManager());
-  syncManager.syncHistory = new SFSyncHistory();
 
   syncManager.setKeyRequestHandler(async () => {
     return {
@@ -339,54 +338,7 @@ describe.only('online syncing', () => {
       expect(models.length).to.equal(totalItemCount);
     })
   }).timeout(15000);
-
-  it("should save sync history", async () => {
-    let syncHistory = syncManager.syncHistory;
-    syncHistory.clear();
-    await syncManager.sync();
-
-    let entries = syncHistory.entries();
-    expect(entries.length).to.equal(1);
-
-    var item = Factory.createItem();
-    var firstTitle = "1";
-    item.content.text = firstTitle;
-    item.setDirty(true);
-    modelManager.addItem(item);
-    totalItemCount++;
-    await syncManager.sync();
-
-    expect(entries.length).to.equal(2);
-    var lastEntry = entries[1];
-    expect(lastEntry.saved_items.length).to.equal(1);
-    expect(lastEntry.retrieved_items.length).to.equal(0);
-
-    var firstSavedEntry = lastEntry.saved_items[0];
-    expect(firstSavedEntry.content.text).to.equal(firstTitle);
-
-    var secondTitle = "2";
-    item.content.text = secondTitle;
-    item.setDirty(true);
-    await syncManager.sync();
-
-    expect(entries.length).to.equal(3);
-
-    expect(firstSavedEntry.content.text).to.equal(firstTitle);
-
-    var secondSavedEntry = entries[entries.length - 1];
-    expect(secondSavedEntry.saved_items[0].content.text).to.equal(secondTitle);
-
-    await syncManager.clearSyncToken();
-    await syncManager.sync();
-
-    expect(entries.length).to.equal(4);
-    var lastEntry = entries[entries.length - 1];
-    expect(modelManager.allItems.length).to.equal(totalItemCount);
-    expect(lastEntry.retrieved_items.length).to.equal(totalItemCount);
-    expect(lastEntry.saved_items.length).to.equal(0);
-  })
 });
-
 
 describe('sync params', () => {
 
