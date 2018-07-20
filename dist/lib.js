@@ -610,7 +610,7 @@ export class SFAlertManager {
   notifySyncObserversOfModels(models, source, sourceKey) {
     // Make sure `let` is used in the for loops instead of `var`, as we will be using a timeout below.
     for(let observer of this.itemSyncObservers) {
-      var allRelevantItems = observer.type == "*" ? models : models.filter((item) => {return item.content_type == observer.type});
+      var allRelevantItems = observer.types.includes("*") ? models : models.filter((item) => {return observer.types.includes(item.content_type)});
       var validItems = [], deletedItems = [];
       for(let item of allRelevantItems) {
         if(item.deleted) {
@@ -725,8 +725,11 @@ export class SFAlertManager {
   }
 
   /* Notifies observers when an item has been synced or mapped from a remote response */
-  addItemSyncObserver(id, type, callback) {
-    this.itemSyncObservers.push({id: id, type: type, callback: callback});
+  addItemSyncObserver(id, types, callback) {
+    if(!Array.isArray(types)) {
+      types = [types];
+    }
+    this.itemSyncObservers.push({id: id, types: types, callback: callback});
   }
 
   removeItemSyncObserver(id) {
@@ -907,6 +910,139 @@ export class SFAlertManager {
       return JSON.stringify(data, null, 2 /* pretty print */);
     })
 
+  }
+}
+;const SessionHistoryPersistKey = "sessionHistory_persist";
+const SessionHistoryRevisionsKey = "sessionHistory_revisions";
+const SessionHistoryAutoOptimizeKey = "sessionHistory_autoOptimize";
+
+export class SFSessionHistoryManager {
+
+  constructor(modelManager, storageManager, keyRequestHandler, contentTypes, timeout) {
+    this.modelManager = modelManager;
+    this.storageManager = storageManager;
+    this.$timeout = timeout || setTimeout.bind(window);
+
+    // Required to persist the encrypted form of SFHistorySession
+    this.keyRequestHandler = keyRequestHandler;
+
+    this.loadFromDisk().then(() => {
+      this.modelManager.addItemSyncObserver("session-history", contentTypes, (allItems, validItems, deletedItems, source, sourceKey) => {
+        for(let item of allItems) {
+          this.addHistoryEntryForItem(item);
+        }
+      });
+    })
+  }
+
+  async encryptionParams() {
+    // Should return a dictionary: {offline, keys, auth_params}
+    return this.keyRequestHandler();
+  }
+
+  addHistoryEntryForItem(item) {
+    var persistableItemParams = {
+      uuid: item.uuid,
+      content_type: item.content_type,
+      updated_at: item.updated_at,
+      content: item.content
+    }
+
+    let entry = this.historySession.addEntryForItem(persistableItemParams);
+
+    if(this.autoOptimize) {
+      this.historySession.optimizeHistoryForItem(item);
+    }
+
+    if(entry && this.diskEnabled) {
+      // Debounce 1s, clear existing timeout
+      if(this.diskTimeout) {
+        if(this.$timeout.hasOwnProperty("cancel")) {
+          this.$timeout.cancel(this.diskTimeout);
+        } else {
+          clearTimeout(this.diskTimeout);
+        }
+      };
+      this.diskTimeout = this.$timeout(() => {
+        this.saveToDisk();
+      }, 1000)
+    }
+  }
+
+  historyForItem(item) {
+    return this.historySession.historyForItem(item);
+  }
+
+  async clearHistoryForItem(item) {
+    this.historySession.clearItemHistory(item);
+    return this.saveToDisk();
+  }
+
+  async clearAllHistory() {
+    this.historySession.clearAllHistory();
+    return this.storageManager.removeItem(SessionHistoryRevisionsKey);
+  }
+
+  async toggleDiskSaving() {
+    this.diskEnabled = !this.diskEnabled;
+
+    if(this.diskEnabled) {
+      this.storageManager.setItem(SessionHistoryPersistKey, JSON.stringify(true));
+      this.saveToDisk();
+    } else {
+      this.storageManager.setItem(SessionHistoryPersistKey, JSON.stringify(false));
+      return this.storageManager.removeItem(SessionHistoryRevisionsKey);
+    }
+  }
+
+  async saveToDisk() {
+    if(!this.diskEnabled) {
+      return;
+    }
+
+    let encryptionParams = await this.encryptionParams();
+
+    var itemParams = new SFItemParams(this.historySession, encryptionParams.keys, encryptionParams.auth_params);
+    itemParams.paramsForSync().then((syncParams) => {
+      // console.log("Saving to disk", syncParams);
+      this.storageManager.setItem(SessionHistoryRevisionsKey, JSON.stringify(syncParams));
+    })
+  }
+
+  async loadFromDisk() {
+    var diskValue = await this.storageManager.getItem(SessionHistoryPersistKey);
+    if(diskValue) {
+      this.diskEnabled = JSON.parse(diskValue);
+    }
+
+    var historyValue = await this.storageManager.getItem(SessionHistoryRevisionsKey);
+    if(historyValue) {
+      historyValue = JSON.parse(historyValue);
+      let encryptionParams = await this.encryptionParams();
+      await SFJS.itemTransformer.decryptItem(historyValue, encryptionParams.keys);
+      var historySession = new SFHistorySession(historyValue);
+      this.historySession = historySession;
+    } else {
+      this.historySession = new SFHistorySession();
+    }
+
+    var autoOptimizeValue = await this.storageManager.getItem(SessionHistoryAutoOptimizeKey);
+    if(autoOptimizeValue) {
+      this.autoOptimize = JSON.parse(autoOptimizeValue);
+    } else {
+      // default value is true
+      this.autoOptimize = true;
+    }
+  }
+
+  async toggleAutoOptimize() {
+    this.autoOptimize = !this.autoOptimize;
+
+    if(this.autoOptimize) {
+      this.storageManager.setItem(SessionHistoryAutoOptimizeKey, JSON.stringify(true));
+    } else {
+      this.storageManager.setItem(SessionHistoryAutoOptimizeKey, JSON.stringify(false));
+    }
   }
 }
 ;// SFStorageManager should be subclassed, and all the methods below overwritten.
@@ -1639,6 +1775,7 @@ export class SFItem {
       }
     }
     _.mergeWith(a, b, mergeCopyArrays);
+    return a;
   }
 
   updateFromJSON(json) {
@@ -2146,6 +2283,164 @@ export class SFItem {
     }
     return date;
   }
+}
+;/*
+  Important: This is the only object in the session history domain that is persistable.
+
+  A history session contains one main content object:
+  the itemUUIDToItemHistoryMapping. This is a dictionary whose keys are item uuids,
+  and each value is an SFItemHistory object.
+
+  Each SFItemHistory object contains an array called `entires` which contain `SFItemHistory` entries (or subclasses, if the
+  `SFItemHistory.HistoryEntryClassMapping` class property value is set.)
+ */
+
+export class SFHistorySession extends SFItem {
+  constructor(json_obj) {
+    super(json_obj);
+
+    /*
+      Our .content params:
+      {
+        itemUUIDToItemHistoryMapping
+      }
+     */
+
+    if(!this.content.itemUUIDToItemHistoryMapping) {
+      this.content.itemUUIDToItemHistoryMapping = {};
+    }
+
+    // When initializing from a json_obj, we want to deserialize the item history JSON into SFItemHistory objects.
+    var uuids = Object.keys(this.content.itemUUIDToItemHistoryMapping);
+    uuids.forEach((itemUUID) => {
+      var itemHistory = this.content.itemUUIDToItemHistoryMapping[itemUUID];
+      this.content.itemUUIDToItemHistoryMapping[itemUUID] = new SFItemHistory(itemHistory);
+    });
+  }
+
+  addEntryForItem(item) {
+    var itemHistory = this.historyForItem(item);
+    var entry = itemHistory.addHistoryEntryForItem(item);
+    return entry;
+  }
+
+  historyForItem(item) {
+    var history = this.content.itemUUIDToItemHistoryMapping[item.uuid];
+    if(!history) {
+      history = this.content.itemUUIDToItemHistoryMapping[item.uuid] = new SFItemHistory();
+    }
+    return history;
+  }
+
+  clearItemHistory(item) {
+    this.historyForItem(item).clear();
+  }
+
+  clearAllHistory() {
+    this.content.itemUUIDToItemHistoryMapping = {};
+  }
+
+  optimizeHistoryForItem(item) {
+    // Clean up if there are too many revisions
+    const LargeRevisionAmount = 100;
+    var itemHistory = this.historyForItem(item);
+    if(itemHistory.entries.length > LargeRevisionAmount) {
+      itemHistory.optimize();
+    }
+  }
+}
+;export class SFItemHistory {
+
+  constructor(params = {}) {
+    if(!this.entries) {
+      this.entries = [];
+    }
+
+    // Deserialize the entries into entry objects.
+    if(params.entries) {
+      for(var entryParams of params.entries) {
+        var entry = this.createEntryForItem(entryParams.item);
+        entry.setPreviousEntry(this.getLastEntry());
+        this.entries.push(entry);
+      }
+    }
+  }
+
+  createEntryForItem(item) {
+    var historyItemClass = SFItemHistory.HistoryEntryClassMapping && SFItemHistory.HistoryEntryClassMapping[item.content_type];
+    if(!historyItemClass) {
+      historyItemClass = SFItemHistoryEntry;
+    }
+    var entry = new historyItemClass(item);
+    return entry;
+  }
+
+  getLastEntry() {
+    return this.entries[this.entries.length - 1]
+  }
+
+  addHistoryEntryForItem(item) {
+    var prospectiveEntry = this.createEntryForItem(item);
+
+    var previousEntry = this.getLastEntry();
+    prospectiveEntry.setPreviousEntry(previousEntry);
+
+    // Don't add first revision if text length is 0, as this means it's a new note.
+    // Actually, we'll skip this. If we do this, the first character added to a new note
+    // will be displayed as "1 characters loaded"
+    // if(!previousRevision && prospectiveRevision.textCharDiffLength == 0) {
+    //   return;
+    // }
+
+    // Don't add if text is the same
+    if(prospectiveEntry.isSameAsEntry(previousEntry)) {
+      return;
+    }
+
+    this.entries.push(prospectiveEntry);
+    return prospectiveEntry;
+  }
+
+  clear() {
+    this.entries.length = 0;
+  }
+
+  optimize() {
+    const SmallRevisionLength = 15;
+    this.entries = this.entries.filter((entry, index) => {
+      // Keep only first and last item and items whos diff length is greater than the small revision length.
+      var isFirst = index == 0;
+      var isLast = index == this.entries.length - 1;
+      var isSmallRevision = Math.abs(entry.textCharDiffLength) < SmallRevisionLength;
+      return isFirst || isLast || !isSmallRevision;
+    })
+  }
+}
+;export class SFItemHistoryEntry {
+
+  constructor(item) {
+    // Whatever values `item` has will be persisted, so be sure that the values are picked beforehand.
+    this.item = SFItem.deepMerge({}, item);
+
+    if(typeof this.item.updated_at == 'string') {
+      this.item.updated_at = new Date(this.item.updated_at);
+    }
+  }
+
+  setPreviousEntry(previousEntry) {
+    this.hasPreviousEntry = previousEntry != null;
+  }
+
+  isSameAsEntry(entry) {
+    if(!entry) {
+      return false;
+    }
+
+    var lhs = new SFItem(this.item);
+    var rhs = new SFItem(entry.item);
+    return lhs.isItemContentEqualWith(rhs);
+  }
+
 }
 ;/* Abstract class. Instantiate an instance of either SFCryptoJS (uses cryptojs) or SFCryptoWeb (uses web crypto) */
 
@@ -2757,6 +3052,10 @@ if(typeof window !== 'undefined' && window !== null) {
     window.SFMigrationManager = SFMigrationManager;
     window.SFAlertManager = SFAlertManager;
     window.SFPredicate = SFPredicate;
+    window.SFHistorySession = SFHistorySession;
+    window.SFSessionHistoryManager = SFSessionHistoryManager
+    window.SFItemHistory = SFItemHistory;
+    window.SFItemHistoryEntry = SFItemHistoryEntry;
   } catch (e) {
     console.log("Exception while exporting window variables", e);
   }
