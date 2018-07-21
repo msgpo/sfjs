@@ -2455,7 +2455,9 @@ var SFSessionHistoryManager = exports.SFSessionHistoryManager = function () {
           for (var _iterator22 = allItems[Symbol.iterator](), _step22; !(_iteratorNormalCompletion22 = (_step22 = _iterator22.next()).done); _iteratorNormalCompletion22 = true) {
             var item = _step22.value;
 
-            _this11.addHistoryEntryForItem(item);
+            try {
+              _this11.addHistoryEntryForItem(item);
+            } catch (e) {}
           }
         } catch (err) {
           _didIteratorError22 = true;
@@ -2518,7 +2520,7 @@ var SFSessionHistoryManager = exports.SFSessionHistoryManager = function () {
       }
 
       if (entry && this.diskEnabled) {
-        // Debounce 1s, clear existing timeout
+        // Debounce, clear existing timeout
         if (this.diskTimeout) {
           if (this.$timeout.hasOwnProperty("cancel")) {
             this.$timeout.cancel(this.diskTimeout);
@@ -2528,7 +2530,7 @@ var SFSessionHistoryManager = exports.SFSessionHistoryManager = function () {
         };
         this.diskTimeout = this.$timeout(function () {
           _this12.saveToDisk();
-        }, 1000);
+        }, 2000);
       }
     }
   }, {
@@ -5621,7 +5623,7 @@ var SFHistorySession = exports.SFHistorySession = function (_SFItem) {
     key: "optimizeHistoryForItem",
     value: function optimizeHistoryForItem(item) {
       // Clean up if there are too many revisions
-      var LargeRevisionAmount = 100;
+      var LargeRevisionAmount = 40;
       var itemHistory = this.historyForItem(item);
       if (itemHistory.entries.length > LargeRevisionAmount) {
         itemHistory.optimize();

@@ -929,7 +929,9 @@ export class SFSessionHistoryManager {
     this.loadFromDisk().then(() => {
       this.modelManager.addItemSyncObserver("session-history", contentTypes, (allItems, validItems, deletedItems, source, sourceKey) => {
         for(let item of allItems) {
-          this.addHistoryEntryForItem(item);
+          try {
+            this.addHistoryEntryForItem(item);
+          } catch (e) {}
         }
       });
     })
@@ -955,7 +957,7 @@ export class SFSessionHistoryManager {
     }
 
     if(entry && this.diskEnabled) {
-      // Debounce 1s, clear existing timeout
+      // Debounce, clear existing timeout
       if(this.diskTimeout) {
         if(this.$timeout.hasOwnProperty("cancel")) {
           this.$timeout.cancel(this.diskTimeout);
@@ -965,7 +967,7 @@ export class SFSessionHistoryManager {
       };
       this.diskTimeout = this.$timeout(() => {
         this.saveToDisk();
-      }, 1000)
+      }, 2000)
     }
   }
 
@@ -2342,7 +2344,7 @@ export class SFHistorySession extends SFItem {
 
   optimizeHistoryForItem(item) {
     // Clean up if there are too many revisions
-    const LargeRevisionAmount = 100;
+    const LargeRevisionAmount = 40;
     var itemHistory = this.historyForItem(item);
     if(itemHistory.entries.length > LargeRevisionAmount) {
       itemHistory.optimize();
