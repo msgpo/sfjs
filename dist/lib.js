@@ -931,7 +931,9 @@ export class SFSessionHistoryManager {
         for(let item of allItems) {
           try {
             this.addHistoryEntryForItem(item);
-          } catch (e) {}
+          } catch (e) {
+            console.log("Caught exception while trying to add item history entry", e);
+          }
         }
       });
     })
@@ -2297,8 +2299,11 @@ export class SFItem {
   `SFItemHistory.HistoryEntryClassMapping` class property value is set.)
  */
 
+// See default class values at bottom of this file, including `SFHistorySession.LargeItemEntryAmountThreshold`.
+
 export class SFHistorySession extends SFItem {
   constructor(json_obj) {
+
     super(json_obj);
 
     /*
@@ -2343,15 +2348,21 @@ export class SFHistorySession extends SFItem {
   }
 
   optimizeHistoryForItem(item) {
-    // Clean up if there are too many revisions
-    const LargeRevisionAmount = 40;
+    // Clean up if there are too many revisions. Note SFHistorySession.LargeItemEntryAmountThreshold is the amount of revisions which above, call
+    // for an optimization. An optimization may not remove entries above this threshold. It will determine what it should keep and what it shouldn't.
+    // So, it is possible to have a threshold of 60 but have 600 entries, if the item history deems those worth keeping.
     var itemHistory = this.historyForItem(item);
-    if(itemHistory.entries.length > LargeRevisionAmount) {
+    if(itemHistory.entries.length > SFHistorySession.LargeItemEntryAmountThreshold) {
       itemHistory.optimize();
     }
   }
 }
-;export class SFItemHistory {
+
+// See comment in `this.optimizeHistoryForItem`
+SFHistorySession.LargeItemEntryAmountThreshold = 60;
+;// See default class values at bottom of this file, including `SFItemHistory.LargeEntryDeltaThreshold`.
+
+export class SFItemHistory {
 
   constructor(params = {}) {
     if(!this.entries) {
@@ -2388,8 +2399,8 @@ export class SFHistorySession extends SFItem {
     prospectiveEntry.setPreviousEntry(previousEntry);
 
     // Don't add first revision if text length is 0, as this means it's a new note.
-    // Actually, we'll skip this. If we do this, the first character added to a new note
-    // will be displayed as "1 characters loaded"
+    // Actually, nevermind. If we do this, the first character added to a new note
+    // will be displayed as "1 characters loaded".
     // if(!previousRevision && prospectiveRevision.textCharDiffLength == 0) {
     //   return;
     // }
@@ -2408,21 +2419,59 @@ export class SFHistorySession extends SFItem {
   }
 
   optimize() {
-    const SmallRevisionLength = 15;
+    var keepEntries = [];
+
+    let isEntrySignificant = (entry) => {
+      return entry.deltaSize() > SFItemHistory.LargeEntryDeltaThreshold;
+    }
+
+    let processEntry = (entry, index, keep) => {
+      // Entries may be processed retrospectively, meaning it can be decided to be deleted, then an upcoming processing can change that.
+      if(keep) {
+        keepEntries.push(entry);
+      } else {
+        // Remove if in keep
+        var index = keepEntries.indexOf(entry);
+        if(index !== -1) {
+          keepEntries.splice(index, 1);
+        }
+      }
+
+      if(keep && isEntrySignificant(entry) && entry.operationVector() == -1) {
+        // This is a large negative change. Hang on to the previous entry.
+        var previousEntry = this.entries[index - 1];
+        if(previousEntry) {
+          keepEntries.push(previousEntry);
+        }
+      }
+    }
+
+    this.entries.forEach((entry, index) => {
+      if(index == 0 || index == this.entries.length - 1) {
+        // Keep the first and last
+        processEntry(entry, index, true);
+      } else {
+        var significant = isEntrySignificant(entry);
+        processEntry(entry, index, significant);
+      }
+    })
+
     this.entries = this.entries.filter((entry, index) => {
-      // Keep only first and last item and items whos diff length is greater than the small revision length.
-      var isFirst = index == 0;
-      var isLast = index == this.entries.length - 1;
-      var isSmallRevision = Math.abs(entry.textCharDiffLength) < SmallRevisionLength;
-      return isFirst || isLast || !isSmallRevision;
+      return keepEntries.indexOf(entry) !== -1;
     })
   }
 }
+
+// The amount of characters added or removed that constitute a keepable entry after optimization.
+SFItemHistory.LargeEntryDeltaThreshold = 15;
 ;export class SFItemHistoryEntry {
 
   constructor(item) {
     // Whatever values `item` has will be persisted, so be sure that the values are picked beforehand.
     this.item = SFItem.deepMerge({}, item);
+
+    // We'll assume a `text` content value to diff on. If it doesn't exist, no problem.
+    this.defaultContentKeyToDiffOn = "text";
 
     if(typeof this.item.updated_at == 'string') {
       this.item.updated_at = new Date(this.item.updated_at);
@@ -2431,6 +2480,45 @@ export class SFHistorySession extends SFItem {
 
   setPreviousEntry(previousEntry) {
     this.hasPreviousEntry = previousEntry != null;
+
+    // we'll try to compute the delta based on an assumed content property of `text`, if it exists.
+    if(this.item.content[this.defaultContentKeyToDiffOn]) {
+      if(previousEntry) {
+        this.textCharDiffLength = this.item.content[this.defaultContentKeyToDiffOn].length - previousEntry.item.content[this.defaultContentKeyToDiffOn].length;
+      } else {
+        this.textCharDiffLength = this.item.content[this.defaultContentKeyToDiffOn].length;
+      }
+    }
+  }
+
+  operationVector() {
+    // We'll try to use the value of `textCharDiffLength` to help determine this, if it's set
+    if(this.textCharDiffLength != undefined) {
+      if(!this.hasPreviousEntry || this.textCharDiffLength == 0) {
+        return 0;
+      } else if(this.textCharDiffLength < 0) {
+        return -1;
+      } else {
+        return 1;
+      }
+    }
+
+    // Otherwise use a default value of 1
+    return 1;
+  }
+
+  deltaSize() {
+    // Up to the subclass to determine how large the delta was, i.e number of characters changed.
+    // But this general class won't be able to determine which property it should diff on, or even its format.
+
+    // We can return the `textCharDiffLength` if it's set, otherwise, just return 1;
+    if(this.textCharDiffLength != undefined) {
+      return Math.abs(this.textCharDiffLength);
+    }
+
+    // Otherwise return 1 here to constitute a basic positive delta.
+    // The value returned should always be positive. override `operationVector` to return the direction of the delta.
+    return 1;
   }
 
   isSameAsEntry(entry) {
