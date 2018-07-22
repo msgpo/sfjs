@@ -2707,7 +2707,7 @@ export class SFAbstractCrypto {
   }
 
 }
-;var subtleCrypto = window.crypto ? window.crypto.subtle : null;
+;const subtleCrypto = (typeof window !== 'undefined' && window.crypto) ? window.crypto.subtle : null;
 
 export class SFCryptoWeb extends SFAbstractCrypto {
 

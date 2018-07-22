@@ -6453,7 +6453,7 @@ var SFCryptoJS = exports.SFCryptoJS = function (_SFAbstractCrypto) {
   return SFCryptoJS;
 }(SFAbstractCrypto);
 
-;var subtleCrypto = window.crypto ? window.crypto.subtle : null;
+;var subtleCrypto = typeof window !== 'undefined' && window.crypto ? window.crypto.subtle : null;
 
 var SFCryptoWeb = exports.SFCryptoWeb = function (_SFAbstractCrypto2) {
   _inherits(SFCryptoWeb, _SFAbstractCrypto2);
