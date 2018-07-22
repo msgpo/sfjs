@@ -65,9 +65,7 @@ SFJS.computeEncryptionKeysForUser(password, authParams).then((keys) => {
 
 ### Encrypting and decrypting items
 
-Use `SFJS.itemTransformer` to encrypt and decrypt items.
-
-Note that the Item class is not yet included in SFJS. You must create your own Item class. You can also use the Item class from the [Standard Notes implementation](https://github.com/standardnotes/web/blob/master/app/assets/javascripts/app/models/api/item.js).
+Use `SFJS.itemTransformer` to encrypt and decrypt items. Use the `SFItemParams` as a wrapper over the item transformer. The `SFItemParams` class allows you to pass an `SFItem` object, encryption keys, and auth params, and will return the encrypted result.
 
 #### Encrypt:
 
@@ -89,11 +87,5 @@ SFJS.itemTransformer.decryptItem(item, keys).then(() => {
 
 ## Notes
 - SFJS uses an asynchronous API. All functions are asynchronous, and return immediately even if they have not finished. Add `.then()` to every call to be notified of the result, or use `await` if you don't want to use callbacks.
-- SFJS handles key generation and encryption, but there's two other parts of the [Standard File](https://standardfile.org) specification that this library does not handle: model management and server communication/syncing.
-	- Model management relates to resolving relationships between items, handling deletions, and mapping items to and from the server.
-	- Server communication relates to signing in, registering, and syncing items back and forth.
-
-	You can study the source code of Standard Notes' [model management class](https://github.com/standardnotes/web/blob/master/app/assets/javascripts/app/services/modelManager.js), [syncing class](https://github.com/standardnotes/web/blob/master/app/assets/javascripts/app/services/syncManager.js), and [authentication class](https://github.com/standardnotes/web/blob/master/app/assets/javascripts/app/services/authManager.js) to get a better idea of how to do this inside your own app. In the future, this functionality will be bundled into a complete Standard File library.
-
 ## Help
 Join the #dev channel in [our Slack group](https://standardnotes.org/slack) for help and discussion.
