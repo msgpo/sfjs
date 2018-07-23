@@ -3471,6 +3471,8 @@ var SFSyncManager = exports.SFSyncManager = function () {
                                 _this16.syncStatusDidChange();
                                 reject();
                               });
+                            }).catch(function (e) {
+                              reject(e);
                             });
 
                           case 7:
@@ -4025,14 +4027,12 @@ var SFSyncManager = exports.SFSyncManager = function () {
                               break;
                             }
 
-                            try {
-                              _this18.syncOffline(allDirtyItems).then(function (response) {
-                                resolve(response);
-                              });
+                            _this18.syncOffline(allDirtyItems).then(function (response) {
                               _this18.modelManager.clearDirtyItems(allDirtyItems);
-                            } catch (e) {
+                              resolve(response);
+                            }).catch(function (e) {
                               _this18.notifyEvent("sync-exception", e);
-                            }
+                            });
                             return _context61.abrupt("return");
 
                           case 18:
