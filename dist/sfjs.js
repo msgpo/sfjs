@@ -5795,6 +5795,9 @@ var SFItemHistoryEntry = exports.SFItemHistoryEntry = function () {
     // We'll assume a `text` content value to diff on. If it doesn't exist, no problem.
     this.defaultContentKeyToDiffOn = "text";
 
+    // Default value
+    this.textCharDiffLength = 0;
+
     if (typeof this.item.updated_at == 'string') {
       this.item.updated_at = new Date(this.item.updated_at);
     }
