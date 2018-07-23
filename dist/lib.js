@@ -82,7 +82,31 @@ export class SFAlertManager {
       var data = await this.storageManager.getItem("auth_params");
       this._authParams = JSON.parse(data);
     }
+
+    if(!this._authParams.version) {
+      this._authParams.version = await this.defaultProtocolVersion();
+    }
+
     return this._authParams;
+  }
+
+  async defaultProtocolVersion() {
+    var keys = await this.keys();
+    if(keys && keys.ak) {
+      // If there's no version stored, and there's an ak, it has to be 002. Newer versions would have thier version stored in authParams.
+      return "002";
+    } else {
+      return "001";
+    }
+  }
+
+  async protocolVersion() {
+    var authParams = await this.getAuthParams();
+    if(authParams && authParams.version) {
+      return authParams.version;
+    }
+
+    return this.defaultProtocolVersion();
   }
 
   async getAuthParamsForEmail(url, email, extraParams) {
@@ -1274,6 +1298,8 @@ export class SFStorageManager {
       this.notifyEvent("sync:completed");
       // Required in order for modelManager to notify sync observers
       this.modelManager.didSyncModelsOffline(items);
+
+      return {saved_items: items};
     })
   }
 
@@ -1419,8 +1445,14 @@ export class SFStorageManager {
       // we want to write all dirty items to disk only if the user is offline, or if the sync op fails
       // if the sync op succeeds, these items will be written to disk by handling the "saved_items" response from the server
       if(info.offline) {
-        this.syncOffline(allDirtyItems).then(resolve);
-        this.modelManager.clearDirtyItems(allDirtyItems);
+        try {
+          this.syncOffline(allDirtyItems).then((response) => {
+            resolve(response);
+          });
+          this.modelManager.clearDirtyItems(allDirtyItems);
+        } catch (e) {
+          alert(`There was an error while trying to save your items. Please contact support and share this message: ${e}`);
+        }
         return;
       }
 
@@ -1467,13 +1499,17 @@ export class SFStorageManager {
       var params = {};
       params.limit = 150;
 
-      await Promise.all(subItems.map((item) => {
-        var itemParams = new SFItemParams(item, info.keys, info.auth_params);
-        itemParams.additionalFields = options.additionalFields;
-        return itemParams.paramsForSync();
-      })).then((itemsParams) => {
-        params.items = itemsParams;
-      })
+      try {
+        await Promise.all(subItems.map((item) => {
+          var itemParams = new SFItemParams(item, info.keys, info.auth_params);
+          itemParams.additionalFields = options.additionalFields;
+          return itemParams.paramsForSync();
+        })).then((itemsParams) => {
+          params.items = itemsParams;
+        })
+      } catch (e) {
+        alert(`There was an error while trying to save your items. Please contact support and share this message: ${e}`);
+      }
 
       for(var item of subItems) {
         // Reset dirty counter to 0, since we're about to sync it.
@@ -2118,9 +2154,12 @@ export class SFItem {
     this.auth_params = auth_params;
 
     if(this.keys && !this.auth_params) {
-      console.error("SFItemParams.auth_params must be supplied if supplying keys.");
+      throw "SFItemParams.auth_params must be supplied if supplying keys.";
     }
-    // this.version = version || SFJS.version();
+
+    if(this.auth_params && !this.auth_params.version) {
+      throw "SFItemParams.auth_params is missing version";
+    }
   }
 
   async paramsForExportFile(includeDeleted) {
