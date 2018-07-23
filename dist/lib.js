@@ -1183,6 +1183,7 @@ export class SFStorageManager {
     major-data-change
     local-data-loaded
     sync-session-invalid
+    sync-exception
      */
     this.eventHandlers.push(handler);
     return handler;
@@ -1451,7 +1452,7 @@ export class SFStorageManager {
           });
           this.modelManager.clearDirtyItems(allDirtyItems);
         } catch (e) {
-          alert(`There was an error while trying to save your items. Please contact support and share this message: ${e}`);
+          this.notifyEvent("sync-exception", e);
         }
         return;
       }
@@ -1508,7 +1509,7 @@ export class SFStorageManager {
           params.items = itemsParams;
         })
       } catch (e) {
-        alert(`There was an error while trying to save your items. Please contact support and share this message: ${e}`);
+        this.notifyEvent("sync-exception", e);
       }
 
       for(var item of subItems) {

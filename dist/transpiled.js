@@ -3126,6 +3126,7 @@ var SFSyncManager = exports.SFSyncManager = function () {
       major-data-change
       local-data-loaded
       sync-session-invalid
+      sync-exception
        */
       this.eventHandlers.push(handler);
       return handler;
@@ -3917,7 +3918,7 @@ var SFSyncManager = exports.SFSyncManager = function () {
                               });
                               _this18.modelManager.clearDirtyItems(allDirtyItems);
                             } catch (e) {
-                              alert("There was an error while trying to save your items. Please contact support and share this message: " + e);
+                              _this18.notifyEvent("sync-exception", e);
                             }
                             return _context61.abrupt("return");
 
@@ -3986,7 +3987,7 @@ var SFSyncManager = exports.SFSyncManager = function () {
                             _context61.prev = 37;
                             _context61.t0 = _context61["catch"](32);
 
-                            alert("There was an error while trying to save your items. Please contact support and share this message: " + _context61.t0);
+                            _this18.notifyEvent("sync-exception", _context61.t0);
 
                           case 40:
                             _iteratorNormalCompletion29 = true;
