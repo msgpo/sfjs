@@ -83,7 +83,7 @@ export class SFAlertManager {
       this._authParams = JSON.parse(data);
     }
 
-    if(!this._authParams.version) {
+    if(this._authParams && !this._authParams.version) {
       this._authParams.version = await this.defaultProtocolVersion();
     }
 
