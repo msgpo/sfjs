@@ -3,6 +3,7 @@ import '../dist/sfjs.js';
 import '../node_modules/chai/chai.js';
 import './vendor/chai-as-promised-built.js';
 import '../vendor/lodash/lodash.custom.js';
+import Factory from './lib/factory.js';
 
 SFItem.AppDomain = "org.standardnotes.sn";
 
@@ -186,6 +187,72 @@ describe('app models', () => {
     })
   });
 });
+
+describe("mapping performance", () => {
+
+  it("shouldn't take a long time", () => {
+    /*
+      There was an issue with mapping where we were using arrays for everything instead of hashes (like items, missedReferences),
+      which caused searching to be really expensive and caused a huge slowdown.
+    */
+    let modelManager = createModelManager();
+
+    // create a bunch of notes and tags, and make sure mapping doesn't take a long time
+    const noteCount = 2500;
+    const tagCount = 10;
+    var tags = [], notes = [];
+    for(var i = 0; i < tagCount; i++) {
+      var tag = {
+        uuid: SFJS.crypto.generateUUIDSync(),
+        content_type: "Tag",
+        content: {
+          title: `${Math.random()}`,
+          references: []
+        }
+      }
+      tags.push(tag);
+    }
+
+    for(var i = 0; i < noteCount; i++) {
+      var note = {
+        uuid: SFJS.crypto.generateUUIDSync(),
+        content_type: "Note",
+        content: {
+          title: `${Math.random()}`,
+          text: `${Math.random()}`,
+          references: []
+        }
+      }
+
+      var randomTag = Factory.randomArrayValue(tags);
+
+      randomTag.content.references.push(
+        {
+          content_type: "Note",
+          uuid: note.uuid
+        }
+      )
+      notes.push(note);
+    }
+
+    var items = Factory.shuffleArray(tags.concat(notes));
+
+    var t0 = performance.now();
+    // process items in separate batches, so as to trigger missed references
+    var currentIndex = 0;
+    var batchSize = 100;
+    for(var i = 0; i < items.length; i += batchSize) {
+      var subArray = items.slice(currentIndex, currentIndex + batchSize);
+      modelManager.mapResponseItemsToLocalModels(subArray);
+      currentIndex += batchSize;
+    }
+
+    var t1 = performance.now();
+    var seconds = (t1 - t0) / 1000;
+    const expectedRunTime = 3; // seconds
+    expect(seconds).to.be.at.most(expectedRunTime);
+  }).timeout(20000);
+})
 
 describe("model manager mapping", () => {
   it('mapping nonexistent item creates it', () => {

@@ -91,6 +91,18 @@ export default class Factory {
     if(!password) password = sf_default.crypto.generateUUIDSync();
     return this.globalAuthManager().register(url, email, password, false);
   }
+
+  static shuffleArray(a) {
+    for (let i = a.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [a[i], a[j]] = [a[j], a[i]];
+    }
+    return a;
+  }
+
+  static randomArrayValue(array) {
+    return array[Math.floor(Math.random() * array.length)];
+  }
 }
 
 Factory.initialize();
