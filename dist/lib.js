@@ -1972,10 +1972,7 @@ export class SFItem {
 
   removeItemAsRelationship(item) {
     item.setIsNoLongerBeingReferencedBy(this);
-
-    var references = this.content.references || [];
-    references = references.filter((r) => {return r.uuid != item.uuid});
-    this.content.references = references;
+    this.removeReferenceWithUuid(item.uuid);
   }
 
   // When another object has a relationship with us, we push that object into memory here.
@@ -1990,6 +1987,18 @@ export class SFItem {
 
   setIsNoLongerBeingReferencedBy(item) {
     _.remove(this.referencingObjects, {uuid: item.uuid});
+    // Legacy two-way relationships should be handled here
+    if(this.hasRelationshipWithItem(item)) {
+      this.removeReferenceWithUuid(item.uuid);
+      // We really shouldn't have the authority to set this item as dirty, but it's the only way to save this change.
+      this.setDirty(true);
+    }
+  }
+
+  removeReferenceWithUuid(uuid) {
+    var references = this.content.references || [];
+    references = references.filter((r) => {return r.uuid != uuid});
+    this.content.references = references;
   }
 
   hasRelationshipWithItem(item) {
