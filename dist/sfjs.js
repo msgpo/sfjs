@@ -1714,6 +1714,9 @@ var SFModelManager = exports.SFModelManager = function () {
         for (var _iterator7 = items[Symbol.iterator](), _step7; !(_iteratorNormalCompletion7 = (_step7 = _iterator7.next()).done); _iteratorNormalCompletion7 = true) {
           var json_obj = _step7.value;
 
+          if (!json_obj) {
+            continue;
+          }
           if ((!json_obj.content_type || !json_obj.content) && !json_obj.deleted && !json_obj.errorDecrypting) {
             // An item that is not deleted should never have empty content
             console.error("Server response item is corrupt:", json_obj);
@@ -4697,7 +4700,7 @@ var SFSyncManager = exports.SFSyncManager = function () {
 
               case 8:
                 if (_iteratorNormalCompletion34 = (_step34 = _iterator34.next()).done) {
-                  _context67.next = 31;
+                  _context67.next = 36;
                   break;
                 }
 
@@ -4723,7 +4726,7 @@ var SFSyncManager = exports.SFSyncManager = function () {
                   break;
                 }
 
-                return _context67.abrupt("continue", 28);
+                return _context67.abrupt("continue", 33);
 
               case 21:
                 error = mapping.error;
@@ -4737,62 +4740,66 @@ var SFSyncManager = exports.SFSyncManager = function () {
                 return this.modelManager.alternateUUIDForItem(item);
 
               case 25:
-                _context67.next = 28;
+                _context67.next = 33;
                 break;
 
               case 27:
-                if (error.tag === "sync_conflict") {
-                  // Create a new item with the same contents of this item if the contents differ
-                  // We want a new uuid for the new item. Note that this won't neccessarily adjust references.
-                  itemResponse.uuid = null;
-
-                  dup = this.modelManager.createDuplicateItem(itemResponse);
-
-                  if (!itemResponse.deleted && !item.isItemContentEqualWith(dup)) {
-                    this.modelManager.addDuplicatedItem(dup, item);
-                  }
+                if (!(error.tag === "sync_conflict")) {
+                  _context67.next = 33;
+                  break;
                 }
 
-              case 28:
+                _context67.next = 30;
+                return SFJS.crypto.generateUUID();
+
+              case 30:
+                itemResponse.uuid = _context67.sent;
+                dup = this.modelManager.createDuplicateItem(itemResponse);
+
+                if (!itemResponse.deleted && !item.isItemContentEqualWith(dup)) {
+                  this.modelManager.addDuplicatedItem(dup, item);
+                }
+
+              case 33:
                 _iteratorNormalCompletion34 = true;
                 _context67.next = 8;
                 break;
 
-              case 31:
-                _context67.next = 37;
+              case 36:
+                _context67.next = 42;
                 break;
 
-              case 33:
-                _context67.prev = 33;
+              case 38:
+                _context67.prev = 38;
                 _context67.t3 = _context67["catch"](6);
                 _didIteratorError34 = true;
                 _iteratorError34 = _context67.t3;
 
-              case 37:
-                _context67.prev = 37;
-                _context67.prev = 38;
+              case 42:
+                _context67.prev = 42;
+                _context67.prev = 43;
 
                 if (!_iteratorNormalCompletion34 && _iterator34.return) {
                   _iterator34.return();
                 }
 
-              case 40:
-                _context67.prev = 40;
+              case 45:
+                _context67.prev = 45;
 
                 if (!_didIteratorError34) {
-                  _context67.next = 43;
+                  _context67.next = 48;
                   break;
                 }
 
                 throw _iteratorError34;
 
-              case 43:
-                return _context67.finish(40);
+              case 48:
+                return _context67.finish(45);
 
-              case 44:
-                return _context67.finish(37);
+              case 49:
+                return _context67.finish(42);
 
-              case 45:
+              case 50:
 
                 // This will immediately result in "Sync op in progress" and sync will be queued.
                 // That's ok. You actually want a sync op in progress so that the new items is saved to disk right away.
@@ -4802,12 +4809,12 @@ var SFSyncManager = exports.SFSyncManager = function () {
                 // where it's being called from.
                 this.sync(null, { additionalFields: ["created_at", "updated_at"] });
 
-              case 46:
+              case 51:
               case "end":
                 return _context67.stop();
             }
           }
-        }, _callee67, this, [[6, 33, 37, 45], [38,, 40, 44]]);
+        }, _callee67, this, [[6, 38, 42, 50], [43,, 45, 49]]);
       }));
 
       function handleUnsavedItemsResponse(_x85) {
@@ -7330,7 +7337,7 @@ var SFItemTransformer = exports.SFItemTransformer = function () {
                       while (1) {
                         switch (_context99.prev = _context99.next) {
                           case 0:
-                            if (!(item.deleted == true && item.content == null)) {
+                            if (item) {
                               _context99.next = 2;
                               break;
                             }
@@ -7338,24 +7345,32 @@ var SFItemTransformer = exports.SFItemTransformer = function () {
                             return _context99.abrupt("return");
 
                           case 2:
-                            isString = typeof item.content === 'string' || item.content instanceof String;
-
-                            if (!isString) {
-                              _context99.next = 17;
+                            if (!(item.deleted == true && item.content == null)) {
+                              _context99.next = 4;
                               break;
                             }
 
-                            _context99.prev = 4;
-                            _context99.next = 7;
+                            return _context99.abrupt("return");
+
+                          case 4:
+                            isString = typeof item.content === 'string' || item.content instanceof String;
+
+                            if (!isString) {
+                              _context99.next = 19;
+                              break;
+                            }
+
+                            _context99.prev = 6;
+                            _context99.next = 9;
                             return _this25.decryptItem(item, keys);
 
-                          case 7:
-                            _context99.next = 17;
+                          case 9:
+                            _context99.next = 19;
                             break;
 
-                          case 9:
-                            _context99.prev = 9;
-                            _context99.t0 = _context99["catch"](4);
+                          case 11:
+                            _context99.prev = 11;
+                            _context99.t0 = _context99["catch"](6);
 
                             if (!item.errorDecrypting) {
                               item.errorDecryptingValueChanged = true;
@@ -7363,22 +7378,22 @@ var SFItemTransformer = exports.SFItemTransformer = function () {
                             item.errorDecrypting = true;
 
                             if (!throws) {
-                              _context99.next = 15;
+                              _context99.next = 17;
                               break;
                             }
 
                             throw _context99.t0;
 
-                          case 15:
+                          case 17:
                             console.error("Error decrypting item", item, _context99.t0);
                             return _context99.abrupt("return");
 
-                          case 17:
+                          case 19:
                           case "end":
                             return _context99.stop();
                         }
                       }
-                    }, _callee99, _this25, [[4, 9]]);
+                    }, _callee99, _this25, [[6, 11]]);
                   }));
 
                   return function decrypt(_x139) {

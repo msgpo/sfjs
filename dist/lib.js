@@ -547,6 +547,9 @@ export class SFAlertManager {
 
     // first loop should add and process items
     for(var json_obj of items) {
+      if(!json_obj) {
+        continue;
+      }
       if((!json_obj.content_type || !json_obj.content) && !json_obj.deleted && !json_obj.errorDecrypting) {
         // An item that is not deleted should never have empty content
         console.error("Server response item is corrupt:", json_obj);
@@ -1762,7 +1765,7 @@ export class SFStorageManager {
       else if(error.tag === "sync_conflict") {
         // Create a new item with the same contents of this item if the contents differ
         // We want a new uuid for the new item. Note that this won't neccessarily adjust references.
-        itemResponse.uuid = null;
+        itemResponse.uuid = await SFJS.crypto.generateUUID();
 
         var dup = this.modelManager.createDuplicateItem(itemResponse);
         if(!itemResponse.deleted && !item.isItemContentEqualWith(dup)) {
@@ -3073,7 +3076,7 @@ export class SFCryptoWeb extends SFAbstractCrypto {
 
     try {
       item.auth_params = JSON.parse(await this.crypto.base64Decode(itemParams.authParams));
-    } catch (e) {} 
+    } catch (e) {}
 
     // return if uuid in auth hash does not match item uuid. Signs of tampering.
     if(itemParams.uuid && itemParams.uuid !== item.uuid) {
@@ -3101,6 +3104,9 @@ export class SFCryptoWeb extends SFAbstractCrypto {
 
   async decryptMultipleItems(items, keys, throws) {
     let decrypt = async (item) => {
+      if(!item) {
+        return;
+      }
       // 4/15/18: Adding item.content == null clause. We still want to decrypt deleted items incase
       // they were marked as dirty but not yet synced. Not yet sure why we had this requirement.
       if(item.deleted == true && item.content == null) {
