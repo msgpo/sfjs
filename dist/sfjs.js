@@ -2159,6 +2159,7 @@ var SFModelManager = exports.SFModelManager = function () {
           var referencingObject = _step16.value;
 
           referencingObject.addItemAsRelationship(dup);
+          referencingObject.setDirty(true);
         }
       } catch (err) {
         _didIteratorError16 = true;

@@ -762,6 +762,7 @@ export class SFAlertManager {
     // the duplicate should inherit the original's relationships
     for(var referencingObject of original.referencingObjects) {
       referencingObject.addItemAsRelationship(dup);
+      referencingObject.setDirty(true);
     }
     this.resolveReferencesForItem(dup);
     dup.conflict_of = original.uuid;
