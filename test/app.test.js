@@ -110,7 +110,7 @@ describe('app models', () => {
     expect(item2.referencingObjects.length).to.equal(1);
   });
 
-  it.only('mapping item without uuid should not map it', () => {
+  it('mapping item without uuid should not map it', () => {
     let modelManager = createModelManager();
     var params1 = createItem();
     params1.uuid = null;
