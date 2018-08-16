@@ -550,7 +550,7 @@ export class SFAlertManager {
       if(!json_obj) {
         continue;
       }
-      if((!json_obj.content_type || !json_obj.content) && !json_obj.deleted && !json_obj.errorDecrypting) {
+      if((!json_obj.content_type || !json_obj.content || !json_obj.uuid) && !json_obj.deleted && !json_obj.errorDecrypting) {
         // An item that is not deleted should never have empty content
         console.error("Server response item is corrupt:", json_obj);
         continue;

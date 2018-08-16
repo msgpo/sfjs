@@ -110,6 +110,15 @@ describe('app models', () => {
     expect(item2.referencingObjects.length).to.equal(1);
   });
 
+  it.only('mapping item without uuid should not map it', () => {
+    let modelManager = createModelManager();
+    var params1 = createItem();
+    params1.uuid = null;
+
+    modelManager.mapResponseItemsToLocalModels([params1]);
+    expect(modelManager.allItems.length).to.equal(0);
+  });
+
   it('fixes relationship integrity', () => {
     let modelManager = createModelManager();
     var item1 = createItem();
