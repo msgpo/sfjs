@@ -2626,6 +2626,8 @@ SFItemHistory.LargeEntryDeltaThreshold = 15;
 }
 ;/* Abstract class. Instantiate an instance of either SFCryptoJS (uses cryptojs) or SFCryptoWeb (uses web crypto) */
 
+var globalScope = typeof window !== 'undefined' ? window : (typeof global !== 'undefined' ? global : null);
+
 export class SFAbstractCrypto {
 
   constructor() {
@@ -2638,7 +2640,7 @@ export class SFAbstractCrypto {
   */
 
   generateUUIDSync() {
-    var crypto = window.crypto || window.msCrypto;
+    var crypto = globalScope.crypto || globalScope.msCrypto;
     if(crypto) {
       var buf = new Uint32Array(4);
       crypto.getRandomValues(buf);
@@ -2651,7 +2653,7 @@ export class SFAbstractCrypto {
       });
     } else {
       var d = new Date().getTime();
-      if(window.performance && typeof window.performance.now === "function"){
+      if(globalScope.performance && typeof globalScope.performance.now === "function"){
         d += performance.now(); //use high-precision timer if available
       }
       var uuid = 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function(c) {
@@ -2714,11 +2716,11 @@ export class SFAbstractCrypto {
   }
 
   async base64(text) {
-    return window.btoa(text);
+    return globalScope.btoa(text);
   }
 
   async base64Decode(base64String) {
-    return window.atob(base64String);
+    return globalScope.atob(base64String);
   }
 
   async sha256(text) {
@@ -2799,7 +2801,9 @@ export class SFAbstractCrypto {
   }
 
 }
-;const subtleCrypto = (typeof window !== 'undefined' && window.crypto) ? window.crypto.subtle : null;
+;var globalScope = typeof window !== 'undefined' ? window : (typeof global !== 'undefined' ? global : null);
+
+const subtleCrypto = globalScope.crypto ? globalScope.crypto.subtle : null;
 
 export class SFCryptoWeb extends SFAbstractCrypto {
 
@@ -2900,7 +2904,7 @@ export class SFCryptoWeb extends SFAbstractCrypto {
   stringToArrayBuffer(string) {
     // not available on Edge/IE
 
-    if(window.TextEncoder) {
+    if(globalScope.TextEncoder) {
       var encoder = new TextEncoder("utf-8");
       var result = encoder.encode(string);
       return result;
@@ -2943,7 +2947,7 @@ export class SFCryptoWeb extends SFAbstractCrypto {
     for (var i = 0; i < len; i++) {
         binary += String.fromCharCode( bytes[ i ] );
     }
-    return window.btoa( binary );
+    return globalScope.btoa( binary );
   }
 
 }
@@ -3136,15 +3140,17 @@ export class SFCryptoWeb extends SFAbstractCrypto {
 
   }
 }
-;export class StandardFile {
+;var globalScope = typeof window !== 'undefined' ? window : (typeof global !== 'undefined' ? global : null);
+
+export class StandardFile {
   constructor(cryptoInstance) {
     // This library runs in native environments as well (react native)
-    if(typeof window !== 'undefined' && typeof document !== 'undefined') {
+    if(globalScope) {
       // detect IE8 and above, and edge.
       // IE and Edge do not support pbkdf2 in WebCrypto, therefore we need to use CryptoJS
-      var IEOrEdge = document.documentMode || /Edge/.test(navigator.userAgent);
+      var IEOrEdge = (typeof document !== 'undefined' && document.documentMode) || /Edge/.test(navigator.userAgent);
 
-      if(!IEOrEdge && (window.crypto && window.crypto.subtle)) {
+      if(!IEOrEdge && (globalScope.crypto && globalScope.crypto.subtle)) {
         this.crypto = new SFCryptoWeb();
       } else {
         this.crypto = new SFCryptoJS();
@@ -3219,28 +3225,28 @@ export class SFCryptoWeb extends SFAbstractCrypto {
   }
 }
 
-if(typeof window !== 'undefined' && window !== null) {
+if(globalScope) {
   // window is for some reason defined in React Native, but throws an exception when you try to set to it
   try {
-    window.StandardFile = StandardFile;
-    window.SFJS = new StandardFile();
-    window.SFCryptoWeb = SFCryptoWeb;
-    window.SFCryptoJS = SFCryptoJS;
-    window.SFItemTransformer = SFItemTransformer;
-    window.SFModelManager = SFModelManager;
-    window.SFItem = SFItem;
-    window.SFItemParams = SFItemParams;
-    window.SFHttpManager = SFHttpManager;
-    window.SFStorageManager = SFStorageManager;
-    window.SFSyncManager = SFSyncManager;
-    window.SFAuthManager = SFAuthManager;
-    window.SFMigrationManager = SFMigrationManager;
-    window.SFAlertManager = SFAlertManager;
-    window.SFPredicate = SFPredicate;
-    window.SFHistorySession = SFHistorySession;
-    window.SFSessionHistoryManager = SFSessionHistoryManager
-    window.SFItemHistory = SFItemHistory;
-    window.SFItemHistoryEntry = SFItemHistoryEntry;
+    globalScope.StandardFile = StandardFile;
+    globalScope.SFJS = new StandardFile();
+    globalScope.SFCryptoWeb = SFCryptoWeb;
+    globalScope.SFCryptoJS = SFCryptoJS;
+    globalScope.SFItemTransformer = SFItemTransformer;
+    globalScope.SFModelManager = SFModelManager;
+    globalScope.SFItem = SFItem;
+    globalScope.SFItemParams = SFItemParams;
+    globalScope.SFHttpManager = SFHttpManager;
+    globalScope.SFStorageManager = SFStorageManager;
+    globalScope.SFSyncManager = SFSyncManager;
+    globalScope.SFAuthManager = SFAuthManager;
+    globalScope.SFMigrationManager = SFMigrationManager;
+    globalScope.SFAlertManager = SFAlertManager;
+    globalScope.SFPredicate = SFPredicate;
+    globalScope.SFHistorySession = SFHistorySession;
+    globalScope.SFSessionHistoryManager = SFSessionHistoryManager
+    globalScope.SFItemHistory = SFItemHistory;
+    globalScope.SFItemHistoryEntry = SFItemHistoryEntry;
   } catch (e) {
     console.log("Exception while exporting window variables", e);
   }
