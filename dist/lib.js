@@ -264,11 +264,13 @@ export class SFAlertManager {
     return this.saveKeys(keys);
   }
 }
-;export class SFHttpManager {
+;var globalScope = typeof window !== 'undefined' ? window : (typeof global !== 'undefined' ? global : null);
+
+export class SFHttpManager {
 
   constructor(timeout) {
     // calling callbacks in a $timeout allows UI to update
-    this.$timeout = timeout || setTimeout.bind(window);
+    this.$timeout = timeout || setTimeout.bind(globalScope);
   }
 
   setJWTRequestHandler(handler) {
@@ -332,6 +334,23 @@ export class SFAlertManager {
       xmlhttp.send(JSON.stringify(params));
     } else {
       xmlhttp.send();
+    }
+  }
+
+  stringToArrayBuffer(string) {
+    // not available on Edge/IE
+    if(globalScope.TextEncoder) {
+      var encoder = new TextEncoder("utf-8");
+      var result = encoder.encode(string);
+      return result;
+    } else {
+      string = unescape(encodeURIComponent(string));
+      var buf = new ArrayBuffer(string.length);
+      var bufView = new Uint8Array(buf);
+      for (var i=0, strLen=string.length; i<strLen; i++) {
+        bufView[i] = string.charCodeAt(i);
+      }
+      return buf;
     }
   }
 
@@ -2689,6 +2708,7 @@ export class SFAbstractCrypto {
   }
 
   async encryptText(text, key, iv) {
+    console.log("Using CryptoJS to encrypt text");
     var keyData = CryptoJS.enc.Hex.parse(key);
     var ivData  = CryptoJS.enc.Hex.parse(iv || "");
     var encrypted = CryptoJS.AES.encrypt(text, keyData, { iv: ivData,  mode: CryptoJS.mode.CBC, padding: CryptoJS.pad.Pkcs7 });
@@ -2812,7 +2832,7 @@ export class SFCryptoWeb extends SFAbstractCrypto {
   */
 
   async pbkdf2(password, pw_salt, pw_cost, length) {
-    var key = await this.webCryptoImportKey(password, "PBKDF2", "deriveBits");
+    var key = await this.webCryptoImportKey(password, "PBKDF2", ["deriveBits"]);
     if(!key) {
       console.log("Key is null, unable to continue");
       return null;
@@ -2849,30 +2869,58 @@ export class SFCryptoWeb extends SFAbstractCrypto {
   }
 
   /* This is a functioning implementation of WebCrypto's encrypt, however, in basic testing, CrpytoJS performs about 30-40% faster, surprisingly. */
-  /*
+
   async encryptText(text, key, iv) {
     var ivData  = this.hexStringToArrayBuffer(iv);
     const alg = { name: 'AES-CBC', iv: ivData };
 
     const keyBuffer = this.hexStringToArrayBuffer(key);
-    var keyData = await this.webCryptoImportKey(keyBuffer, alg.name, "encrypt");
+    var keyData = await this.webCryptoImportKey(keyBuffer, alg.name, ["encrypt"]);
+    var textData = await this.stringToArrayBuffer(text);
 
-    var textData = this.stringToArrayBuffer(text);
-
-    return crypto.subtle.encrypt(alg, keyData, textData).then((result) => {
-      let cipher = this.arrayBufferToBase64(result);
+    return crypto.subtle.encrypt(alg, keyData, textData).then(async (result) => {
+      let cipher = await this.arrayBufferToBase64(result);
       return cipher;
     })
   }
-  */
+
+  async decryptText({ciphertextToAuth, contentCiphertext, encryptionKey, iv, authHash, authKey} = {}, requiresAuth) {
+    if(requiresAuth && !authHash) {
+      console.error("Auth hash is required.");
+      return;
+    }
+
+    if(authHash) {
+      var localAuthHash = await this.hmac256(ciphertextToAuth, authKey);
+      if(authHash !== localAuthHash) {
+        console.error(`Auth hash does not match, returning null. ${authHash} != ${localAuthHash}`);
+        return null;
+      }
+    }
+
+    var ivData  = this.hexStringToArrayBuffer(iv);
+    const alg = { name: 'AES-CBC', iv: ivData };
+
+    const keyBuffer = this.hexStringToArrayBuffer(encryptionKey);
+    var keyData = await this.webCryptoImportKey(keyBuffer, alg.name, ["decrypt"]);
+    var textData = this.base64ToArrayBuffer(contentCiphertext);
+
+    return crypto.subtle.decrypt(alg, keyData, textData).then(async (result) => {
+      let decrypted = await this.arrayBufferToBase64(result);
+      let decoded = await this.base64Decode(decrypted);
+      return decoded;
+    }).catch((error) => {
+      console.error("Error decrypting:", error);
+    })
+  }
 
   /**
   Internal
   */
 
-  async webCryptoImportKey(input, alg, action) {
-    var text = typeof input === "string" ? this.stringToArrayBuffer(input) : input;
-    return subtleCrypto.importKey("raw", text, { name: alg }, false, [action])
+  async webCryptoImportKey(input, alg, actions, hash) {
+    var text = typeof input === "string" ? await this.stringToArrayBuffer(input) : input;
+    return subtleCrypto.importKey("raw", text, { name: alg, hash: hash }, false, actions)
     .then((key) => {
       return key;
     })
@@ -2885,7 +2933,7 @@ export class SFCryptoWeb extends SFAbstractCrypto {
   async webCryptoDeriveBits(key, pw_salt, pw_cost, length) {
     var params = {
       "name": "PBKDF2",
-      salt: this.stringToArrayBuffer(pw_salt),
+      salt: await this.stringToArrayBuffer(pw_salt),
       iterations: pw_cost,
       hash: {name: "SHA-512"},
     }
@@ -2901,22 +2949,42 @@ export class SFCryptoWeb extends SFAbstractCrypto {
     });
   }
 
-  stringToArrayBuffer(string) {
+  base64ToArrayBuffer(base64) {
+    var binary_string =  globalScope.atob(base64);
+    var len = binary_string.length;
+    var bytes = new Uint8Array( len );
+    for (var i = 0; i < len; i++)        {
+        bytes[i] = binary_string.charCodeAt(i);
+    }
+    return bytes.buffer;
+  }
+
+  async stringToArrayBuffer(string) {
     // not available on Edge/IE
 
-    if(globalScope.TextEncoder) {
-      var encoder = new TextEncoder("utf-8");
-      var result = encoder.encode(string);
-      return result;
-    } else {
-      string = unescape(encodeURIComponent(string));
-      var buf = new ArrayBuffer(string.length);
-      var bufView = new Uint8Array(buf);
-      for (var i=0, strLen=string.length; i<strLen; i++) {
-        bufView[i] = string.charCodeAt(i);
+    // Using FileReader for higher performance amongst larger files
+    return new Promise((resolve, reject) => {
+      var blob = new Blob([string]);
+      var f = new FileReader();
+      f.onload = function(e) {
+        resolve(e.target.result);
       }
-      return buf;
-    }
+      f.readAsArrayBuffer(blob);
+    })
+
+    // if(globalScope.TextEncoder) {
+    //   var encoder = new TextEncoder("utf-8");
+    //   var result = encoder.encode(string);
+    //   return result;
+    // } else {
+    //   string = unescape(encodeURIComponent(string));
+    //   var buf = new ArrayBuffer(string.length);
+    //   var bufView = new Uint8Array(buf);
+    //   for (var i=0, strLen=string.length; i<strLen; i++) {
+    //     bufView[i] = string.charCodeAt(i);
+    //   }
+    //   return buf;
+    // }
   }
 
   arrayBufferToHexString(arrayBuffer) {
@@ -2940,15 +3008,40 @@ export class SFCryptoWeb extends SFAbstractCrypto {
     return new Uint8Array(bytes);
   }
 
-  arrayBufferToBase64( buffer ) {
-    var binary = '';
-    var bytes = new Uint8Array( buffer );
-    var len = bytes.byteLength;
-    for (var i = 0; i < len; i++) {
-        binary += String.fromCharCode( bytes[ i ] );
-    }
-    return globalScope.btoa( binary );
+  async arrayBufferToBase64(buffer) {
+    return new Promise((resolve, reject) => {
+      var blob = new Blob([buffer],{type:'application/octet-binary'});
+      var reader = new FileReader();
+      reader.onload = function(evt){
+        var dataurl = evt.target.result;
+        resolve(dataurl.substr(dataurl.indexOf(',') + 1));
+      };
+      reader.readAsDataURL(blob);
+    })
   }
+
+  async hmac256(message, key) {
+    var keyData = await this.webCryptoImportKey(key, "HMAC", ["sign"], {name: "SHA-256"});
+    var messageData = await this.stringToArrayBuffer(message);
+    return crypto.subtle.sign({name: "HMAC"}, keyData, messageData)
+    .then((signature) => {
+      var hash = this.arrayBufferToHexString(signature);
+      return hash;
+    })
+    .catch(function(err){
+      console.error("Error computing hmac");
+    });
+  }
+
+  // arrayBufferToBase64( buffer ) {
+  //   var binary = '';
+  //   var bytes = new Uint8Array( buffer );
+  //   var len = bytes.byteLength;
+  //   for(var i = 0; i < len; i++) {
+  //     binary += String.fromCharCode( bytes[ i ] );
+  //   }
+  //   return globalScope.btoa( binary );
+  // }
 
 }
 ;export class SFItemTransformer {
@@ -3069,6 +3162,7 @@ export class SFCryptoWeb extends SFAbstractCrypto {
     var item_key = await this.crypto.decryptText(keyParams, requiresAuth);
 
     if(!item_key) {
+      console.log("Error decrypting item", item);
       if(!item.errorDecrypting) { item.errorDecryptingValueChanged = true;}
       item.errorDecrypting = true;
       return;
