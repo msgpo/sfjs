@@ -6141,13 +6141,12 @@ var SFAbstractCrypto = exports.SFAbstractCrypto = function () {
           while (1) {
             switch (_context77.prev = _context77.next) {
               case 0:
-                console.log("Using CryptoJS to encrypt text");
                 keyData = CryptoJS.enc.Hex.parse(key);
                 ivData = CryptoJS.enc.Hex.parse(iv || "");
                 encrypted = CryptoJS.AES.encrypt(text, keyData, { iv: ivData, mode: CryptoJS.mode.CBC, padding: CryptoJS.pad.Pkcs7 });
                 return _context77.abrupt("return", encrypted.toString());
 
-              case 5:
+              case 4:
               case "end":
                 return _context77.stop();
             }
@@ -6279,7 +6278,9 @@ var SFAbstractCrypto = exports.SFAbstractCrypto = function () {
           while (1) {
             switch (_context82.prev = _context82.next) {
               case 0:
-                return _context82.abrupt("return", globalScope.btoa(text));
+                return _context82.abrupt("return", globalScope.btoa(encodeURIComponent(text).replace(/%([0-9A-F]{2})/g, function toSolidBytes(match, p1) {
+                  return String.fromCharCode('0x' + p1);
+                })));
 
               case 1:
               case "end":
@@ -6655,20 +6656,42 @@ var SFCryptoWeb = exports.SFCryptoWeb = function (_SFAbstractCrypto2) {
   }, {
     key: "generateRandomKey",
     value: function () {
-      var _ref98 = _asyncToGenerator( /*#__PURE__*/regeneratorRuntime.mark(function _callee92(bits) {
+      var _ref98 = _asyncToGenerator( /*#__PURE__*/regeneratorRuntime.mark(function _callee93(bits) {
         var _this23 = this;
 
         var extractable;
-        return regeneratorRuntime.wrap(function _callee92$(_context92) {
+        return regeneratorRuntime.wrap(function _callee93$(_context93) {
           while (1) {
-            switch (_context92.prev = _context92.next) {
+            switch (_context93.prev = _context93.next) {
               case 0:
                 extractable = true;
-                return _context92.abrupt("return", subtleCrypto.generateKey({ name: "AES-CBC", length: bits }, extractable, ["encrypt", "decrypt"]).then(function (keyObject) {
-                  return subtleCrypto.exportKey("raw", keyObject).then(function (keyData) {
-                    var key = _this23.arrayBufferToHexString(new Uint8Array(keyData));
-                    return key;
-                  }).catch(function (err) {
+                return _context93.abrupt("return", subtleCrypto.generateKey({ name: "AES-CBC", length: bits }, extractable, ["encrypt", "decrypt"]).then(function (keyObject) {
+                  return subtleCrypto.exportKey("raw", keyObject).then(function () {
+                    var _ref99 = _asyncToGenerator( /*#__PURE__*/regeneratorRuntime.mark(function _callee92(keyData) {
+                      var key;
+                      return regeneratorRuntime.wrap(function _callee92$(_context92) {
+                        while (1) {
+                          switch (_context92.prev = _context92.next) {
+                            case 0:
+                              _context92.next = 2;
+                              return _this23.arrayBufferToHexString(new Uint8Array(keyData));
+
+                            case 2:
+                              key = _context92.sent;
+                              return _context92.abrupt("return", key);
+
+                            case 4:
+                            case "end":
+                              return _context92.stop();
+                          }
+                        }
+                      }, _callee92, _this23);
+                    }));
+
+                    return function (_x119) {
+                      return _ref99.apply(this, arguments);
+                    };
+                  }()).catch(function (err) {
                     console.error("Error exporting key", err);
                   });
                 }).catch(function (err) {
@@ -6677,10 +6700,10 @@ var SFCryptoWeb = exports.SFCryptoWeb = function (_SFAbstractCrypto2) {
 
               case 2:
               case "end":
-                return _context92.stop();
+                return _context93.stop();
             }
           }
-        }, _callee92, this);
+        }, _callee93, this);
       }));
 
       function generateRandomKey(_x118) {
@@ -6692,28 +6715,28 @@ var SFCryptoWeb = exports.SFCryptoWeb = function (_SFAbstractCrypto2) {
   }, {
     key: "generateItemEncryptionKey",
     value: function () {
-      var _ref99 = _asyncToGenerator( /*#__PURE__*/regeneratorRuntime.mark(function _callee93() {
+      var _ref100 = _asyncToGenerator( /*#__PURE__*/regeneratorRuntime.mark(function _callee94() {
         var length;
-        return regeneratorRuntime.wrap(function _callee93$(_context93) {
+        return regeneratorRuntime.wrap(function _callee94$(_context94) {
           while (1) {
-            switch (_context93.prev = _context93.next) {
+            switch (_context94.prev = _context94.next) {
               case 0:
                 // Generates a key that will be split in half, each being 256 bits. So total length will need to be 512.
                 length = 256;
-                return _context93.abrupt("return", Promise.all([this.generateRandomKey(length), this.generateRandomKey(length)]).then(function (values) {
+                return _context94.abrupt("return", Promise.all([this.generateRandomKey(length), this.generateRandomKey(length)]).then(function (values) {
                   return values.join("");
                 }));
 
               case 2:
               case "end":
-                return _context93.stop();
+                return _context94.stop();
             }
           }
-        }, _callee93, this);
+        }, _callee94, this);
       }));
 
       function generateItemEncryptionKey() {
-        return _ref99.apply(this, arguments);
+        return _ref100.apply(this, arguments);
       }
 
       return generateItemEncryptionKey;
@@ -6724,64 +6747,72 @@ var SFCryptoWeb = exports.SFCryptoWeb = function (_SFAbstractCrypto2) {
   }, {
     key: "encryptText",
     value: function () {
-      var _ref100 = _asyncToGenerator( /*#__PURE__*/regeneratorRuntime.mark(function _callee95(text, key, iv) {
+      var _ref101 = _asyncToGenerator( /*#__PURE__*/regeneratorRuntime.mark(function _callee96(text, key, iv) {
         var _this24 = this;
 
         var ivData, alg, keyBuffer, keyData, textData;
-        return regeneratorRuntime.wrap(function _callee95$(_context95) {
+        return regeneratorRuntime.wrap(function _callee96$(_context96) {
           while (1) {
-            switch (_context95.prev = _context95.next) {
+            switch (_context96.prev = _context96.next) {
               case 0:
-                ivData = this.hexStringToArrayBuffer(iv);
+                _context96.next = 2;
+                return this.hexStringToArrayBuffer(iv);
+
+              case 2:
+                ivData = _context96.sent;
                 alg = { name: 'AES-CBC', iv: ivData };
-                keyBuffer = this.hexStringToArrayBuffer(key);
-                _context95.next = 5;
+                _context96.next = 6;
+                return this.hexStringToArrayBuffer(key);
+
+              case 6:
+                keyBuffer = _context96.sent;
+                _context96.next = 9;
                 return this.webCryptoImportKey(keyBuffer, alg.name, ["encrypt"]);
 
-              case 5:
-                keyData = _context95.sent;
-                _context95.next = 8;
+              case 9:
+                keyData = _context96.sent;
+                _context96.next = 12;
                 return this.stringToArrayBuffer(text);
 
-              case 8:
-                textData = _context95.sent;
-                return _context95.abrupt("return", crypto.subtle.encrypt(alg, keyData, textData).then(function () {
-                  var _ref101 = _asyncToGenerator( /*#__PURE__*/regeneratorRuntime.mark(function _callee94(result) {
+              case 12:
+                textData = _context96.sent;
+                return _context96.abrupt("return", crypto.subtle.encrypt(alg, keyData, textData).then(function () {
+                  var _ref102 = _asyncToGenerator( /*#__PURE__*/regeneratorRuntime.mark(function _callee95(result) {
                     var cipher;
-                    return regeneratorRuntime.wrap(function _callee94$(_context94) {
+                    return regeneratorRuntime.wrap(function _callee95$(_context95) {
                       while (1) {
-                        switch (_context94.prev = _context94.next) {
+                        switch (_context95.prev = _context95.next) {
                           case 0:
-                            _context94.next = 2;
+                            _context95.next = 2;
                             return _this24.arrayBufferToBase64(result);
 
                           case 2:
-                            cipher = _context94.sent;
-                            return _context94.abrupt("return", cipher);
+                            cipher = _context95.sent;
+                            return _context95.abrupt("return", cipher);
 
                           case 4:
                           case "end":
-                            return _context94.stop();
+                            return _context95.stop();
                         }
                       }
-                    }, _callee94, _this24);
+                    }, _callee95, _this24);
                   }));
 
-                  return function (_x122) {
-                    return _ref101.apply(this, arguments);
+                  return function (_x123) {
+                    return _ref102.apply(this, arguments);
                   };
                 }()));
 
-              case 10:
+              case 14:
               case "end":
-                return _context95.stop();
+                return _context96.stop();
             }
           }
-        }, _callee95, this);
+        }, _callee96, this);
       }));
 
-      function encryptText(_x119, _x120, _x121) {
-        return _ref100.apply(this, arguments);
+      function encryptText(_x120, _x121, _x122) {
+        return _ref101.apply(this, arguments);
       }
 
       return encryptText;
@@ -6789,105 +6820,112 @@ var SFCryptoWeb = exports.SFCryptoWeb = function (_SFAbstractCrypto2) {
   }, {
     key: "decryptText",
     value: function () {
-      var _ref102 = _asyncToGenerator( /*#__PURE__*/regeneratorRuntime.mark(function _callee97() {
+      var _ref103 = _asyncToGenerator( /*#__PURE__*/regeneratorRuntime.mark(function _callee98() {
         var _this25 = this;
 
-        var _ref103 = arguments.length > 0 && arguments[0] !== undefined ? arguments[0] : {},
-            ciphertextToAuth = _ref103.ciphertextToAuth,
-            contentCiphertext = _ref103.contentCiphertext,
-            encryptionKey = _ref103.encryptionKey,
-            iv = _ref103.iv,
-            authHash = _ref103.authHash,
-            authKey = _ref103.authKey;
+        var _ref104 = arguments.length > 0 && arguments[0] !== undefined ? arguments[0] : {},
+            ciphertextToAuth = _ref104.ciphertextToAuth,
+            contentCiphertext = _ref104.contentCiphertext,
+            encryptionKey = _ref104.encryptionKey,
+            iv = _ref104.iv,
+            authHash = _ref104.authHash,
+            authKey = _ref104.authKey;
 
         var requiresAuth = arguments[1];
         var localAuthHash, ivData, alg, keyBuffer, keyData, textData;
-        return regeneratorRuntime.wrap(function _callee97$(_context97) {
+        return regeneratorRuntime.wrap(function _callee98$(_context98) {
           while (1) {
-            switch (_context97.prev = _context97.next) {
+            switch (_context98.prev = _context98.next) {
               case 0:
                 if (!(requiresAuth && !authHash)) {
-                  _context97.next = 3;
+                  _context98.next = 3;
                   break;
                 }
 
                 console.error("Auth hash is required.");
-                return _context97.abrupt("return");
+                return _context98.abrupt("return");
 
               case 3:
                 if (!authHash) {
-                  _context97.next = 10;
+                  _context98.next = 10;
                   break;
                 }
 
-                _context97.next = 6;
+                _context98.next = 6;
                 return this.hmac256(ciphertextToAuth, authKey);
 
               case 6:
-                localAuthHash = _context97.sent;
+                localAuthHash = _context98.sent;
 
                 if (!(authHash !== localAuthHash)) {
-                  _context97.next = 10;
+                  _context98.next = 10;
                   break;
                 }
 
                 console.error("Auth hash does not match, returning null. " + authHash + " != " + localAuthHash);
-                return _context97.abrupt("return", null);
+                return _context98.abrupt("return", null);
 
               case 10:
-                ivData = this.hexStringToArrayBuffer(iv);
+                _context98.next = 12;
+                return this.hexStringToArrayBuffer(iv);
+
+              case 12:
+                ivData = _context98.sent;
                 alg = { name: 'AES-CBC', iv: ivData };
-                keyBuffer = this.hexStringToArrayBuffer(encryptionKey);
-                _context97.next = 15;
+                _context98.next = 16;
+                return this.hexStringToArrayBuffer(encryptionKey);
+
+              case 16:
+                keyBuffer = _context98.sent;
+                _context98.next = 19;
                 return this.webCryptoImportKey(keyBuffer, alg.name, ["decrypt"]);
 
-              case 15:
-                keyData = _context97.sent;
-                textData = this.base64ToArrayBuffer(contentCiphertext);
-                return _context97.abrupt("return", crypto.subtle.decrypt(alg, keyData, textData).then(function () {
-                  var _ref104 = _asyncToGenerator( /*#__PURE__*/regeneratorRuntime.mark(function _callee96(result) {
-                    var decrypted, decoded;
-                    return regeneratorRuntime.wrap(function _callee96$(_context96) {
+              case 19:
+                keyData = _context98.sent;
+                _context98.next = 22;
+                return this.base64ToArrayBuffer(contentCiphertext);
+
+              case 22:
+                textData = _context98.sent;
+                return _context98.abrupt("return", crypto.subtle.decrypt(alg, keyData, textData).then(function () {
+                  var _ref105 = _asyncToGenerator( /*#__PURE__*/regeneratorRuntime.mark(function _callee97(result) {
+                    var decoded;
+                    return regeneratorRuntime.wrap(function _callee97$(_context97) {
                       while (1) {
-                        switch (_context96.prev = _context96.next) {
+                        switch (_context97.prev = _context97.next) {
                           case 0:
-                            _context96.next = 2;
-                            return _this25.arrayBufferToBase64(result);
+                            _context97.next = 2;
+                            return _this25.arrayBufferToString(result);
 
                           case 2:
-                            decrypted = _context96.sent;
-                            _context96.next = 5;
-                            return _this25.base64Decode(decrypted);
+                            decoded = _context97.sent;
+                            return _context97.abrupt("return", decoded);
 
-                          case 5:
-                            decoded = _context96.sent;
-                            return _context96.abrupt("return", decoded);
-
-                          case 7:
+                          case 4:
                           case "end":
-                            return _context96.stop();
+                            return _context97.stop();
                         }
                       }
-                    }, _callee96, _this25);
+                    }, _callee97, _this25);
                   }));
 
-                  return function (_x124) {
-                    return _ref104.apply(this, arguments);
+                  return function (_x125) {
+                    return _ref105.apply(this, arguments);
                   };
                 }()).catch(function (error) {
                   console.error("Error decrypting:", error);
                 }));
 
-              case 18:
+              case 24:
               case "end":
-                return _context97.stop();
+                return _context98.stop();
             }
           }
-        }, _callee97, this);
+        }, _callee98, this);
       }));
 
       function decryptText() {
-        return _ref102.apply(this, arguments);
+        return _ref103.apply(this, arguments);
       }
 
       return decryptText;
@@ -6900,31 +6938,31 @@ var SFCryptoWeb = exports.SFCryptoWeb = function (_SFAbstractCrypto2) {
   }, {
     key: "webCryptoImportKey",
     value: function () {
-      var _ref105 = _asyncToGenerator( /*#__PURE__*/regeneratorRuntime.mark(function _callee98(input, alg, actions, hash) {
+      var _ref106 = _asyncToGenerator( /*#__PURE__*/regeneratorRuntime.mark(function _callee99(input, alg, actions, hash) {
         var text;
-        return regeneratorRuntime.wrap(function _callee98$(_context98) {
+        return regeneratorRuntime.wrap(function _callee99$(_context99) {
           while (1) {
-            switch (_context98.prev = _context98.next) {
+            switch (_context99.prev = _context99.next) {
               case 0:
                 if (!(typeof input === "string")) {
-                  _context98.next = 6;
+                  _context99.next = 6;
                   break;
                 }
 
-                _context98.next = 3;
+                _context99.next = 3;
                 return this.stringToArrayBuffer(input);
 
               case 3:
-                _context98.t0 = _context98.sent;
-                _context98.next = 7;
+                _context99.t0 = _context99.sent;
+                _context99.next = 7;
                 break;
 
               case 6:
-                _context98.t0 = input;
+                _context99.t0 = input;
 
               case 7:
-                text = _context98.t0;
-                return _context98.abrupt("return", subtleCrypto.importKey("raw", text, { name: alg, hash: hash }, false, actions).then(function (key) {
+                text = _context99.t0;
+                return _context99.abrupt("return", subtleCrypto.importKey("raw", text, { name: alg, hash: hash }, false, actions).then(function (key) {
                   return key;
                 }).catch(function (err) {
                   console.error(err);
@@ -6933,84 +6971,97 @@ var SFCryptoWeb = exports.SFCryptoWeb = function (_SFAbstractCrypto2) {
 
               case 9:
               case "end":
-                return _context98.stop();
-            }
-          }
-        }, _callee98, this);
-      }));
-
-      function webCryptoImportKey(_x125, _x126, _x127, _x128) {
-        return _ref105.apply(this, arguments);
-      }
-
-      return webCryptoImportKey;
-    }()
-  }, {
-    key: "webCryptoDeriveBits",
-    value: function () {
-      var _ref106 = _asyncToGenerator( /*#__PURE__*/regeneratorRuntime.mark(function _callee99(key, pw_salt, pw_cost, length) {
-        var _this26 = this;
-
-        var params;
-        return regeneratorRuntime.wrap(function _callee99$(_context99) {
-          while (1) {
-            switch (_context99.prev = _context99.next) {
-              case 0:
-                _context99.next = 2;
-                return this.stringToArrayBuffer(pw_salt);
-
-              case 2:
-                _context99.t0 = _context99.sent;
-                _context99.t1 = pw_cost;
-                _context99.t2 = { name: "SHA-512" };
-                params = {
-                  "name": "PBKDF2",
-                  salt: _context99.t0,
-                  iterations: _context99.t1,
-                  hash: _context99.t2
-                };
-                return _context99.abrupt("return", subtleCrypto.deriveBits(params, key, length).then(function (bits) {
-                  var key = _this26.arrayBufferToHexString(new Uint8Array(bits));
-                  return key;
-                }).catch(function (err) {
-                  console.error(err);
-                  return null;
-                }));
-
-              case 7:
-              case "end":
                 return _context99.stop();
             }
           }
         }, _callee99, this);
       }));
 
-      function webCryptoDeriveBits(_x129, _x130, _x131, _x132) {
+      function webCryptoImportKey(_x126, _x127, _x128, _x129) {
         return _ref106.apply(this, arguments);
+      }
+
+      return webCryptoImportKey;
+    }()
+    //
+
+  }, {
+    key: "webCryptoDeriveBits",
+    value: function () {
+      var _ref107 = _asyncToGenerator( /*#__PURE__*/regeneratorRuntime.mark(function _callee101(key, pw_salt, pw_cost, length) {
+        var _this26 = this;
+
+        var params;
+        return regeneratorRuntime.wrap(function _callee101$(_context101) {
+          while (1) {
+            switch (_context101.prev = _context101.next) {
+              case 0:
+                _context101.next = 2;
+                return this.stringToArrayBuffer(pw_salt);
+
+              case 2:
+                _context101.t0 = _context101.sent;
+                _context101.t1 = pw_cost;
+                _context101.t2 = { name: "SHA-512" };
+                params = {
+                  "name": "PBKDF2",
+                  salt: _context101.t0,
+                  iterations: _context101.t1,
+                  hash: _context101.t2
+                };
+                return _context101.abrupt("return", subtleCrypto.deriveBits(params, key, length).then(function () {
+                  var _ref108 = _asyncToGenerator( /*#__PURE__*/regeneratorRuntime.mark(function _callee100(bits) {
+                    var key;
+                    return regeneratorRuntime.wrap(function _callee100$(_context100) {
+                      while (1) {
+                        switch (_context100.prev = _context100.next) {
+                          case 0:
+                            _context100.next = 2;
+                            return _this26.arrayBufferToHexString(new Uint8Array(bits));
+
+                          case 2:
+                            key = _context100.sent;
+                            return _context100.abrupt("return", key);
+
+                          case 4:
+                          case "end":
+                            return _context100.stop();
+                        }
+                      }
+                    }, _callee100, _this26);
+                  }));
+
+                  return function (_x134) {
+                    return _ref108.apply(this, arguments);
+                  };
+                }()).catch(function (err) {
+                  console.error(err);
+                  return null;
+                }));
+
+              case 7:
+              case "end":
+                return _context101.stop();
+            }
+          }
+        }, _callee101, this);
+      }));
+
+      function webCryptoDeriveBits(_x130, _x131, _x132, _x133) {
+        return _ref107.apply(this, arguments);
       }
 
       return webCryptoDeriveBits;
     }()
   }, {
-    key: "base64ToArrayBuffer",
-    value: function base64ToArrayBuffer(base64) {
-      var binary_string = globalScope.atob(base64);
-      var len = binary_string.length;
-      var bytes = new Uint8Array(len);
-      for (var i = 0; i < len; i++) {
-        bytes[i] = binary_string.charCodeAt(i);
-      }
-      return bytes.buffer;
-    }
-  }, {
     key: "stringToArrayBuffer",
     value: function () {
-      var _ref107 = _asyncToGenerator( /*#__PURE__*/regeneratorRuntime.mark(function _callee100(string) {
-        return regeneratorRuntime.wrap(function _callee100$(_context100) {
+      var _ref109 = _asyncToGenerator( /*#__PURE__*/regeneratorRuntime.mark(function _callee102(string) {
+        return regeneratorRuntime.wrap(function _callee102$(_context102) {
           while (1) {
-            switch (_context100.prev = _context100.next) {
+            switch (_context102.prev = _context102.next) {
               case 0:
-                return _context100.abrupt("return", new Promise(function (resolve, reject) {
+                return _context102.abrupt("return", new Promise(function (resolve, reject) {
                   var blob = new Blob([string]);
                   var f = new FileReader();
                   f.onload = function (e) {
@@ -7021,50 +7072,157 @@ var SFCryptoWeb = exports.SFCryptoWeb = function (_SFAbstractCrypto2) {
 
               case 1:
               case "end":
-                return _context100.stop();
+                return _context102.stop();
             }
           }
-        }, _callee100, this);
+        }, _callee102, this);
       }));
 
-      function stringToArrayBuffer(_x133) {
-        return _ref107.apply(this, arguments);
+      function stringToArrayBuffer(_x135) {
+        return _ref109.apply(this, arguments);
       }
 
       return stringToArrayBuffer;
     }()
   }, {
-    key: "arrayBufferToHexString",
-    value: function arrayBufferToHexString(arrayBuffer) {
-      var byteArray = new Uint8Array(arrayBuffer);
-      var hexString = "";
-      var nextHexByte;
+    key: "arrayBufferToString",
+    value: function () {
+      var _ref110 = _asyncToGenerator( /*#__PURE__*/regeneratorRuntime.mark(function _callee103(arrayBuffer) {
+        return regeneratorRuntime.wrap(function _callee103$(_context103) {
+          while (1) {
+            switch (_context103.prev = _context103.next) {
+              case 0:
+                return _context103.abrupt("return", new Promise(function (resolve, reject) {
+                  var blob = new Blob([arrayBuffer]);
+                  var f = new FileReader();
+                  f.onload = function (e) {
+                    resolve(e.target.result);
+                  };
+                  f.readAsText(blob);
+                }));
 
-      for (var i = 0; i < byteArray.byteLength; i++) {
-        nextHexByte = byteArray[i].toString(16);
-        if (nextHexByte.length < 2) {
-          nextHexByte = "0" + nextHexByte;
-        }
-        hexString += nextHexByte;
+              case 1:
+              case "end":
+                return _context103.stop();
+            }
+          }
+        }, _callee103, this);
+      }));
+
+      function arrayBufferToString(_x136) {
+        return _ref110.apply(this, arguments);
       }
-      return hexString;
-    }
+
+      return arrayBufferToString;
+    }()
+  }, {
+    key: "arrayBufferToHexString",
+    value: function () {
+      var _ref111 = _asyncToGenerator( /*#__PURE__*/regeneratorRuntime.mark(function _callee104(arrayBuffer) {
+        var byteArray, hexString, nextHexByte, i;
+        return regeneratorRuntime.wrap(function _callee104$(_context104) {
+          while (1) {
+            switch (_context104.prev = _context104.next) {
+              case 0:
+                byteArray = new Uint8Array(arrayBuffer);
+                hexString = "";
+
+
+                for (i = 0; i < byteArray.byteLength; i++) {
+                  nextHexByte = byteArray[i].toString(16);
+                  if (nextHexByte.length < 2) {
+                    nextHexByte = "0" + nextHexByte;
+                  }
+                  hexString += nextHexByte;
+                }
+                return _context104.abrupt("return", hexString);
+
+              case 4:
+              case "end":
+                return _context104.stop();
+            }
+          }
+        }, _callee104, this);
+      }));
+
+      function arrayBufferToHexString(_x137) {
+        return _ref111.apply(this, arguments);
+      }
+
+      return arrayBufferToHexString;
+    }()
   }, {
     key: "hexStringToArrayBuffer",
-    value: function hexStringToArrayBuffer(hex) {
-      for (var bytes = [], c = 0; c < hex.length; c += 2) {
-        bytes.push(parseInt(hex.substr(c, 2), 16));
-      }return new Uint8Array(bytes);
-    }
+    value: function () {
+      var _ref112 = _asyncToGenerator( /*#__PURE__*/regeneratorRuntime.mark(function _callee105(hex) {
+        var bytes, c;
+        return regeneratorRuntime.wrap(function _callee105$(_context105) {
+          while (1) {
+            switch (_context105.prev = _context105.next) {
+              case 0:
+                for (bytes = [], c = 0; c < hex.length; c += 2) {
+                  bytes.push(parseInt(hex.substr(c, 2), 16));
+                }return _context105.abrupt("return", new Uint8Array(bytes));
+
+              case 2:
+              case "end":
+                return _context105.stop();
+            }
+          }
+        }, _callee105, this);
+      }));
+
+      function hexStringToArrayBuffer(_x138) {
+        return _ref112.apply(this, arguments);
+      }
+
+      return hexStringToArrayBuffer;
+    }()
+  }, {
+    key: "base64ToArrayBuffer",
+    value: function () {
+      var _ref113 = _asyncToGenerator( /*#__PURE__*/regeneratorRuntime.mark(function _callee106(base64) {
+        var binary_string, len, bytes, i;
+        return regeneratorRuntime.wrap(function _callee106$(_context106) {
+          while (1) {
+            switch (_context106.prev = _context106.next) {
+              case 0:
+                _context106.next = 2;
+                return this.base64Decode(base64);
+
+              case 2:
+                binary_string = _context106.sent;
+                len = binary_string.length;
+                bytes = new Uint8Array(len);
+
+                for (i = 0; i < len; i++) {
+                  bytes[i] = binary_string.charCodeAt(i);
+                }
+                return _context106.abrupt("return", bytes.buffer);
+
+              case 7:
+              case "end":
+                return _context106.stop();
+            }
+          }
+        }, _callee106, this);
+      }));
+
+      function base64ToArrayBuffer(_x139) {
+        return _ref113.apply(this, arguments);
+      }
+
+      return base64ToArrayBuffer;
+    }()
   }, {
     key: "arrayBufferToBase64",
     value: function () {
-      var _ref108 = _asyncToGenerator( /*#__PURE__*/regeneratorRuntime.mark(function _callee101(buffer) {
-        return regeneratorRuntime.wrap(function _callee101$(_context101) {
+      var _ref114 = _asyncToGenerator( /*#__PURE__*/regeneratorRuntime.mark(function _callee107(buffer) {
+        return regeneratorRuntime.wrap(function _callee107$(_context107) {
           while (1) {
-            switch (_context101.prev = _context101.next) {
+            switch (_context107.prev = _context107.next) {
               case 0:
-                return _context101.abrupt("return", new Promise(function (resolve, reject) {
+                return _context107.abrupt("return", new Promise(function (resolve, reject) {
                   var blob = new Blob([buffer], { type: 'application/octet-binary' });
                   var reader = new FileReader();
                   reader.onload = function (evt) {
@@ -7076,14 +7234,14 @@ var SFCryptoWeb = exports.SFCryptoWeb = function (_SFAbstractCrypto2) {
 
               case 1:
               case "end":
-                return _context101.stop();
+                return _context107.stop();
             }
           }
-        }, _callee101, this);
+        }, _callee107, this);
       }));
 
-      function arrayBufferToBase64(_x134) {
-        return _ref108.apply(this, arguments);
+      function arrayBufferToBase64(_x140) {
+        return _ref114.apply(this, arguments);
       }
 
       return arrayBufferToBase64;
@@ -7091,56 +7249,72 @@ var SFCryptoWeb = exports.SFCryptoWeb = function (_SFAbstractCrypto2) {
   }, {
     key: "hmac256",
     value: function () {
-      var _ref109 = _asyncToGenerator( /*#__PURE__*/regeneratorRuntime.mark(function _callee102(message, key) {
+      var _ref115 = _asyncToGenerator( /*#__PURE__*/regeneratorRuntime.mark(function _callee109(message, key) {
         var _this27 = this;
 
-        var keyData, messageData;
-        return regeneratorRuntime.wrap(function _callee102$(_context102) {
+        var keyHexData, keyData, messageData;
+        return regeneratorRuntime.wrap(function _callee109$(_context109) {
           while (1) {
-            switch (_context102.prev = _context102.next) {
+            switch (_context109.prev = _context109.next) {
               case 0:
-                _context102.next = 2;
-                return this.webCryptoImportKey(key, "HMAC", ["sign"], { name: "SHA-256" });
+                _context109.next = 2;
+                return this.hexStringToArrayBuffer(key);
 
               case 2:
-                keyData = _context102.sent;
-                _context102.next = 5;
-                return this.stringToArrayBuffer(message);
+                keyHexData = _context109.sent;
+                _context109.next = 5;
+                return this.webCryptoImportKey(keyHexData, "HMAC", ["sign"], { name: "SHA-256" });
 
               case 5:
-                messageData = _context102.sent;
-                return _context102.abrupt("return", crypto.subtle.sign({ name: "HMAC" }, keyData, messageData).then(function (signature) {
-                  var hash = _this27.arrayBufferToHexString(signature);
-                  return hash;
-                }).catch(function (err) {
+                keyData = _context109.sent;
+                _context109.next = 8;
+                return this.stringToArrayBuffer(message);
+
+              case 8:
+                messageData = _context109.sent;
+                return _context109.abrupt("return", crypto.subtle.sign({ name: "HMAC" }, keyData, messageData).then(function () {
+                  var _ref116 = _asyncToGenerator( /*#__PURE__*/regeneratorRuntime.mark(function _callee108(signature) {
+                    var hash;
+                    return regeneratorRuntime.wrap(function _callee108$(_context108) {
+                      while (1) {
+                        switch (_context108.prev = _context108.next) {
+                          case 0:
+                            _context108.next = 2;
+                            return _this27.arrayBufferToHexString(signature);
+
+                          case 2:
+                            hash = _context108.sent;
+                            return _context108.abrupt("return", hash);
+
+                          case 4:
+                          case "end":
+                            return _context108.stop();
+                        }
+                      }
+                    }, _callee108, _this27);
+                  }));
+
+                  return function (_x143) {
+                    return _ref116.apply(this, arguments);
+                  };
+                }()).catch(function (err) {
                   console.error("Error computing hmac");
                 }));
 
-              case 7:
+              case 10:
               case "end":
-                return _context102.stop();
+                return _context109.stop();
             }
           }
-        }, _callee102, this);
+        }, _callee109, this);
       }));
 
-      function hmac256(_x135, _x136) {
-        return _ref109.apply(this, arguments);
+      function hmac256(_x141, _x142) {
+        return _ref115.apply(this, arguments);
       }
 
       return hmac256;
     }()
-
-    // arrayBufferToBase64( buffer ) {
-    //   var binary = '';
-    //   var bytes = new Uint8Array( buffer );
-    //   var len = bytes.byteLength;
-    //   for(var i = 0; i < len; i++) {
-    //     binary += String.fromCharCode( bytes[ i ] );
-    //   }
-    //   return globalScope.btoa( binary );
-    // }
-
   }]);
 
   return SFCryptoWeb;
@@ -7157,65 +7331,65 @@ var SFItemTransformer = exports.SFItemTransformer = function () {
   _createClass(SFItemTransformer, [{
     key: "_private_encryptString",
     value: function () {
-      var _ref110 = _asyncToGenerator( /*#__PURE__*/regeneratorRuntime.mark(function _callee103(string, encryptionKey, authKey, uuid, auth_params) {
+      var _ref117 = _asyncToGenerator( /*#__PURE__*/regeneratorRuntime.mark(function _callee110(string, encryptionKey, authKey, uuid, auth_params) {
         var fullCiphertext, contentCiphertext, iv, ciphertextToAuth, authHash, authParamsString;
-        return regeneratorRuntime.wrap(function _callee103$(_context103) {
+        return regeneratorRuntime.wrap(function _callee110$(_context110) {
           while (1) {
-            switch (_context103.prev = _context103.next) {
+            switch (_context110.prev = _context110.next) {
               case 0:
                 if (!(auth_params.version === "001")) {
-                  _context103.next = 7;
+                  _context110.next = 7;
                   break;
                 }
 
-                _context103.next = 3;
+                _context110.next = 3;
                 return this.crypto.encryptText(string, encryptionKey, null);
 
               case 3:
-                contentCiphertext = _context103.sent;
+                contentCiphertext = _context110.sent;
 
                 fullCiphertext = auth_params.version + contentCiphertext;
-                _context103.next = 21;
+                _context110.next = 21;
                 break;
 
               case 7:
-                _context103.next = 9;
+                _context110.next = 9;
                 return this.crypto.generateRandomKey(128);
 
               case 9:
-                iv = _context103.sent;
-                _context103.next = 12;
+                iv = _context110.sent;
+                _context110.next = 12;
                 return this.crypto.encryptText(string, encryptionKey, iv);
 
               case 12:
-                contentCiphertext = _context103.sent;
+                contentCiphertext = _context110.sent;
                 ciphertextToAuth = [auth_params.version, uuid, iv, contentCiphertext].join(":");
-                _context103.next = 16;
+                _context110.next = 16;
                 return this.crypto.hmac256(ciphertextToAuth, authKey);
 
               case 16:
-                authHash = _context103.sent;
-                _context103.next = 19;
+                authHash = _context110.sent;
+                _context110.next = 19;
                 return this.crypto.base64(JSON.stringify(auth_params));
 
               case 19:
-                authParamsString = _context103.sent;
+                authParamsString = _context110.sent;
 
                 fullCiphertext = [auth_params.version, authHash, uuid, iv, contentCiphertext, authParamsString].join(":");
 
               case 21:
-                return _context103.abrupt("return", fullCiphertext);
+                return _context110.abrupt("return", fullCiphertext);
 
               case 22:
               case "end":
-                return _context103.stop();
+                return _context110.stop();
             }
           }
-        }, _callee103, this);
+        }, _callee110, this);
       }));
 
-      function _private_encryptString(_x137, _x138, _x139, _x140, _x141) {
-        return _ref110.apply(this, arguments);
+      function _private_encryptString(_x144, _x145, _x146, _x147, _x148) {
+        return _ref117.apply(this, arguments);
       }
 
       return _private_encryptString;
@@ -7223,86 +7397,86 @@ var SFItemTransformer = exports.SFItemTransformer = function () {
   }, {
     key: "encryptItem",
     value: function () {
-      var _ref111 = _asyncToGenerator( /*#__PURE__*/regeneratorRuntime.mark(function _callee104(item, keys, auth_params) {
+      var _ref118 = _asyncToGenerator( /*#__PURE__*/regeneratorRuntime.mark(function _callee111(item, keys, auth_params) {
         var params, item_key, ek, ak, ciphertext, authHash;
-        return regeneratorRuntime.wrap(function _callee104$(_context104) {
+        return regeneratorRuntime.wrap(function _callee111$(_context111) {
           while (1) {
-            switch (_context104.prev = _context104.next) {
+            switch (_context111.prev = _context111.next) {
               case 0:
                 params = {};
                 // encrypt item key
 
-                _context104.next = 3;
+                _context111.next = 3;
                 return this.crypto.generateItemEncryptionKey();
 
               case 3:
-                item_key = _context104.sent;
+                item_key = _context111.sent;
 
                 if (!(auth_params.version === "001")) {
-                  _context104.next = 10;
+                  _context111.next = 10;
                   break;
                 }
 
-                _context104.next = 7;
+                _context111.next = 7;
                 return this.crypto.encryptText(item_key, keys.mk, null);
 
               case 7:
-                params.enc_item_key = _context104.sent;
-                _context104.next = 13;
+                params.enc_item_key = _context111.sent;
+                _context111.next = 13;
                 break;
 
               case 10:
-                _context104.next = 12;
+                _context111.next = 12;
                 return this._private_encryptString(item_key, keys.mk, keys.ak, item.uuid, auth_params);
 
               case 12:
-                params.enc_item_key = _context104.sent;
+                params.enc_item_key = _context111.sent;
 
               case 13:
-                _context104.next = 15;
+                _context111.next = 15;
                 return this.crypto.firstHalfOfKey(item_key);
 
               case 15:
-                ek = _context104.sent;
-                _context104.next = 18;
+                ek = _context111.sent;
+                _context111.next = 18;
                 return this.crypto.secondHalfOfKey(item_key);
 
               case 18:
-                ak = _context104.sent;
-                _context104.next = 21;
+                ak = _context111.sent;
+                _context111.next = 21;
                 return this._private_encryptString(JSON.stringify(item.createContentJSONFromProperties()), ek, ak, item.uuid, auth_params);
 
               case 21:
-                ciphertext = _context104.sent;
+                ciphertext = _context111.sent;
 
                 if (!(auth_params.version === "001")) {
-                  _context104.next = 27;
+                  _context111.next = 27;
                   break;
                 }
 
-                _context104.next = 25;
+                _context111.next = 25;
                 return this.crypto.hmac256(ciphertext, ak);
 
               case 25:
-                authHash = _context104.sent;
+                authHash = _context111.sent;
 
                 params.auth_hash = authHash;
 
               case 27:
 
                 params.content = ciphertext;
-                return _context104.abrupt("return", params);
+                return _context111.abrupt("return", params);
 
               case 29:
               case "end":
-                return _context104.stop();
+                return _context111.stop();
             }
           }
-        }, _callee104, this);
+        }, _callee111, this);
       }));
 
-      function encryptItem(_x142, _x143, _x144) {
-        return _ref111.apply(this, arguments);
+      function encryptItem(_x149, _x150, _x151) {
+        return _ref118.apply(this, arguments);
       }
 
       return encryptItem;
@@ -7339,52 +7513,52 @@ var SFItemTransformer = exports.SFItemTransformer = function () {
   }, {
     key: "decryptItem",
     value: function () {
-      var _ref112 = _asyncToGenerator( /*#__PURE__*/regeneratorRuntime.mark(function _callee105(item, keys) {
+      var _ref119 = _asyncToGenerator( /*#__PURE__*/regeneratorRuntime.mark(function _callee112(item, keys) {
         var encryptedItemKey, requiresAuth, keyParams, item_key, ek, ak, itemParams, content;
-        return regeneratorRuntime.wrap(function _callee105$(_context105) {
+        return regeneratorRuntime.wrap(function _callee112$(_context112) {
           while (1) {
-            switch (_context105.prev = _context105.next) {
+            switch (_context112.prev = _context112.next) {
               case 0:
                 if (!(typeof item.content != "string")) {
-                  _context105.next = 2;
+                  _context112.next = 2;
                   break;
                 }
 
-                return _context105.abrupt("return");
+                return _context112.abrupt("return");
 
               case 2:
                 if (!item.content.startsWith("000")) {
-                  _context105.next = 14;
+                  _context112.next = 14;
                   break;
                 }
 
-                _context105.prev = 3;
-                _context105.t0 = JSON;
-                _context105.next = 7;
+                _context112.prev = 3;
+                _context112.t0 = JSON;
+                _context112.next = 7;
                 return this.crypto.base64Decode(item.content.substring(3, item.content.length));
 
               case 7:
-                _context105.t1 = _context105.sent;
-                item.content = _context105.t0.parse.call(_context105.t0, _context105.t1);
-                _context105.next = 13;
+                _context112.t1 = _context112.sent;
+                item.content = _context112.t0.parse.call(_context112.t0, _context112.t1);
+                _context112.next = 13;
                 break;
 
               case 11:
-                _context105.prev = 11;
-                _context105.t2 = _context105["catch"](3);
+                _context112.prev = 11;
+                _context112.t2 = _context112["catch"](3);
 
               case 13:
-                return _context105.abrupt("return");
+                return _context112.abrupt("return");
 
               case 14:
                 if (item.enc_item_key) {
-                  _context105.next = 17;
+                  _context112.next = 17;
                   break;
                 }
 
                 // This needs to be here to continue, return otherwise
                 console.log("Missing item encryption key, skipping decryption.");
-                return _context105.abrupt("return");
+                return _context112.abrupt("return");
 
               case 17:
 
@@ -7402,7 +7576,7 @@ var SFItemTransformer = exports.SFItemTransformer = function () {
                 // return if uuid in auth hash does not match item uuid. Signs of tampering.
 
                 if (!(keyParams.uuid && keyParams.uuid !== item.uuid)) {
-                  _context105.next = 26;
+                  _context112.next = 26;
                   break;
                 }
 
@@ -7411,17 +7585,17 @@ var SFItemTransformer = exports.SFItemTransformer = function () {
                   item.errorDecryptingValueChanged = true;
                 }
                 item.errorDecrypting = true;
-                return _context105.abrupt("return");
+                return _context112.abrupt("return");
 
               case 26:
-                _context105.next = 28;
+                _context112.next = 28;
                 return this.crypto.decryptText(keyParams, requiresAuth);
 
               case 28:
-                item_key = _context105.sent;
+                item_key = _context112.sent;
 
                 if (item_key) {
-                  _context105.next = 34;
+                  _context112.next = 34;
                   break;
                 }
 
@@ -7430,38 +7604,38 @@ var SFItemTransformer = exports.SFItemTransformer = function () {
                   item.errorDecryptingValueChanged = true;
                 }
                 item.errorDecrypting = true;
-                return _context105.abrupt("return");
+                return _context112.abrupt("return");
 
               case 34:
-                _context105.next = 36;
+                _context112.next = 36;
                 return this.crypto.firstHalfOfKey(item_key);
 
               case 36:
-                ek = _context105.sent;
-                _context105.next = 39;
+                ek = _context112.sent;
+                _context112.next = 39;
                 return this.crypto.secondHalfOfKey(item_key);
 
               case 39:
-                ak = _context105.sent;
+                ak = _context112.sent;
                 itemParams = this.encryptionComponentsFromString(item.content, ek, ak);
-                _context105.prev = 41;
-                _context105.t3 = JSON;
-                _context105.next = 45;
+                _context112.prev = 41;
+                _context112.t3 = JSON;
+                _context112.next = 45;
                 return this.crypto.base64Decode(itemParams.authParams);
 
               case 45:
-                _context105.t4 = _context105.sent;
-                item.auth_params = _context105.t3.parse.call(_context105.t3, _context105.t4);
-                _context105.next = 51;
+                _context112.t4 = _context112.sent;
+                item.auth_params = _context112.t3.parse.call(_context112.t3, _context112.t4);
+                _context112.next = 51;
                 break;
 
               case 49:
-                _context105.prev = 49;
-                _context105.t5 = _context105["catch"](41);
+                _context112.prev = 49;
+                _context112.t5 = _context112["catch"](41);
 
               case 51:
                 if (!(itemParams.uuid && itemParams.uuid !== item.uuid)) {
-                  _context105.next = 55;
+                  _context112.next = 55;
                   break;
                 }
 
@@ -7469,7 +7643,7 @@ var SFItemTransformer = exports.SFItemTransformer = function () {
                   item.errorDecryptingValueChanged = true;
                 }
                 item.errorDecrypting = true;
-                return _context105.abrupt("return");
+                return _context112.abrupt("return");
 
               case 55:
 
@@ -7478,11 +7652,11 @@ var SFItemTransformer = exports.SFItemTransformer = function () {
                   itemParams.authHash = item.auth_hash;
                 }
 
-                _context105.next = 58;
+                _context112.next = 58;
                 return this.crypto.decryptText(itemParams, true);
 
               case 58:
-                content = _context105.sent;
+                content = _context112.sent;
 
                 if (!content) {
                   if (!item.errorDecrypting) {
@@ -7500,14 +7674,14 @@ var SFItemTransformer = exports.SFItemTransformer = function () {
 
               case 60:
               case "end":
-                return _context105.stop();
+                return _context112.stop();
             }
           }
-        }, _callee105, this, [[3, 11], [41, 49]]);
+        }, _callee112, this, [[3, 11], [41, 49]]);
       }));
 
-      function decryptItem(_x145, _x146) {
-        return _ref112.apply(this, arguments);
+      function decryptItem(_x152, _x153) {
+        return _ref119.apply(this, arguments);
       }
 
       return decryptItem;
@@ -7515,55 +7689,55 @@ var SFItemTransformer = exports.SFItemTransformer = function () {
   }, {
     key: "decryptMultipleItems",
     value: function () {
-      var _ref113 = _asyncToGenerator( /*#__PURE__*/regeneratorRuntime.mark(function _callee107(items, keys, throws) {
+      var _ref120 = _asyncToGenerator( /*#__PURE__*/regeneratorRuntime.mark(function _callee114(items, keys, throws) {
         var _this28 = this;
 
         var decrypt;
-        return regeneratorRuntime.wrap(function _callee107$(_context107) {
+        return regeneratorRuntime.wrap(function _callee114$(_context114) {
           while (1) {
-            switch (_context107.prev = _context107.next) {
+            switch (_context114.prev = _context114.next) {
               case 0:
                 decrypt = function () {
-                  var _ref114 = _asyncToGenerator( /*#__PURE__*/regeneratorRuntime.mark(function _callee106(item) {
+                  var _ref121 = _asyncToGenerator( /*#__PURE__*/regeneratorRuntime.mark(function _callee113(item) {
                     var isString;
-                    return regeneratorRuntime.wrap(function _callee106$(_context106) {
+                    return regeneratorRuntime.wrap(function _callee113$(_context113) {
                       while (1) {
-                        switch (_context106.prev = _context106.next) {
+                        switch (_context113.prev = _context113.next) {
                           case 0:
                             if (item) {
-                              _context106.next = 2;
+                              _context113.next = 2;
                               break;
                             }
 
-                            return _context106.abrupt("return");
+                            return _context113.abrupt("return");
 
                           case 2:
                             if (!(item.deleted == true && item.content == null)) {
-                              _context106.next = 4;
+                              _context113.next = 4;
                               break;
                             }
 
-                            return _context106.abrupt("return");
+                            return _context113.abrupt("return");
 
                           case 4:
                             isString = typeof item.content === 'string' || item.content instanceof String;
 
                             if (!isString) {
-                              _context106.next = 19;
+                              _context113.next = 19;
                               break;
                             }
 
-                            _context106.prev = 6;
-                            _context106.next = 9;
+                            _context113.prev = 6;
+                            _context113.next = 9;
                             return _this28.decryptItem(item, keys);
 
                           case 9:
-                            _context106.next = 19;
+                            _context113.next = 19;
                             break;
 
                           case 11:
-                            _context106.prev = 11;
-                            _context106.t0 = _context106["catch"](6);
+                            _context113.prev = 11;
+                            _context113.t0 = _context113["catch"](6);
 
                             if (!item.errorDecrypting) {
                               item.errorDecryptingValueChanged = true;
@@ -7571,43 +7745,43 @@ var SFItemTransformer = exports.SFItemTransformer = function () {
                             item.errorDecrypting = true;
 
                             if (!throws) {
-                              _context106.next = 17;
+                              _context113.next = 17;
                               break;
                             }
 
-                            throw _context106.t0;
+                            throw _context113.t0;
 
                           case 17:
-                            console.error("Error decrypting item", item, _context106.t0);
-                            return _context106.abrupt("return");
+                            console.error("Error decrypting item", item, _context113.t0);
+                            return _context113.abrupt("return");
 
                           case 19:
                           case "end":
-                            return _context106.stop();
+                            return _context113.stop();
                         }
                       }
-                    }, _callee106, _this28, [[6, 11]]);
+                    }, _callee113, _this28, [[6, 11]]);
                   }));
 
-                  return function decrypt(_x150) {
-                    return _ref114.apply(this, arguments);
+                  return function decrypt(_x157) {
+                    return _ref121.apply(this, arguments);
                   };
                 }();
 
-                return _context107.abrupt("return", Promise.all(items.map(function (item) {
+                return _context114.abrupt("return", Promise.all(items.map(function (item) {
                   return decrypt(item);
                 })));
 
               case 2:
               case "end":
-                return _context107.stop();
+                return _context114.stop();
             }
           }
-        }, _callee107, this);
+        }, _callee114, this);
       }));
 
-      function decryptMultipleItems(_x147, _x148, _x149) {
-        return _ref113.apply(this, arguments);
+      function decryptMultipleItems(_x154, _x155, _x156) {
+        return _ref120.apply(this, arguments);
       }
 
       return decryptMultipleItems;
