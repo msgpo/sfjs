@@ -140,4 +140,14 @@ describe('crypto operations', () => {
     });
   });
 
+  it('cryptojs and webcrypto should generate same hmac signatures', async () => {
+    var message = "hello world";
+    var key = _keys.ak;
+    let cryptojs = new SFCryptoJS();
+    let webcrypto = new SFCryptoWeb();
+    let cryptoJsSignature = await cryptojs.hmac256(message, key);
+    let webCryptoSignature = await webcrypto.hmac256(message, key);
+    expect(cryptoJsSignature).to.equal(webCryptoSignature);
+  })
+
 })
