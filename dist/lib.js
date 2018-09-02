@@ -337,23 +337,6 @@ export class SFHttpManager {
     }
   }
 
-  stringToArrayBuffer(string) {
-    // not available on Edge/IE
-    if(globalScope.TextEncoder) {
-      var encoder = new TextEncoder("utf-8");
-      var result = encoder.encode(string);
-      return result;
-    } else {
-      string = unescape(encodeURIComponent(string));
-      var buf = new ArrayBuffer(string.length);
-      var bufView = new Uint8Array(buf);
-      for (var i=0, strLen=string.length; i<strLen; i++) {
-        bufView[i] = string.charCodeAt(i);
-      }
-      return buf;
-    }
-  }
-
   formatParams(params) {
     return "?" + Object
           .keys(params)
