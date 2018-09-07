@@ -71,7 +71,7 @@ module.exports = function(grunt) {
 
      uglify: {
        compiled: {
-         src: ['dist/sfjs.js'],
+         src: ['dist/regenerator.js', 'dist/sfjs.js'],
          dest: 'dist/sfjs.min.js'
        }
     }
@@ -85,4 +85,5 @@ module.exports = function(grunt) {
   grunt.loadNpmTasks('grunt-contrib-concat');
 
   grunt.registerTask('default', ['concat:lib', 'babel', 'concat:vendor', 'concat:dist', 'concat:regenerator', 'browserify']);
+  grunt.registerTask('minify', ['uglify']);
 };

@@ -958,7 +958,11 @@ export class SFHttpManager {
   }
 
   async getAllItemsJSONData(keys, authParams, returnNullIfEmpty) {
-    return Promise.all(this.allItems.map((item) => {
+    return this.getJSONDataForItems(this.allItems, keys, authParams, returnNullIfEmpty);
+  }
+
+  async getJSONDataForItems(items, keys, authParams, returnNullIfEmpty) {
+    return Promise.all(items.map((item) => {
       var itemParams = new SFItemParams(item, keys, authParams);
       return itemParams.paramsForExportFile();
     })).then((items) => {
@@ -975,7 +979,6 @@ export class SFHttpManager {
 
       return JSON.stringify(data, null, 2 /* pretty print */);
     })
-
   }
 }
 ;const SessionHistoryPersistKey = "sessionHistory_persist";
