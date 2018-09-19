@@ -6761,26 +6761,39 @@ var SFCryptoWeb = exports.SFCryptoWeb = function (_SFAbstractCrypto2) {
           while (1) {
             switch (_context97.prev = _context97.next) {
               case 0:
-                _context97.next = 2;
+                if (!iv) {
+                  _context97.next = 6;
+                  break;
+                }
+
+                _context97.next = 3;
                 return this.hexStringToArrayBuffer(iv);
 
-              case 2:
-                ivData = _context97.sent;
-                alg = { name: 'AES-CBC', iv: ivData };
-                _context97.next = 6;
-                return this.hexStringToArrayBuffer(key);
+              case 3:
+                _context97.t0 = _context97.sent;
+                _context97.next = 7;
+                break;
 
               case 6:
+                _context97.t0 = new ArrayBuffer(16);
+
+              case 7:
+                ivData = _context97.t0;
+                alg = { name: 'AES-CBC', iv: ivData };
+                _context97.next = 11;
+                return this.hexStringToArrayBuffer(key);
+
+              case 11:
                 keyBuffer = _context97.sent;
-                _context97.next = 9;
+                _context97.next = 14;
                 return this.webCryptoImportKey(keyBuffer, alg.name, ["encrypt"]);
 
-              case 9:
+              case 14:
                 keyData = _context97.sent;
-                _context97.next = 12;
+                _context97.next = 17;
                 return this.stringToArrayBuffer(text);
 
-              case 12:
+              case 17:
                 textData = _context97.sent;
                 return _context97.abrupt("return", crypto.subtle.encrypt(alg, keyData, textData).then(function () {
                   var _ref103 = _asyncToGenerator( /*#__PURE__*/regeneratorRuntime.mark(function _callee96(result) {
@@ -6809,7 +6822,7 @@ var SFCryptoWeb = exports.SFCryptoWeb = function (_SFAbstractCrypto2) {
                   };
                 }()));
 
-              case 14:
+              case 19:
               case "end":
                 return _context97.stop();
             }
@@ -6872,26 +6885,39 @@ var SFCryptoWeb = exports.SFCryptoWeb = function (_SFAbstractCrypto2) {
                 return _context99.abrupt("return", null);
 
               case 10:
-                _context99.next = 12;
+                if (!iv) {
+                  _context99.next = 16;
+                  break;
+                }
+
+                _context99.next = 13;
                 return this.hexStringToArrayBuffer(iv);
 
-              case 12:
-                ivData = _context99.sent;
-                alg = { name: 'AES-CBC', iv: ivData };
-                _context99.next = 16;
-                return this.hexStringToArrayBuffer(encryptionKey);
+              case 13:
+                _context99.t0 = _context99.sent;
+                _context99.next = 17;
+                break;
 
               case 16:
+                _context99.t0 = new ArrayBuffer(16);
+
+              case 17:
+                ivData = _context99.t0;
+                alg = { name: 'AES-CBC', iv: ivData };
+                _context99.next = 21;
+                return this.hexStringToArrayBuffer(encryptionKey);
+
+              case 21:
                 keyBuffer = _context99.sent;
-                _context99.next = 19;
+                _context99.next = 24;
                 return this.webCryptoImportKey(keyBuffer, alg.name, ["decrypt"]);
 
-              case 19:
+              case 24:
                 keyData = _context99.sent;
-                _context99.next = 22;
+                _context99.next = 27;
                 return this.base64ToArrayBuffer(contentCiphertext);
 
-              case 22:
+              case 27:
                 textData = _context99.sent;
                 return _context99.abrupt("return", crypto.subtle.decrypt(alg, keyData, textData).then(function () {
                   var _ref106 = _asyncToGenerator( /*#__PURE__*/regeneratorRuntime.mark(function _callee98(result) {
@@ -6922,7 +6948,7 @@ var SFCryptoWeb = exports.SFCryptoWeb = function (_SFAbstractCrypto2) {
                   console.error("Error decrypting:", error);
                 }));
 
-              case 24:
+              case 29:
               case "end":
                 return _context99.stop();
             }

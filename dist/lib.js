@@ -2687,6 +2687,7 @@ export class SFAbstractCrypto {
         return null;
       }
     }
+    
     var keyData = CryptoJS.enc.Hex.parse(encryptionKey);
     var ivData  = CryptoJS.enc.Hex.parse(iv || "");
     var decrypted = CryptoJS.AES.decrypt(contentCiphertext, keyData, { iv: ivData,  mode: CryptoJS.mode.CBC, padding: CryptoJS.pad.Pkcs7 });
@@ -2859,7 +2860,8 @@ export class SFCryptoWeb extends SFAbstractCrypto {
   /* This is a functioning implementation of WebCrypto's encrypt, however, in basic testing, CrpytoJS performs about 30-40% faster, surprisingly. */
 
   async encryptText(text, key, iv) {
-    var ivData = await this.hexStringToArrayBuffer(iv);
+    // in 001, iv can be null, so we'll initialize to an empty array buffer instead
+    var ivData = iv ? await this.hexStringToArrayBuffer(iv) : new ArrayBuffer(16);
     const alg = { name: 'AES-CBC', iv: ivData };
 
     const keyBuffer = await this.hexStringToArrayBuffer(key);
@@ -2886,7 +2888,8 @@ export class SFCryptoWeb extends SFAbstractCrypto {
       }
     }
 
-    var ivData = await this.hexStringToArrayBuffer(iv);
+    // in 001, iv can be null, so we'll initialize to an empty array buffer instead
+    var ivData = iv ? await this.hexStringToArrayBuffer(iv) : new ArrayBuffer(16);
     const alg = { name: 'AES-CBC', iv: ivData };
 
     const keyBuffer = await this.hexStringToArrayBuffer(encryptionKey);
