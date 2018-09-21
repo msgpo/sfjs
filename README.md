@@ -12,7 +12,7 @@ This library can be used in any JavaScript environment, including web, desktop, 
 
 1. Import these two files in your page, either via a packager like Grunt or Webpack, or via regular HTML script tags:
 
-```
+```javascript
 <script src="regenerator.js"></script>
 <script src="sfjs.js"></script>
 ```
@@ -25,7 +25,7 @@ On the web, `SFJS` will be available as a global window variable accessible via 
 
 If in a module environment, you can import it via:
 
-```
+```javascript
 import { StandardFile } from 'standard-file-js';
 let SFJS = new StandardFile();
 ```
@@ -34,7 +34,7 @@ let SFJS = new StandardFile();
 
 #### New user (registration):
 
-```
+```javascript
 SFJS.generateInitialKeysAndAuthParamsForUser(email, password).then((results) => {
   let keys = results.keys;
   let authParams = results.authParams;
@@ -47,7 +47,7 @@ SFJS.generateInitialKeysAndAuthParamsForUser(email, password).then((results) => 
 
 #### Existing user (sign in):
 
-```
+```javascript
 let authParams = getPreviouslyCreatedAuthParams();
 SFJS.computeEncryptionKeysForUser(password, authParams).then((keys) => {
   let serverPassword = keys.pw;
@@ -69,16 +69,16 @@ Use `SFJS.itemTransformer` to encrypt and decrypt items. Use the `SFItemParams` 
 
 #### Encrypt:
 
-```
+```javascript
 let keys = getKeys(); // keys is a hash which should have properties mk and ak.
-SFJS.itemTransformer.encryptItem(item, keys).then(() => {
+SFJS.itemTransformer.encryptItem(item, keys, authParams).then(() => {
  // item.content is now encrypted
 })
 ```
 
 #### Decrypt:
 
-```
+```javascript
 let keys = getKeys(); // keys is a hash which should have properties mk and ak.
 SFJS.itemTransformer.decryptItem(item, keys).then(() => {
  // item.content is now decrypted
