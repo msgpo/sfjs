@@ -433,6 +433,27 @@ var SFAuthManager = exports.SFAuthManager = function () {
       return getAuthParamsForEmail;
     }()
   }, {
+    key: "lock",
+    value: function lock() {
+      this.locked = true;
+    }
+  }, {
+    key: "unlock",
+    value: function unlock() {
+      this.locked = false;
+    }
+  }, {
+    key: "isLocked",
+    value: function isLocked() {
+      return this.locked == true;
+    }
+  }, {
+    key: "unlockAndResolve",
+    value: function unlockAndResolve(resolve, param) {
+      this.unlock();
+      resolve(param);
+    }
+  }, {
     key: "login",
     value: function () {
       var _ref10 = _asyncToGenerator( /*#__PURE__*/regeneratorRuntime.mark(function _callee12(url, email, password, strictSignin, extraParams) {
@@ -444,19 +465,45 @@ var SFAuthManager = exports.SFAuthManager = function () {
               case 0:
                 return _context12.abrupt("return", new Promise(function () {
                   var _ref11 = _asyncToGenerator( /*#__PURE__*/regeneratorRuntime.mark(function _callee11(resolve, reject) {
-                    var authParams, message, _message, abort, _message2, minimum, _message3, latestVersion, _message4, keys, requestUrl, params;
+                    var existingKeys, authParams, message, _message, abort, _message2, minimum, _message3, latestVersion, _message4, keys, requestUrl, params;
 
                     return regeneratorRuntime.wrap(function _callee11$(_context11) {
                       while (1) {
                         switch (_context11.prev = _context11.next) {
                           case 0:
+                            _context11.next = 2;
+                            return _this3.keys();
+
+                          case 2:
+                            existingKeys = _context11.sent;
+
+                            if (!(existingKeys != null)) {
+                              _context11.next = 6;
+                              break;
+                            }
+
+                            resolve({ error: { message: "Cannot log in because already signed in." } });
+                            return _context11.abrupt("return");
+
+                          case 6:
+                            if (!_this3.isLocked()) {
+                              _context11.next = 9;
+                              break;
+                            }
+
+                            resolve({ error: { message: "Login already in progress." } });
+                            return _context11.abrupt("return");
+
+                          case 9:
+
+                            _this3.lock();
 
                             _this3.notifyEvent(SFAuthManager.WillSignInEvent);
 
-                            _context11.next = 3;
+                            _context11.next = 13;
                             return _this3.getAuthParamsForEmail(url, email, extraParams);
 
-                          case 3:
+                          case 13:
                             authParams = _context11.sent;
 
 
@@ -464,25 +511,25 @@ var SFAuthManager = exports.SFAuthManager = function () {
                             authParams.identifier = email;
 
                             if (!authParams.error) {
-                              _context11.next = 8;
+                              _context11.next = 18;
                               break;
                             }
 
-                            resolve(authParams);
+                            _this3.unlockAndResolve(resolve, authParams);
                             return _context11.abrupt("return");
 
-                          case 8:
+                          case 18:
                             if (!(!authParams || !authParams.pw_cost)) {
-                              _context11.next = 11;
+                              _context11.next = 21;
                               break;
                             }
 
-                            resolve({ error: { message: "Invalid email or password." } });
+                            _this3.unlockAndResolve(resolve, { error: { message: "Invalid email or password." } });
                             return _context11.abrupt("return");
 
-                          case 11:
+                          case 21:
                             if (SFJS.supportedVersions().includes(authParams.version)) {
-                              _context11.next = 15;
+                              _context11.next = 25;
                               break;
                             }
 
@@ -493,62 +540,62 @@ var SFAuthManager = exports.SFAuthManager = function () {
                               // The user has a very old account type, which is no longer supported by this client
                               message = "The protocol version associated with your account is outdated and no longer supported by this application. Please visit standardnotes.org/help/security for more information.";
                             }
-                            resolve({ error: { message: message } });
+                            _this3.unlockAndResolve(resolve, { error: { message: message } });
                             return _context11.abrupt("return");
 
-                          case 15:
+                          case 25:
                             if (!SFJS.isProtocolVersionOutdated(authParams.version)) {
-                              _context11.next = 22;
+                              _context11.next = 32;
                               break;
                             }
 
                             _message = "The encryption version for your account, " + authParams.version + ", is outdated and requires upgrade. You may proceed with login, but are advised to perform a security update using the web or desktop application. Please visit standardnotes.org/help/security for more information.";
                             abort = false;
-                            _context11.next = 20;
+                            _context11.next = 30;
                             return _this3.alertManager.confirm({
                               title: "Update Needed",
                               text: _message,
                               confirmButtonText: "Sign In"
                             }).catch(function () {
-                              resolve({ error: {} });
+                              _this3.unlockAndResolve(resolve, { error: {} });
                               abort = true;
                             });
 
-                          case 20:
+                          case 30:
                             if (!abort) {
-                              _context11.next = 22;
+                              _context11.next = 32;
                               break;
                             }
 
                             return _context11.abrupt("return");
 
-                          case 22:
+                          case 32:
                             if (SFJS.supportsPasswordDerivationCost(authParams.pw_cost)) {
-                              _context11.next = 26;
+                              _context11.next = 36;
                               break;
                             }
 
                             _message2 = "Your account was created on a platform with higher security capabilities than this browser supports. " + "If we attempted to generate your login keys here, it would take hours. " + "Please use a browser with more up to date security capabilities, like Google Chrome or Firefox, to log in.";
 
-                            resolve({ error: { message: _message2 } });
+                            _this3.unlockAndResolve(resolve, { error: { message: _message2 } });
                             return _context11.abrupt("return");
 
-                          case 26:
+                          case 36:
                             minimum = SFJS.costMinimumForVersion(authParams.version);
 
                             if (!(authParams.pw_cost < minimum)) {
-                              _context11.next = 31;
+                              _context11.next = 41;
                               break;
                             }
 
                             _message3 = "Unable to login due to insecure password parameters. Please visit standardnotes.org/help/security for more information.";
 
-                            resolve({ error: { message: _message3 } });
+                            _this3.unlockAndResolve(resolve, { error: { message: _message3 } });
                             return _context11.abrupt("return");
 
-                          case 31:
+                          case 41:
                             if (!strictSignin) {
-                              _context11.next = 37;
+                              _context11.next = 47;
                               break;
                             }
 
@@ -556,20 +603,20 @@ var SFAuthManager = exports.SFAuthManager = function () {
                             latestVersion = SFJS.version();
 
                             if (!(authParams.version !== latestVersion)) {
-                              _context11.next = 37;
+                              _context11.next = 47;
                               break;
                             }
 
                             _message4 = "Strict sign in refused server sign in parameters. The latest security version is " + latestVersion + ", but your account is reported to have version " + authParams.version + ". If you'd like to proceed with sign in anyway, please disable strict sign in and try again.";
 
-                            resolve({ error: { message: _message4 } });
+                            _this3.unlockAndResolve(resolve, { error: { message: _message4 } });
                             return _context11.abrupt("return");
 
-                          case 37:
-                            _context11.next = 39;
+                          case 47:
+                            _context11.next = 49;
                             return SFJS.crypto.computeEncryptionKeysForUser(password, authParams);
 
-                          case 39:
+                          case 49:
                             keys = _context11.sent;
                             requestUrl = url + "/auth/sign_in";
                             params = _.merge({ password: keys.pw, email: email }, extraParams);
@@ -587,7 +634,7 @@ var SFAuthManager = exports.SFAuthManager = function () {
 
                                       case 3:
                                         _this3.$timeout(function () {
-                                          return resolve(response);
+                                          return _this3.unlockAndResolve(resolve, response);
                                         });
 
                                       case 4:
@@ -607,11 +654,11 @@ var SFAuthManager = exports.SFAuthManager = function () {
                                 response = { error: { message: "A server error occurred while trying to sign in. Please try again." } };
                               }
                               _this3.$timeout(function () {
-                                return resolve(response);
+                                return _this3.unlockAndResolve(resolve, response);
                               });
                             });
 
-                          case 43:
+                          case 53:
                           case "end":
                             return _context11.stop();
                         }
@@ -650,10 +697,22 @@ var SFAuthManager = exports.SFAuthManager = function () {
             while (1) {
               switch (_context14.prev = _context14.next) {
                 case 0:
-                  _context14.next = 2;
+                  if (!_this4.isLocked()) {
+                    _context14.next = 3;
+                    break;
+                  }
+
+                  resolve({ error: { message: "Register already in progress." } });
+                  return _context14.abrupt("return");
+
+                case 3:
+
+                  _this4.lock();
+
+                  _context14.next = 6;
                   return SFJS.crypto.generateInitialKeysAndAuthParamsForUser(email, password);
 
-                case 2:
+                case 6:
                   results = _context14.sent;
                   keys = results.keys;
                   authParams = results.authParams;
@@ -671,7 +730,7 @@ var SFAuthManager = exports.SFAuthManager = function () {
                               return _this4.handleAuthResponse(response, email, url, authParams, keys);
 
                             case 2:
-                              resolve(response);
+                              _this4.unlockAndResolve(resolve, response);
 
                             case 3:
                             case "end":
@@ -689,10 +748,10 @@ var SFAuthManager = exports.SFAuthManager = function () {
                     if ((typeof response === "undefined" ? "undefined" : _typeof(response)) !== 'object') {
                       response = { error: { message: "A server error occurred while trying to register. Please try again." } };
                     }
-                    resolve(response);
+                    _this4.unlockAndResolve(resolve, response);
                   });
 
-                case 8:
+                case 12:
                 case "end":
                   return _context14.stop();
               }
@@ -722,6 +781,18 @@ var SFAuthManager = exports.SFAuthManager = function () {
                       while (1) {
                         switch (_context16.prev = _context16.next) {
                           case 0:
+                            if (!_this5.isLocked()) {
+                              _context16.next = 3;
+                              break;
+                            }
+
+                            resolve({ error: { message: "Change password already in progress." } });
+                            return _context16.abrupt("return");
+
+                          case 3:
+
+                            _this5.lock();
+
                             newServerPw = newKeys.pw;
                             requestUrl = url + "/auth/change_pw";
                             params = _.merge({ new_password: newServerPw, current_password: current_server_pw }, newAuthParams);
@@ -737,7 +808,7 @@ var SFAuthManager = exports.SFAuthManager = function () {
                                         return _this5.handleAuthResponse(response, email, null, newAuthParams, newKeys);
 
                                       case 2:
-                                        resolve(response);
+                                        _this5.unlockAndResolve(resolve, response);
 
                                       case 3:
                                       case "end":
@@ -754,10 +825,10 @@ var SFAuthManager = exports.SFAuthManager = function () {
                               if ((typeof response === "undefined" ? "undefined" : _typeof(response)) !== 'object') {
                                 response = { error: { message: "Something went wrong while changing your password. Your password was not changed. Please try again." } };
                               }
-                              resolve(response);
+                              _this5.unlockAndResolve(resolve, response);
                             });
 
-                          case 4:
+                          case 8:
                           case "end":
                             return _context16.stop();
                         }
