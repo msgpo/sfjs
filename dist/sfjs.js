@@ -4533,23 +4533,28 @@ var SFSyncManager = exports.SFSyncManager = function () {
                 // Create copies of items or alternate their uuids if neccessary
                 unsaved = response.unsaved;
                 // don't `await`. This function calls sync, so if you wait, it will call sync without having completed the sync we're in.
+                // On second thought, calling await will only await the local conflict resolution and not await the sync call.
+                // We do need to wait here for sync duplication to finish. If we don't, there seems to be an issue where if you import a large
+                // backup with uuid-conflcits (from another account), you'll see very confused duplication.
 
-                this.handleUnsavedItemsResponse(unsaved);
+                _context64.next = 37;
+                return this.handleUnsavedItemsResponse(unsaved);
 
-                _context64.next = 38;
+              case 37:
+                _context64.next = 39;
                 return this.writeItemsToLocalStorage(saved, false);
 
-              case 38:
+              case 39:
 
                 this.syncStatus.syncOpInProgress = false;
                 this.syncStatus.current += syncedItems.length;
 
                 this.syncStatusDidChange();
 
-                _context64.next = 43;
+                _context64.next = 44;
                 return this.getSyncToken();
 
-              case 43:
+              case 44:
                 _context64.t1 = _context64.sent;
                 isInitialSync = _context64.t1 == null;
 
@@ -4560,22 +4565,25 @@ var SFSyncManager = exports.SFSyncManager = function () {
 
                 this.stopCheckingIfSyncIsTakingTooLong();
 
-                _context64.next = 50;
+                // Oct 2018: Why use both this.syncStatus.needsMoreSync and this.repeatOnCompletion?
+                // They seem to do the same thing.
+
+                _context64.next = 51;
                 return this.getCursorToken();
 
-              case 50:
+              case 51:
                 _context64.t2 = _context64.sent;
 
                 if (_context64.t2) {
-                  _context64.next = 53;
+                  _context64.next = 54;
                   break;
                 }
 
                 _context64.t2 = this.syncStatus.needsMoreSync;
 
-              case 53:
+              case 54:
                 if (!_context64.t2) {
-                  _context64.next = 57;
+                  _context64.next = 58;
                   break;
                 }
 
@@ -4585,9 +4593,9 @@ var SFSyncManager = exports.SFSyncManager = function () {
                   }.bind(_this18), 10); // wait 10ms to allow UI to update
                 }));
 
-              case 57:
+              case 58:
                 if (!this.repeatOnCompletion) {
-                  _context64.next = 62;
+                  _context64.next = 63;
                   break;
                 }
 
@@ -4598,11 +4606,11 @@ var SFSyncManager = exports.SFSyncManager = function () {
                   }.bind(_this18), 10); // wait 10ms to allow UI to update
                 }));
 
-              case 62:
-                _context64.next = 64;
+              case 63:
+                _context64.next = 65;
                 return this.writeItemsToLocalStorage(this.allRetreivedItems, false);
 
-              case 64:
+              case 65:
                 this.syncStatus.retrievedCount = 0;
                 this.syncStatusDidChange();
 
@@ -4622,7 +4630,7 @@ var SFSyncManager = exports.SFSyncManager = function () {
 
                 return _context64.abrupt("return", response);
 
-              case 73:
+              case 74:
               case "end":
                 return _context64.stop();
             }
@@ -4900,7 +4908,7 @@ var SFSyncManager = exports.SFSyncManager = function () {
               case 50:
 
                 // This will immediately result in "Sync op in progress" and sync will be queued.
-                // That's ok. You actually want a sync op in progress so that the new items is saved to disk right away.
+                // That's ok. You actually want a sync op in progress so that the new items are saved to disk right away.
                 // If you add a timeout here of 100ms, you'll avoid sync op in progress, but it will be a few ms before the items
                 // are saved to disk, meaning that the user may see All changes saved a few ms before changes are saved to disk.
                 // You could also just write to disk manually here, but syncing here is 100% sure to trigger sync op in progress as that's

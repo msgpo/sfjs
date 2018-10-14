@@ -18,21 +18,20 @@ describe("basic auth", () => {
     await Factory.globalStorageManager().clearAllData();
   })
 
-  it.only("successfully register new account", (done) => {
+  it("successfully register new account", (done) => {
      Factory.globalAuthManager().register(url, email, password, false).then((response) => {
       expect(response.error).to.not.be.ok;
       done();
     })
-  })
+  }).timeout(20000);
 
-  it.only("successfully logins to registered account", (done) => {
+  it("successfully logins to registered account", async () => {
+    await Factory.globalAuthManager().signout(true);
     var strict = false;
-     Factory.globalAuthManager().login(url, email, password, strict, null).then(async (response) => {
-      _keys = await Factory.globalAuthManager().keys();
-      expect(response.error).to.not.be.ok;
-      done();
-    })
-  })
+    var response = await Factory.globalAuthManager().login(url, email, password, strict, null);
+    _keys = await Factory.globalAuthManager().keys();
+    expect(response.error).to.not.be.ok;
+  }).timeout(20000);
 
   it("fails login to registered account", (done) => {
     var strict = false;
@@ -40,7 +39,7 @@ describe("basic auth", () => {
       expect(response.error).to.be.ok;
       done();
     })
-  })
+  }).timeout(20000);
 
   it("successfully changes password", async () => {
     let modelManager = Factory.createModelManager();
@@ -102,11 +101,12 @@ describe("basic auth", () => {
     expect(modelManager.allItems.length).to.equal(totalItemCount);
     expect(modelManager.invalidItems().length).to.equal(0);
 
+    await Factory.globalAuthManager().signout(true);
     var loginResponse = await Factory.globalAuthManager().login(url, email, password, strict, null);
     expect(loginResponse.error).to.not.be.ok;
   }).timeout(20000);
 
-  it.only("changes password many times", async () => {
+  it.skip("changes password many times", async () => {
     let modelManager = Factory.createModelManager();
     let storageManager = Factory.globalStorageManager();
     let syncManager = new SFSyncManager(modelManager, storageManager, Factory.globalHttpManager());

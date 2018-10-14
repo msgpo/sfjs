@@ -31,7 +31,7 @@ const createItem = () => {
   return new SFItem(createItemParams());
 }
 
-describe('app models', () => {
+describe.only('app models', () => {
   var createdItem;
 
   it('lodash should be defined', () => {
@@ -161,7 +161,7 @@ describe('app models', () => {
     expect(item2.referencingObjects.length).to.equal(0);
   });
 
-  it('properly handles uuid alternation', () => {
+  it('properly handles single item uuid alternation', () => {
     let modelManager = createModelManager();
     var originalItem1 = createItem();
     var originalItem2 = createItem();
@@ -194,6 +194,35 @@ describe('app models', () => {
 
       expect(alternatedItem1.dirty).to.equal(true);
     })
+  });
+
+  it.only('properly handles mutli item uuid alternation', async () => {
+    let modelManager = createModelManager();
+    var originalItem1 = createItem();
+    var originalItem2 = createItem();
+    modelManager.addItem(originalItem1);
+    modelManager.addItem(originalItem2);
+
+    originalItem1.addItemAsRelationship(originalItem2);
+
+    var alternatedItem1 = await modelManager.alternateUUIDForItem(originalItem1);
+    var alternatedItem2 = await modelManager.alternateUUIDForItem(originalItem2);
+
+    expect(modelManager.allItems.length).to.equal(2);
+
+    expect(originalItem1.uuid).to.not.equal(alternatedItem1.uuid);
+    expect(originalItem2.uuid).to.not.equal(alternatedItem2.uuid);
+
+    expect(alternatedItem1.content.references.length).to.equal(1);
+    expect(alternatedItem1.content.references[0].uuid).to.equal(alternatedItem2.uuid);
+    expect(alternatedItem2.content.references.length).to.equal(0);
+
+    // This is currently failing. Needs fix.
+    expect(alternatedItem2.referencingObjects.length).to.equal(1);
+
+    expect(alternatedItem1.hasRelationshipWithItem(alternatedItem2)).to.equal(true);
+    expect(alternatedItem2.hasRelationshipWithItem(alternatedItem1)).to.equal(false);
+    expect(alternatedItem1.dirty).to.equal(true);
   });
 });
 
