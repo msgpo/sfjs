@@ -4255,13 +4255,14 @@ var SFSyncManager = exports.SFSyncManager = function () {
                             _context62.t4 = params;
 
                             _context62.t5 = function (response) {
-                              try {
-                                _this17.handleSyncSuccess(subItems, response, options).then(function () {
-                                  resolve(response);
-                                });
-                              } catch (e) {
+                              _this17.handleSyncSuccess(subItems, response, options).then(function () {
+                                resolve(response);
+                              }).catch(function (e) {
                                 console.log("Caught sync success exception:", e);
-                              }
+                                _this17.handleSyncError(null, null, allDirtyItems).then(function (errorResponse) {
+                                  resolve(errorResponse);
+                                });
+                              });
                             };
 
                             _context62.t6 = function (response, statusCode) {
@@ -4378,6 +4379,7 @@ var SFSyncManager = exports.SFSyncManager = function () {
                 // greater than cursor_token. We keep track of all saved items in whole sync operation with this.allSavedItems
                 // We need this because singletonManager looks at retrievedItems as higher precendence than savedItems, but if it comes in both
                 // then that's problematic.
+
                 allSavedUUIDs = this.allSavedItems.map(function (item) {
                   return item.uuid;
                 });
