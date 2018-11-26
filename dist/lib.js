@@ -1881,12 +1881,6 @@ export class SFItem {
     }
   }
 
-  static sortItemsByDate(items) {
-    items.sort(function(a,b){
-      return new Date(b.created_at) - new Date(a.created_at);
-    });
-  }
-
   get contentObject() {
     if(!this.content) {
       this.content = {};

@@ -5383,13 +5383,6 @@ var SFItem = exports.SFItem = function () {
       this.setAppDataItem("client_updated_at", date);
     }
   }], [{
-    key: "sortItemsByDate",
-    value: function sortItemsByDate(items) {
-      items.sort(function (a, b) {
-        return new Date(b.created_at) - new Date(a.created_at);
-      });
-    }
-  }, {
     key: "deepMerge",
     value: function deepMerge(a, b) {
       // By default _.merge will not merge a full array with an empty one.
