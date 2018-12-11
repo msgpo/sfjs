@@ -117,6 +117,7 @@ describe('online syncing', () => {
 
   it("should login and retrieve synced item", async () => {
     // logout
+    await Factory.globalAuthManager().signout();
     syncManager.clearSyncToken();
     await Factory.globalStorageManager().clearAllData();
     await Factory.globalAuthManager().login(Factory.serverURL(), email, password, true, null);
@@ -325,6 +326,7 @@ describe('online syncing', () => {
 
   it("should sign in and retrieve large number of items", async () => {
     // logout
+    await Factory.globalAuthManager().signout();
     syncManager.clearSyncToken();
     await Factory.globalStorageManager().clearAllData();
     await Factory.globalAuthManager().login(Factory.serverURL(), email, password, true, null);

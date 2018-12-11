@@ -31,7 +31,7 @@ const createItem = () => {
   return new SFItem(createItemParams());
 }
 
-describe.only('app models', () => {
+describe('app models', () => {
   var createdItem;
 
   it('lodash should be defined', () => {
@@ -196,7 +196,7 @@ describe.only('app models', () => {
     })
   });
 
-  it.only('properly handles mutli item uuid alternation', async () => {
+  it('properly handles mutli item uuid alternation', async () => {
     let modelManager = createModelManager();
     var originalItem1 = createItem();
     var originalItem2 = createItem();

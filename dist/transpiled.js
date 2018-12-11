@@ -4153,6 +4153,8 @@ var SFSyncManager = exports.SFSyncManager = function () {
                             // when doing a sync request that returns items greater than the limit, and thus subsequent syncs are required,
                             // we want to keep track of all retreived items, then save to local storage only once all items have been retrieved,
                             // so that relationships remain intact
+                            // Update 12/18: I don't think we need to do this anymore, since relationships will now retroactively resolve their relationships,
+                            // if an item they were looking for hasn't been pulled in yet.
                             if (!_this17.allRetreivedItems) {
                               _this17.allRetreivedItems = [];
                             }
@@ -4433,16 +4435,20 @@ var SFSyncManager = exports.SFSyncManager = function () {
                 return this.writeItemsToLocalStorage(saved, false);
 
               case 39:
+                _context64.next = 41;
+                return this.writeItemsToLocalStorage(retrieved, false);
+
+              case 41:
 
                 this.syncStatus.syncOpInProgress = false;
                 this.syncStatus.current += syncedItems.length;
 
                 this.syncStatusDidChange();
 
-                _context64.next = 44;
+                _context64.next = 46;
                 return this.getSyncToken();
 
-              case 44:
+              case 46:
                 _context64.t1 = _context64.sent;
                 isInitialSync = _context64.t1 == null;
 
@@ -4456,22 +4462,22 @@ var SFSyncManager = exports.SFSyncManager = function () {
                 // Oct 2018: Why use both this.syncStatus.needsMoreSync and this.repeatOnCompletion?
                 // They seem to do the same thing.
 
-                _context64.next = 51;
+                _context64.next = 53;
                 return this.getCursorToken();
 
-              case 51:
+              case 53:
                 _context64.t2 = _context64.sent;
 
                 if (_context64.t2) {
-                  _context64.next = 54;
+                  _context64.next = 56;
                   break;
                 }
 
                 _context64.t2 = this.syncStatus.needsMoreSync;
 
-              case 54:
+              case 56:
                 if (!_context64.t2) {
-                  _context64.next = 58;
+                  _context64.next = 60;
                   break;
                 }
 
@@ -4481,9 +4487,9 @@ var SFSyncManager = exports.SFSyncManager = function () {
                   }.bind(_this18), 10); // wait 10ms to allow UI to update
                 }));
 
-              case 58:
+              case 60:
                 if (!this.repeatOnCompletion) {
-                  _context64.next = 63;
+                  _context64.next = 65;
                   break;
                 }
 
@@ -4494,11 +4500,14 @@ var SFSyncManager = exports.SFSyncManager = function () {
                   }.bind(_this18), 10); // wait 10ms to allow UI to update
                 }));
 
-              case 63:
-                _context64.next = 65;
-                return this.writeItemsToLocalStorage(this.allRetreivedItems, false);
-
               case 65:
+                /*
+                // await this.writeItemsToLocalStorage(this.allRetreivedItems, false);
+                  We used to do this, but the problem is, if you're saving 2000 items at the end of a sign in,
+                  then refresh or close the page, the items will not be saved, and the sync token will be the lastest.
+                  So the data won't be downloaded again. Instead, we'll save retrieved as they come.
+                */
+
                 this.syncStatus.retrievedCount = 0;
                 this.syncStatusDidChange();
 
