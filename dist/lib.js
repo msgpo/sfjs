@@ -535,6 +535,7 @@ export class SFHttpManager {
     this.items = [];
     this.itemsHash = {};
     this.missedReferences = {};
+    this.uuidChangeObservers = [];
   }
 
   handleSignout() {
@@ -542,6 +543,16 @@ export class SFHttpManager {
     this.itemsHash = {};
     this.itemsPendingRemoval.length = 0;
     this.missedReferences = {};
+  }
+
+  addModelUuidChangeObserver(id, callback) {
+    this.uuidChangeObservers.push({id: id, callback: callback});
+  }
+
+  notifyObserversOfUuidChange(oldItem, newItem) {
+    for(var observer of this.uuidChangeObservers) {
+      observer.callback(oldItem, newItem);
+    }
   }
 
   async alternateUUIDForItem(item) {
@@ -570,6 +581,8 @@ export class SFHttpManager {
     this.addItem(newItem);
     newItem.setDirty(true);
     this.resolveReferencesForItem(newItem);
+
+    this.notifyObserversOfUuidChange(item, newItem);
 
     return newItem;
   }
@@ -2427,6 +2440,15 @@ export class SFItem {
       predicate = SFPredicate.fromArray(predicate);
     }
     return this.ObjectSatisfiesPredicate(item, predicate);
+  }
+
+  static ItemSatisfiesPredicates(item, predicates) {
+    for(var predicate of predicates) {
+      if(!this.ItemSatisfiesPredicate(item, predicate)) {
+        return false;
+      }
+    }
+    return true;
   }
 
   static DateFromString(string) {

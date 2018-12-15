@@ -196,6 +196,20 @@ describe('app models', () => {
     })
   });
 
+  it.only('notifies observers of item uuid alternation', async () => {
+    let modelManager = createModelManager();
+    var originalItem1 = createItem();
+
+    return new Promise((resolve, reject) => {
+      modelManager.addModelUuidChangeObserver("test", (oldItem, newItem) => {
+        expect(oldItem.uuid).to.not.equal(newItem.uuid);
+        resolve();
+      })
+
+      modelManager.alternateUUIDForItem(originalItem1);
+    })
+  });
+
   it('properly handles mutli item uuid alternation', async () => {
     let modelManager = createModelManager();
     var originalItem1 = createItem();
