@@ -815,12 +815,12 @@ export class SFHttpManager {
     This method creates but does not add the item to the global inventory. It's used by syncManager
     to check if this prospective duplicate item is identical to another item, including the references.
    */
-  createDuplicateItem(itemResponse) {
+  createConflictedItem(itemResponse) {
     var dup = this.createItem(itemResponse, true);
     return dup;
   }
 
-  addDuplicatedItem(dup, original) {
+  addConflictedItem(dup, original) {
     this.addItem(dup);
     // the duplicate should inherit the original's relationships
     for(var referencingObject of original.referencingObjects) {
@@ -830,6 +830,22 @@ export class SFHttpManager {
     this.resolveReferencesForItem(dup);
     dup.conflict_of = original.uuid;
     dup.setDirty(true);
+  }
+
+  duplicateItem(item) {
+    var copy = new item.constructor({content: item.content});
+
+    this.addItem(copy);
+
+    // the duplicate should inherit the original's relationships
+    for(var referencingObject of item.referencingObjects) {
+      referencingObject.addItemAsRelationship(copy);
+      referencingObject.setDirty(true);
+    }
+    this.resolveReferencesForItem(copy);
+    copy.setDirty(true);
+
+    return copy;
   }
 
   addItem(item, globalOnly = false) {
@@ -994,10 +1010,10 @@ export class SFHttpManager {
         // if the item already exists, check to see if it's different from the import data.
         // If it's the same, do nothing, otherwise, create a copy.
         itemData.uuid = null;
-        var dup = this.createDuplicateItem(itemData);
+        var dup = this.createConflictedItem(itemData);
         if(!itemData.deleted && !existing.isItemContentEqualWith(dup)) {
           // Data differs
-          this.addDuplicatedItem(dup, existing);
+          this.addConflictedItem(dup, existing);
           itemsToBeMapped.push(dup);
         }
       } else {
@@ -1853,9 +1869,9 @@ export class SFStorageManager {
         // We want a new uuid for the new item. Note that this won't neccessarily adjust references.
         itemResponse.uuid = await SFJS.crypto.generateUUID();
 
-        var dup = this.modelManager.createDuplicateItem(itemResponse);
+        var dup = this.modelManager.createConflictedItem(itemResponse);
         if(!itemResponse.deleted && !item.isItemContentEqualWith(dup)) {
-          this.modelManager.addDuplicatedItem(dup, item);
+          this.modelManager.addConflictedItem(dup, item);
         }
       }
     }

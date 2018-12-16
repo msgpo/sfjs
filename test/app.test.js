@@ -238,6 +238,27 @@ describe('app models', () => {
     expect(alternatedItem2.hasRelationshipWithItem(alternatedItem1)).to.equal(false);
     expect(alternatedItem1.dirty).to.equal(true);
   });
+
+  it.only('maintains referencing relationships when duplicating', async () => {
+    let modelManager = createModelManager();
+    var tag = createItem();
+    var note = createItem();
+    modelManager.addItem(tag);
+    modelManager.addItem(note);
+
+    tag.addItemAsRelationship(note);
+
+    expect(tag.content.references.length).to.equal(1);
+
+    var noteCopy = modelManager.duplicateItem(note);
+
+    expect(modelManager.allItems.length).to.equal(3);
+    expect(note.uuid).to.not.equal(noteCopy.uuid);
+
+    expect(note.content.references.length).to.equal(0);
+    expect(noteCopy.content.references.length).to.equal(0);
+    expect(tag.content.references.length).to.equal(2);
+  });
 });
 
 describe("mapping performance", () => {
