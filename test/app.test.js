@@ -196,7 +196,7 @@ describe('app models', () => {
     })
   });
 
-  it.only('notifies observers of item uuid alternation', async () => {
+  it('notifies observers of item uuid alternation', async () => {
     let modelManager = createModelManager();
     var originalItem1 = createItem();
 
@@ -239,7 +239,7 @@ describe('app models', () => {
     expect(alternatedItem1.dirty).to.equal(true);
   });
 
-  it.only('maintains referencing relationships when duplicating', async () => {
+  it('maintains referencing relationships when duplicating', async () => {
     let modelManager = createModelManager();
     var tag = createItem();
     var note = createItem();
