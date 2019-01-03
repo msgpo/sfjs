@@ -1163,9 +1163,14 @@ export class SFHttpManager {
           this.privileges.content.desktopPrivileges = {};
         }
         resolve(resolvedSingleton);
-      }, (valueCallback) => {
+      }, async (valueCallback) => {
         // Safe to create. Create and return object.
         var privs = new SFPrivileges({content_type: privsContentType});
+        if(!SFJS.crypto.generateUUIDSync) {
+          // If syncrounous implementaiton of UUID generation is not available (i.e mobile),
+          // we need to manually init uuid asyncronously
+          await privs.initUUID();
+        }
         this.modelManager.addItem(privs);
         privs.setDirty(true);
         this.syncManager.sync();
@@ -2355,6 +2360,14 @@ export class SFItem {
 
     if(!this.content.references) {
       this.content.references = [];
+    }
+  }
+
+  // On some platforms, syncrounous uuid generation is not available.
+  // Those platforms (mobile) must call this function manually.
+  async initUUID() {
+    if(!this.uuid) {
+      this.uuid = await SFJS.crypto.generateUUID();
     }
   }
 
