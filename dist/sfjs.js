@@ -1885,27 +1885,27 @@ var SFModelManager = exports.SFModelManager = function () {
           // Lodash's _.omit, which was previously used, seems to cause unexpected behavior
           // when json_obj is an ES6 item class. So we instead manually omit each key.
           if (Array.isArray(omitFields)) {
-            var _iteratorNormalCompletion11 = true;
-            var _didIteratorError11 = false;
-            var _iteratorError11 = undefined;
+            var _iteratorNormalCompletion12 = true;
+            var _didIteratorError12 = false;
+            var _iteratorError12 = undefined;
 
             try {
-              for (var _iterator11 = omitFields[Symbol.iterator](), _step11; !(_iteratorNormalCompletion11 = (_step11 = _iterator11.next()).done); _iteratorNormalCompletion11 = true) {
-                var key = _step11.value;
+              for (var _iterator12 = omitFields[Symbol.iterator](), _step12; !(_iteratorNormalCompletion12 = (_step12 = _iterator12.next()).done); _iteratorNormalCompletion12 = true) {
+                var key = _step12.value;
 
                 delete json_obj[key];
               }
             } catch (err) {
-              _didIteratorError11 = true;
-              _iteratorError11 = err;
+              _didIteratorError12 = true;
+              _iteratorError12 = err;
             } finally {
               try {
-                if (!_iteratorNormalCompletion11 && _iterator11.return) {
-                  _iterator11.return();
+                if (!_iteratorNormalCompletion12 && _iterator12.return) {
+                  _iterator12.return();
                 }
               } finally {
-                if (_didIteratorError11) {
-                  throw _iteratorError11;
+                if (_didIteratorError12) {
+                  throw _iteratorError12;
                 }
               }
             }
@@ -1961,7 +1961,7 @@ var SFModelManager = exports.SFModelManager = function () {
           processedObjects.push(json_obj);
         }
 
-        // // second loop should process references
+        // second loop should process references
       } catch (err) {
         _didIteratorError9 = true;
         _iteratorError9 = err;
@@ -1995,32 +1995,6 @@ var SFModelManager = exports.SFModelManager = function () {
             this.resolveReferencesForItem(model);
           }
 
-          var missedRefs = this.popMissedReferenceStructsForObject(_json_obj);
-          var _iteratorNormalCompletion12 = true;
-          var _didIteratorError12 = false;
-          var _iteratorError12 = undefined;
-
-          try {
-            for (var _iterator12 = missedRefs[Symbol.iterator](), _step12; !(_iteratorNormalCompletion12 = (_step12 = _iterator12.next()).done); _iteratorNormalCompletion12 = true) {
-              var ref = _step12.value;
-
-              this.resolveReferencesForItem(ref.for_item);
-            }
-          } catch (err) {
-            _didIteratorError12 = true;
-            _iteratorError12 = err;
-          } finally {
-            try {
-              if (!_iteratorNormalCompletion12 && _iterator12.return) {
-                _iterator12.return();
-              }
-            } finally {
-              if (_didIteratorError12) {
-                throw _iteratorError12;
-              }
-            }
-          }
-
           model.didFinishSyncing();
         }
       } catch (err) {
@@ -2038,6 +2012,33 @@ var SFModelManager = exports.SFModelManager = function () {
         }
       }
 
+      var missedRefs = this.popMissedReferenceStructsForObjects(processedObjects);
+      var _iteratorNormalCompletion11 = true;
+      var _didIteratorError11 = false;
+      var _iteratorError11 = undefined;
+
+      try {
+        for (var _iterator11 = missedRefs[Symbol.iterator](), _step11; !(_iteratorNormalCompletion11 = (_step11 = _iterator11.next()).done); _iteratorNormalCompletion11 = true) {
+          var ref = _step11.value;
+
+          var itemWaitingForTheValueInThisCurrentLoop = ref.for_item;
+          itemWaitingForTheValueInThisCurrentLoop.addItemAsRelationship(model);
+        }
+      } catch (err) {
+        _didIteratorError11 = true;
+        _iteratorError11 = err;
+      } finally {
+        try {
+          if (!_iteratorNormalCompletion11 && _iterator11.return) {
+            _iterator11.return();
+          }
+        } finally {
+          if (_didIteratorError11) {
+            throw _iteratorError11;
+          }
+        }
+      }
+
       this.notifySyncObserversOfModels(modelsToNotifyObserversOf, source, sourceKey);
 
       return models;
@@ -2048,19 +2049,34 @@ var SFModelManager = exports.SFModelManager = function () {
       return referenceId + ":" + objectId;
     }
   }, {
-    key: "popMissedReferenceStructsForObject",
-    value: function popMissedReferenceStructsForObject(object) {
+    key: "popMissedReferenceStructsForObjects",
+    value: function popMissedReferenceStructsForObjects(objects) {
+      if (!objects || objects.length == 0) {
+        return [];
+      }
+
       var results = [];
       var toDelete = [];
+      var uuids = objects.map(function (item) {
+        return item.uuid;
+      });
+      var genericUuidLength = uuids[0].length;
+
+      var keys = Object.keys(this.missedReferences);
       var _iteratorNormalCompletion13 = true;
       var _didIteratorError13 = false;
       var _iteratorError13 = undefined;
 
       try {
-        for (var _iterator13 = Object.keys(this.missedReferences)[Symbol.iterator](), _step13; !(_iteratorNormalCompletion13 = (_step13 = _iterator13.next()).done); _iteratorNormalCompletion13 = true) {
+        for (var _iterator13 = keys[Symbol.iterator](), _step13; !(_iteratorNormalCompletion13 = (_step13 = _iterator13.next()).done); _iteratorNormalCompletion13 = true) {
           var candidateKey = _step13.value;
 
-          var matches = candidateKey.split(":")[0] == object.uuid;
+          /*
+          We used to do string.split to get at the UUID, but surprisingly,
+          the performance of this was about 20x worse then just getting the substring.
+           var matches = candidateKey.split(":")[0] == object.uuid;
+          */
+          var matches = uuids.includes(candidateKey.substring(0, genericUuidLength));
           if (matches) {
             results.push(this.missedReferences[candidateKey]);
             toDelete.push(candidateKey);

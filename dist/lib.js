@@ -686,19 +686,20 @@ export class SFHttpManager {
       processedObjects.push(json_obj);
     }
 
-    // // second loop should process references
+    // second loop should process references
     for(let [index, json_obj] of processedObjects.entries()) {
       var model = models[index];
       if(json_obj.content) {
         this.resolveReferencesForItem(model);
       }
 
-      var missedRefs = this.popMissedReferenceStructsForObject(json_obj);
-      for(var ref of missedRefs) {
-        this.resolveReferencesForItem(ref.for_item);
-      }
-
       model.didFinishSyncing();
+    }
+
+    var missedRefs = this.popMissedReferenceStructsForObjects(processedObjects);
+    for(var ref of missedRefs) {
+      let itemWaitingForTheValueInThisCurrentLoop = ref.for_item;
+      itemWaitingForTheValueInThisCurrentLoop.addItemAsRelationship(model);
     }
 
     this.notifySyncObserversOfModels(modelsToNotifyObserversOf, source, sourceKey);
@@ -710,11 +711,25 @@ export class SFHttpManager {
     return `${referenceId}:${objectId}`
   }
 
-  popMissedReferenceStructsForObject(object) {
+  popMissedReferenceStructsForObjects(objects) {
+    if(!objects || objects.length == 0) {
+      return [];
+    }
+
     var results = [];
     var toDelete = [];
-    for(var candidateKey of Object.keys(this.missedReferences)) {
+    let uuids = objects.map((item) => item.uuid);
+    let genericUuidLength = uuids[0].length;
+
+    let keys = Object.keys(this.missedReferences);
+    for(var candidateKey of keys) {
+      /*
+      We used to do string.split to get at the UUID, but surprisingly,
+      the performance of this was about 20x worse then just getting the substring.
+
       var matches = candidateKey.split(":")[0] == object.uuid;
+      */
+      var matches = uuids.includes(candidateKey.substring(0, genericUuidLength));
       if(matches) {
         results.push(this.missedReferences[candidateKey]);
         toDelete.push(candidateKey);

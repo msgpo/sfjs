@@ -31,7 +31,7 @@ const createItem = () => {
   return new SFItem(createItemParams());
 }
 
-describe.only('app models', () => {
+describe('app models', () => {
   var createdItem;
 
   it('lodash should be defined', () => {
@@ -278,7 +278,7 @@ describe.only('app models', () => {
 
 describe("mapping performance", () => {
 
-  it("shouldn't take a long time", () => {
+  it.only("shouldn't take a long time", () => {
     /*
       There was an issue with mapping where we were using arrays for everything instead of hashes (like items, missedReferences),
       which caused searching to be really expensive and caused a huge slowdown.
@@ -286,7 +286,7 @@ describe("mapping performance", () => {
     let modelManager = createModelManager();
 
     // create a bunch of notes and tags, and make sure mapping doesn't take a long time
-    const noteCount = 2500;
+    const noteCount = 1500;
     const tagCount = 10;
     var tags = [], notes = [];
     for(var i = 0; i < tagCount; i++) {
@@ -324,6 +324,62 @@ describe("mapping performance", () => {
     }
 
     var items = Factory.shuffleArray(tags.concat(notes));
+
+    var t0 = performance.now();
+    // process items in separate batches, so as to trigger missed references
+    var currentIndex = 0;
+    var batchSize = 100;
+    for(var i = 0; i < items.length; i += batchSize) {
+      var subArray = items.slice(currentIndex, currentIndex + batchSize);
+      modelManager.mapResponseItemsToLocalModels(subArray);
+      currentIndex += batchSize;
+    }
+
+    var t1 = performance.now();
+    var seconds = (t1 - t0) / 1000;
+    const expectedRunTime = 3; // seconds
+    expect(seconds).to.be.at.most(expectedRunTime);
+  }).timeout(20000);
+
+  it.only("mapping a tag with thousands of notes should be quick", () => {
+    /*
+      There was an issue where if you have a tag with thousands of notes, it will take minutes to resolve.
+      Fixed now. The issue was that we were looping around too much. I've consolidated some of the loops
+      so that things require less loops in modelManager, regarding missedReferences.
+    */
+    let modelManager = createModelManager();
+
+    const noteCount = 10000;
+    var notes = [];
+
+    var tag = {
+      uuid: SFJS.crypto.generateUUIDSync(),
+      content_type: "Tag",
+      content: {
+        title: `${Math.random()}`,
+        references: []
+      }
+    }
+
+    for(var i = 0; i < noteCount; i++) {
+      var note = {
+        uuid: SFJS.crypto.generateUUIDSync(),
+        content_type: "Note",
+        content: {
+          title: `${Math.random()}`,
+          text: `${Math.random()}`,
+          references: []
+        }
+      }
+
+      tag.content.references.push({
+        content_type: "Note",
+        uuid: note.uuid
+      })
+      notes.push(note);
+    }
+
+    var items = [tag].concat(notes);
 
     var t0 = performance.now();
     // process items in separate batches, so as to trigger missed references
