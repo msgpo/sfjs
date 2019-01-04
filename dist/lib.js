@@ -1998,11 +1998,7 @@ export class SFStorageManager {
       if(this.syncStatus.syncOpInProgress && !options.force) {
         this.repeatOnCompletion = true;
         this.queuedCallbacks.push(resolve);
-
-        // write to local storage nonetheless, since some users may see several second delay in server response.
-        // if they close the browser before the ongoing sync request completes, local changes will be lost if we dont save here
-        this.writeItemsToLocalStorage(allDirtyItems, false);
-
+        await this.writeItemsToLocalStorage(allDirtyItems, false);
         console.log("Sync op in progress; returning.");
         return;
       }
@@ -2019,6 +2015,13 @@ export class SFStorageManager {
           this.notifyEvent("sync-exception", e);
         })
         return;
+      } else {
+        // Write to local storage before beginning sync.
+        // This way, if they close the browser the sync request completes, local changes will not be lost
+        await this.writeItemsToLocalStorage(allDirtyItems, false);
+        if(options.onPreSyncSave) {
+          options.onPreSyncSave();
+        }
       }
 
       var isContinuationSync = this.syncStatus.needsMoreSync;
