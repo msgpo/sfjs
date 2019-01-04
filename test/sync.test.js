@@ -207,7 +207,7 @@ describe('online syncing', () => {
     syncManager.sync();
     setTimeout(function () {
       item.setDirty(true);
-    }, 10);
+    }, 50);
 
     return expect(new Promise((resolve, reject) => {
       setTimeout(function () {

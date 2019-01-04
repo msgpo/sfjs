@@ -564,6 +564,13 @@ export class SFHttpManager {
     newItem.informReferencesOfUUIDChange(item.uuid, newItem.uuid);
     this.informModelsOfUUIDChangeForItem(newItem, item.uuid, newItem.uuid);
 
+    // the new item should inherit the original's relationships
+    for(var referencingObject of item.referencingObjects) {
+      referencingObject.setIsNoLongerBeingReferencedBy(item);
+      referencingObject.addItemAsRelationship(newItem);
+      referencingObject.setDirty(true);
+    }
+
     console.log(item.uuid, "-->", newItem.uuid);
 
     // Set to deleted, then run through mapping function so that observers can be notified
@@ -580,7 +587,9 @@ export class SFHttpManager {
     // add new item
     this.addItem(newItem);
     newItem.setDirty(true);
-    this.resolveReferencesForItem(newItem);
+
+    // We don't need to do this. The only purpose would be to set up referencingObjects, but we do that above now.
+    // this.resolveReferencesForItem(newItem);
 
     this.notifyObserversOfUuidChange(item, newItem);
 
@@ -834,6 +843,8 @@ export class SFHttpManager {
 
   duplicateItem(item) {
     var copy = new item.constructor({content: item.content});
+    copy.created_at = item.created_at;
+    copy.content_type = item.content_type;
 
     this.addItem(copy);
 

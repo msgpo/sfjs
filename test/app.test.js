@@ -31,7 +31,7 @@ const createItem = () => {
   return new SFItem(createItemParams());
 }
 
-describe('app models', () => {
+describe.only('app models', () => {
   var createdItem;
 
   it('lodash should be defined', () => {
@@ -161,6 +161,37 @@ describe('app models', () => {
     expect(item2.referencingObjects.length).to.equal(0);
   });
 
+  it('notifies observers of item uuid alternation', async () => {
+    let modelManager = createModelManager();
+    var originalItem1 = createItem();
+
+    return new Promise((resolve, reject) => {
+      modelManager.addModelUuidChangeObserver("test", (oldItem, newItem) => {
+        expect(oldItem.uuid).to.not.equal(newItem.uuid);
+        resolve();
+      })
+
+      modelManager.alternateUUIDForItem(originalItem1);
+    })
+  });
+
+  it('properly duplicates item', async () => {
+    let modelManager = createModelManager();
+    var originalItem1 = createItem();
+    var originalItem2 = createItem();
+    originalItem1.addItemAsRelationship(originalItem2);
+
+    expect(originalItem2.referencingObjects.length).to.equal(1);
+
+    let duplicate = modelManager.duplicateItem(originalItem1);
+
+    expect(JSON.stringify(originalItem1.content)).to.equal(JSON.stringify(duplicate.content));
+    expect(originalItem1.created_at).to.equal(duplicate.created_at);
+    expect(originalItem1.content_type).to.equal(duplicate.content_type);
+    expect(duplicate.content.references.length).to.equal(1);
+    expect(originalItem2.referencingObjects.length).to.equal(1);
+  });
+
   it('properly handles single item uuid alternation', () => {
     let modelManager = createModelManager();
     var originalItem1 = createItem();
@@ -177,36 +208,21 @@ describe('app models', () => {
 
       // item 1 now is at the end of the array
       var item1 = modelManager.allItems[1];
-      var item2 = modelManager.allItems[0];
 
       expect(originalItem1.uuid).to.not.equal(alternatedItem1.uuid);
       expect(item1.uuid).to.equal(alternatedItem1.uuid);
 
       expect(item1.content.references.length).to.equal(1);
-      expect(item2.content.references.length).to.equal(1);
+      expect(originalItem2.content.references.length).to.equal(1);
       expect(alternatedItem1.content.references.length).to.equal(1);
 
-      expect(item1.hasRelationshipWithItem(item2)).to.equal(true);
-      expect(item2.hasRelationshipWithItem(item1)).to.equal(true);
+      expect(item1.hasRelationshipWithItem(originalItem2)).to.equal(true);
+      expect(originalItem2.hasRelationshipWithItem(item1)).to.equal(true);
 
-      expect(item2.hasRelationshipWithItem(alternatedItem1)).to.equal(true);
-      expect(alternatedItem1.hasRelationshipWithItem(item2)).to.equal(true);
+      expect(originalItem2.hasRelationshipWithItem(alternatedItem1)).to.equal(true);
+      expect(alternatedItem1.hasRelationshipWithItem(originalItem2)).to.equal(true);
 
       expect(alternatedItem1.dirty).to.equal(true);
-    })
-  });
-
-  it('notifies observers of item uuid alternation', async () => {
-    let modelManager = createModelManager();
-    var originalItem1 = createItem();
-
-    return new Promise((resolve, reject) => {
-      modelManager.addModelUuidChangeObserver("test", (oldItem, newItem) => {
-        expect(oldItem.uuid).to.not.equal(newItem.uuid);
-        resolve();
-      })
-
-      modelManager.alternateUUIDForItem(originalItem1);
     })
   });
 
@@ -231,7 +247,6 @@ describe('app models', () => {
     expect(alternatedItem1.content.references[0].uuid).to.equal(alternatedItem2.uuid);
     expect(alternatedItem2.content.references.length).to.equal(0);
 
-    // This is currently failing. Needs fix.
     expect(alternatedItem2.referencingObjects.length).to.equal(1);
 
     expect(alternatedItem1.hasRelationshipWithItem(alternatedItem2)).to.equal(true);
