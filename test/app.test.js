@@ -278,7 +278,7 @@ describe('app models', () => {
 
 describe("mapping performance", () => {
 
-  it.only("shouldn't take a long time", () => {
+  it("shouldn't take a long time", () => {
     /*
       There was an issue with mapping where we were using arrays for everything instead of hashes (like items, missedReferences),
       which caused searching to be really expensive and caused a huge slowdown.
@@ -341,7 +341,7 @@ describe("mapping performance", () => {
     expect(seconds).to.be.at.most(expectedRunTime);
   }).timeout(20000);
 
-  it.only("mapping a tag with thousands of notes should be quick", () => {
+  it("mapping a tag with thousands of notes should be quick", () => {
     /*
       There was an issue where if you have a tag with thousands of notes, it will take minutes to resolve.
       Fixed now. The issue was that we were looping around too much. I've consolidated some of the loops

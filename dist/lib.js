@@ -2019,12 +2019,30 @@ export class SFStorageManager {
 
       var allDirtyItems = this.modelManager.getDirtyItems();
 
+      /*
+        When it comes to saving to disk before the sync request (both in syncOpInProgress and preSyncSave),
+        you only want to save items that have a dirty count > 0. That's because, if for example, you're syncing
+        2000 items, and every sync request handles only 150 items at a time, then every sync request will
+        be writing the same thousand items to storage every time. Writing a thousand items to storage can take 10s.
+        So, save to local storage only items with dirtyCount > 0, then, after saving, set dirtyCount to 0.
+        This way, if an item changes again, it will be saved next sync.
+      */
+
+      let dirtyItemsNotYetSaved = allDirtyItems.filter((candidate) => {
+        if(candidate.dirtyCount > 0) {
+          candidate.dirtyCount = 0;
+          return true;
+        } else {
+          return false;
+        }
+      })
+
       // When a user hits the physical refresh button, we want to force refresh, in case
       // the sync engine is stuck in some inProgress loop.
       if(this.syncStatus.syncOpInProgress && !options.force) {
         this.repeatOnCompletion = true;
         this.queuedCallbacks.push(resolve);
-        await this.writeItemsToLocalStorage(allDirtyItems, false);
+        await this.writeItemsToLocalStorage(dirtyItemsNotYetSaved, false);
         console.log("Sync op in progress; returning.");
         return;
       }
@@ -2041,13 +2059,6 @@ export class SFStorageManager {
           this.notifyEvent("sync-exception", e);
         })
         return;
-      } else {
-        // Write to local storage before beginning sync.
-        // This way, if they close the browser the sync request completes, local changes will not be lost
-        await this.writeItemsToLocalStorage(allDirtyItems, false);
-        if(options.onPreSyncSave) {
-          options.onPreSyncSave();
-        }
       }
 
       var isContinuationSync = this.syncStatus.needsMoreSync;
@@ -2077,6 +2088,14 @@ export class SFStorageManager {
       }
 
       this.syncStatusDidChange();
+
+      // Perform save after you've updated all status signals above. Presync save can take several seconds in some cases.
+      // Write to local storage before beginning sync.
+      // This way, if they close the browser before the sync request completes, local changes will not be lost
+      await this.writeItemsToLocalStorage(dirtyItemsNotYetSaved, false);
+      if(options.onPreSyncSave) {
+        options.onPreSyncSave();
+      }
 
       // when doing a sync request that returns items greater than the limit, and thus subsequent syncs are required,
       // we want to keep track of all retreived items, then save to local storage only once all items have been retrieved,

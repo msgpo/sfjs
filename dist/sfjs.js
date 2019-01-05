@@ -5338,7 +5338,7 @@ var SFSyncManager = exports.SFSyncManager = function () {
               case 0:
                 return _context78.abrupt("return", new Promise(function () {
                   var _ref82 = _asyncToGenerator( /*#__PURE__*/regeneratorRuntime.mark(function _callee77(resolve, reject) {
-                    var allDirtyItems, info, isContinuationSync, submitLimit, subItems, params, _iteratorNormalCompletion40, _didIteratorError40, _iteratorError40, _iterator40, _step40, item;
+                    var allDirtyItems, dirtyItemsNotYetSaved, info, isContinuationSync, submitLimit, subItems, params, _iteratorNormalCompletion40, _didIteratorError40, _iteratorError40, _iterator40, _step40, item;
 
                     return regeneratorRuntime.wrap(function _callee77$(_context77) {
                       while (1) {
@@ -5359,32 +5359,50 @@ var SFSyncManager = exports.SFSyncManager = function () {
 
                             allDirtyItems = _this21.modelManager.getDirtyItems();
 
+                            /*
+                              When it comes to saving to disk before the sync request (both in syncOpInProgress and preSyncSave),
+                              you only want to save items that have a dirty count > 0. That's because, if for example, you're syncing
+                              2000 items, and every sync request handles only 150 items at a time, then every sync request will
+                              be writing the same thousand items to storage every time. Writing a thousand items to storage can take 10s.
+                              So, save to local storage only items with dirtyCount > 0, then, after saving, set dirtyCount to 0.
+                              This way, if an item changes again, it will be saved next sync.
+                            */
+
+                            dirtyItemsNotYetSaved = allDirtyItems.filter(function (candidate) {
+                              if (candidate.dirtyCount > 0) {
+                                candidate.dirtyCount = 0;
+                                return true;
+                              } else {
+                                return false;
+                              }
+                            });
+
                             // When a user hits the physical refresh button, we want to force refresh, in case
                             // the sync engine is stuck in some inProgress loop.
 
                             if (!(_this21.syncStatus.syncOpInProgress && !options.force)) {
-                              _context77.next = 13;
+                              _context77.next = 14;
                               break;
                             }
 
                             _this21.repeatOnCompletion = true;
                             _this21.queuedCallbacks.push(resolve);
-                            _context77.next = 11;
-                            return _this21.writeItemsToLocalStorage(allDirtyItems, false);
+                            _context77.next = 12;
+                            return _this21.writeItemsToLocalStorage(dirtyItemsNotYetSaved, false);
 
-                          case 11:
+                          case 12:
                             console.log("Sync op in progress; returning.");
                             return _context77.abrupt("return");
 
-                          case 13:
-                            _context77.next = 15;
+                          case 14:
+                            _context77.next = 16;
                             return _this21.getActiveKeyInfo(SFSyncManager.KeyRequestLoadSaveAccount);
 
-                          case 15:
+                          case 16:
                             info = _context77.sent;
 
                             if (!info.offline) {
-                              _context77.next = 21;
+                              _context77.next = 20;
                               break;
                             }
 
@@ -5396,16 +5414,7 @@ var SFSyncManager = exports.SFSyncManager = function () {
                             });
                             return _context77.abrupt("return");
 
-                          case 21:
-                            _context77.next = 23;
-                            return _this21.writeItemsToLocalStorage(allDirtyItems, false);
-
-                          case 23:
-                            if (options.onPreSyncSave) {
-                              options.onPreSyncSave();
-                            }
-
-                          case 24:
+                          case 20:
                             isContinuationSync = _this21.syncStatus.needsMoreSync;
 
 
@@ -5436,6 +5445,17 @@ var SFSyncManager = exports.SFSyncManager = function () {
 
                             _this21.syncStatusDidChange();
 
+                            // Perform save after you've updated all status signals above. Presync save can take several seconds in some cases.
+                            // Write to local storage before beginning sync.
+                            // This way, if they close the browser before the sync request completes, local changes will not be lost
+                            _context77.next = 32;
+                            return _this21.writeItemsToLocalStorage(dirtyItemsNotYetSaved, false);
+
+                          case 32:
+                            if (options.onPreSyncSave) {
+                              options.onPreSyncSave();
+                            }
+
                             // when doing a sync request that returns items greater than the limit, and thus subsequent syncs are required,
                             // we want to keep track of all retreived items, then save to local storage only once all items have been retrieved,
                             // so that relationships remain intact
@@ -5454,8 +5474,8 @@ var SFSyncManager = exports.SFSyncManager = function () {
 
                             params.limit = 150;
 
-                            _context77.prev = 38;
-                            _context77.next = 41;
+                            _context77.prev = 37;
+                            _context77.next = 40;
                             return Promise.all(subItems.map(function (item) {
                               var itemParams = new SFItemParams(item, info.keys, info.auth_params);
                               itemParams.additionalFields = options.additionalFields;
@@ -5464,21 +5484,21 @@ var SFSyncManager = exports.SFSyncManager = function () {
                               params.items = itemsParams;
                             });
 
-                          case 41:
-                            _context77.next = 46;
+                          case 40:
+                            _context77.next = 45;
                             break;
 
-                          case 43:
-                            _context77.prev = 43;
-                            _context77.t0 = _context77["catch"](38);
+                          case 42:
+                            _context77.prev = 42;
+                            _context77.t0 = _context77["catch"](37);
 
                             _this21.notifyEvent("sync-exception", _context77.t0);
 
-                          case 46:
+                          case 45:
                             _iteratorNormalCompletion40 = true;
                             _didIteratorError40 = false;
                             _iteratorError40 = undefined;
-                            _context77.prev = 49;
+                            _context77.prev = 48;
 
 
                             for (_iterator40 = subItems[Symbol.iterator](); !(_iteratorNormalCompletion40 = (_step40 = _iterator40.next()).done); _iteratorNormalCompletion40 = true) {
@@ -5489,56 +5509,56 @@ var SFSyncManager = exports.SFSyncManager = function () {
                               item.dirtyCount = 0;
                             }
 
-                            _context77.next = 57;
+                            _context77.next = 56;
                             break;
 
-                          case 53:
-                            _context77.prev = 53;
-                            _context77.t1 = _context77["catch"](49);
+                          case 52:
+                            _context77.prev = 52;
+                            _context77.t1 = _context77["catch"](48);
                             _didIteratorError40 = true;
                             _iteratorError40 = _context77.t1;
 
-                          case 57:
+                          case 56:
+                            _context77.prev = 56;
                             _context77.prev = 57;
-                            _context77.prev = 58;
 
                             if (!_iteratorNormalCompletion40 && _iterator40.return) {
                               _iterator40.return();
                             }
 
-                          case 60:
-                            _context77.prev = 60;
+                          case 59:
+                            _context77.prev = 59;
 
                             if (!_didIteratorError40) {
-                              _context77.next = 63;
+                              _context77.next = 62;
                               break;
                             }
 
                             throw _iteratorError40;
 
+                          case 62:
+                            return _context77.finish(59);
+
                           case 63:
-                            return _context77.finish(60);
+                            return _context77.finish(56);
 
                           case 64:
-                            return _context77.finish(57);
-
-                          case 65:
-                            _context77.next = 67;
+                            _context77.next = 66;
                             return _this21.getSyncToken();
 
-                          case 67:
+                          case 66:
                             params.sync_token = _context77.sent;
-                            _context77.next = 70;
+                            _context77.next = 69;
                             return _this21.getCursorToken();
 
-                          case 70:
+                          case 69:
                             params.cursor_token = _context77.sent;
-                            _context77.prev = 71;
+                            _context77.prev = 70;
                             _context77.t2 = _this21.httpManager;
-                            _context77.next = 75;
+                            _context77.next = 74;
                             return _this21.getSyncURL();
 
-                          case 75:
+                          case 74:
                             _context77.t3 = _context77.sent;
                             _context77.t4 = params;
 
@@ -5561,21 +5581,21 @@ var SFSyncManager = exports.SFSyncManager = function () {
 
                             _context77.t2.postAbsolute.call(_context77.t2, _context77.t3, _context77.t4, _context77.t5, _context77.t6);
 
-                            _context77.next = 85;
+                            _context77.next = 84;
                             break;
 
-                          case 82:
-                            _context77.prev = 82;
-                            _context77.t7 = _context77["catch"](71);
+                          case 81:
+                            _context77.prev = 81;
+                            _context77.t7 = _context77["catch"](70);
 
                             console.log("Sync exception caught:", _context77.t7);
 
-                          case 85:
+                          case 84:
                           case "end":
                             return _context77.stop();
                         }
                       }
-                    }, _callee77, _this21, [[38, 43], [49, 53, 57, 65], [58,, 60, 64], [71, 82]]);
+                    }, _callee77, _this21, [[37, 42], [48, 52, 56, 64], [57,, 59, 63], [70, 81]]);
                   }));
 
                   return function (_x88, _x89) {
