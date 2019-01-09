@@ -314,6 +314,14 @@ describe('online syncing', () => {
     })
   }).timeout(15000);
 
+  it("should be able to download all items separate of sync", async () => {
+    return expect(syncManager.stateless_downloadAllItems()).to.be.fulfilled.then(async (downloadedItems) => {
+      expect(downloadedItems.length).to.equal(totalItemCount);
+      // ensure it's decrypted
+      expect(downloadedItems[0].content.text).to.equal("world");
+    })
+  }).timeout(15000);
+
   it("load local items", async () => {
     let localModelManager = Factory.createModelManager();
     let localSyncManager = new SFSyncManager(localModelManager, Factory.globalStorageManager(), Factory.globalHttpManager());

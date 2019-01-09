@@ -332,57 +332,60 @@ export class SFHttpManager {
     }
   }
 
-  postAbsolute(url, params, onsuccess, onerror) {
-    this.httpRequest("post", url, params, onsuccess, onerror);
+  async postAbsolute(url, params, onsuccess, onerror) {
+    return this.httpRequest("post", url, params, onsuccess, onerror);
   }
 
-  patchAbsolute(url, params, onsuccess, onerror) {
-    this.httpRequest("patch", url, params, onsuccess, onerror);
+  async patchAbsolute(url, params, onsuccess, onerror) {
+    return this.httpRequest("patch", url, params, onsuccess, onerror);
   }
 
-  getAbsolute(url, params, onsuccess, onerror) {
-    this.httpRequest("get", url, params, onsuccess, onerror);
+  async getAbsolute(url, params, onsuccess, onerror) {
+    return this.httpRequest("get", url, params, onsuccess, onerror);
   }
 
   async httpRequest(verb, url, params, onsuccess, onerror) {
+    return new Promise(async (resolve, reject) => {
+        var xmlhttp = new XMLHttpRequest();
 
-    var xmlhttp = new XMLHttpRequest();
+        xmlhttp.onreadystatechange = () => {
+          if (xmlhttp.readyState == 4) {
+            var response = xmlhttp.responseText;
+            if(response) {
+              try {
+                response = JSON.parse(response);
+              } catch(e) {}
+            }
 
-    xmlhttp.onreadystatechange = function() {
-      if (xmlhttp.readyState == 4) {
-        var response = xmlhttp.responseText;
-        if(response) {
-          try {
-            response = JSON.parse(response);
-          } catch(e) {}
+           if(xmlhttp.status >= 200 && xmlhttp.status <= 299){
+             this.$timeout(function(){
+               onsuccess(response);
+               resolve(response);
+             })
+           } else {
+             console.error("Request error:", response);
+             this.$timeout(function(){
+               onerror(response, xmlhttp.status)
+               reject(response);
+             })
+           }
+         }
         }
 
-       if(xmlhttp.status >= 200 && xmlhttp.status <= 299){
-         this.$timeout(function(){
-           onsuccess(response);
-         })
-       } else {
-         console.error("Request error:", response);
-         this.$timeout(function(){
-           onerror(response, xmlhttp.status)
-         })
-       }
-     }
-   }.bind(this)
+        if(verb == "get" && Object.keys(params).length > 0) {
+          url = url + this.formatParams(params);
+        }
 
-    if(verb == "get" && Object.keys(params).length > 0) {
-      url = url + this.formatParams(params);
-    }
+        xmlhttp.open(verb, url, true);
+        await this.setAuthHeadersForRequest(xmlhttp);
+        xmlhttp.setRequestHeader('Content-type', 'application/json');
 
-    xmlhttp.open(verb, url, true);
-    await this.setAuthHeadersForRequest(xmlhttp);
-    xmlhttp.setRequestHeader('Content-type', 'application/json');
-
-    if(verb == "post" || verb == "patch") {
-      xmlhttp.send(JSON.stringify(params));
-    } else {
-      xmlhttp.send();
-    }
+        if(verb == "post" || verb == "patch") {
+          xmlhttp.send(JSON.stringify(params));
+        } else {
+          xmlhttp.send();
+        }
+    })
   }
 
   formatParams(params) {
@@ -2374,6 +2377,55 @@ export class SFStorageManager {
     // You could also just write to disk manually here, but syncing here is 100% sure to trigger sync op in progress as that's
     // where it's being called from.
     this.sync(null, {additionalFields: ["created_at", "updated_at"]});
+  }
+
+  /*
+    Executes a sync request with a blank sync token and high download limit. It will download all items,
+    but won't do anything with them other than decrypting, creating respective objects, and returning them to caller. (it does not map them nor establish their relationships)
+    The use case came primarly for clients who had ignored a certain content_type in sync, but later issued an update
+    indicated they actually did want to start handling that content type. In that case, they would need to download all items
+    freshly from the server.(Ideally in the future the server would accept a content_type param to only download items of that type.
+    We've inserted that into the params in anticipation, but the server currently totally ignores that.
+  */
+  stateless_downloadAllItems(options = {}) {
+    return new Promise(async (resolve, reject) => {
+      var params = {
+        limit: 500,
+        sync_token: options.syncToken,
+        cursor_token: options.cursorToken,
+        content_type: options.contentType /* currently ignored by server, placed preemptively. See comment above */
+      };
+
+      try {
+        this.httpManager.postAbsolute(await this.getSyncURL(), params, async (response) => {
+          if(!options.retrievedItems) {
+            options.retrievedItems = [];
+          }
+
+          let incomingItems = response.retrieved_items;
+          var keys = (await this.getActiveKeyInfo(SFSyncManager.KeyRequestLoadSaveAccount)).keys;
+          await SFJS.itemTransformer.decryptMultipleItems(incomingItems, keys);
+
+          options.retrievedItems = options.retrievedItems.concat(incomingItems.map((incomingItem) => {
+            // Create model classes
+            return this.modelManager.createItem(incomingItem, true /* dontNotifyObservers */);
+          }));
+          options.syncToken = response.sync_token;
+          options.cursorToken = response.cursor_token;
+
+          if(options.cursorToken) {
+            this.stateless_downloadAllItems(options).then(resolve);
+          } else {
+            resolve(options.retrievedItems);
+          }
+        }, (response, statusCode) => {
+          reject(response);
+        });
+      } catch(e) {
+        console.log("Download all items exception caught:", e);
+        reject(e);
+      }
+    });
   }
 
   async handleSignout() {
