@@ -47,6 +47,62 @@ const createItem = () => {
 
 
 describe("predicates", () => {
+  it('test and operator', () => {
+    let item = createItem();
+    expect(item.satisfiesPredicate(new SFPredicate( "this_field_ignored", "and", [
+      ["content.title", "=", "Hello"],
+      ["content_type", "=", "Item"]
+    ]))).to.equal(true);
+    expect(item.satisfiesPredicate(new SFPredicate( "", "and", [
+      ["content.title", "=", "Wrong"],
+      ["content_type", "=", "Item"]
+    ]))).to.equal(false);
+    expect(item.satisfiesPredicate(new SFPredicate( "", "and", [
+      ["content.title", "=", "Hello"],
+      ["content_type", "=", "Wrong"]
+    ]))).to.equal(false);
+  })
+
+  it('test or operator', () => {
+    let item = createItem();
+    expect(item.satisfiesPredicate(new SFPredicate( "this_field_ignored", "or", [
+      ["content.title", "=", "Hello"],
+      ["content_type", "=", "Item"]
+    ]))).to.equal(true);
+    expect(item.satisfiesPredicate(new SFPredicate( "", "or", [
+      ["content.title", "=", "Wrong"],
+      ["content_type", "=", "Item"]
+    ]))).to.equal(true);
+    expect(item.satisfiesPredicate(new SFPredicate( "", "or", [
+      ["content.title", "=", "Hello"],
+      ["content_type", "=", "Wrong"]
+    ]))).to.equal(true);
+    expect(item.satisfiesPredicate(new SFPredicate( "", "or", [
+      ["content.title", "=", "Wrong"],
+      ["content_type", "=", "Wrong"]
+    ]))).to.equal(false);
+  })
+
+  it('test deep nested recursive operator', () => {
+    let item = createItem();
+    expect(item.satisfiesPredicate(new SFPredicate( "this_field_ignored", "and", [
+      ["content.title", "=", "Hello"],
+      ["this_field_ignored", "or", [
+        ["content.title", "=", "Wrong"],
+        ["content.title", "=", "Wrong again"],
+        ["content.title", "=", "Hello"],
+      ]]
+    ]))).to.equal(true);
+    expect(item.satisfiesPredicate(new SFPredicate( "this_field_ignored", "and", [
+      ["content.title", "=", "Hello"],
+      ["this_field_ignored", "or", [
+        ["content.title", "=", "Wrong"],
+        ["content.title", "=", "Wrong again"],
+        ["content.title", "=", "All wrong"],
+      ]]
+    ]))).to.equal(false);
+  })
+
   it('test equality', () => {
     let item = createItem();
 
