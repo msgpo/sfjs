@@ -4527,7 +4527,7 @@ var SFSingletonManager = exports.SFSingletonManager = function () {
             singletonHandler.singleton = winningItem;
             singletonHandler.resolutionCallback && singletonHandler.resolutionCallback(winningItem);
           } else if (allExtantItemsMatchingPredicate.length == 1) {
-            if (!singletonHandler.singleton) {
+            if (!singletonHandler.singleton || singletonHandler.singleton !== singleton) {
               // Not yet notified interested parties of object
               singleton = allExtantItemsMatchingPredicate[0];
 
