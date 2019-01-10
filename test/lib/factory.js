@@ -77,7 +77,7 @@ export default class Factory {
     return "http://localhost:3000";
   }
 
-  static sleep(seconds) {
+  static async sleep(seconds) {
     return new Promise((resolve, reject) => {
       setTimeout(function () {
         resolve();

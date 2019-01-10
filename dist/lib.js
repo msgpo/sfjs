@@ -405,6 +405,8 @@ export class SFHttpManager {
     this.syncManager = syncManager;
     this.storageManager = storageManager;
 
+    this.completionHandlers = [];
+
     this.loadMigrations();
 
     this.syncManager.addEventHandler(async (event, data) => {
@@ -421,9 +423,16 @@ export class SFHttpManager {
         // We want to run pending migrations only after local data has been loaded, and a sync has been completed.
         if(this.receivedLocalDataEvent && this.receivedSyncCompletedEvent) {
           if(data && data.initialSync) {
-            // If initial online sync, clear any completed migrations that occurred while offline, so they can run again now
-            // that we have updated user items.
-            await this.clearCompletedMigrations();
+            // If initial online sync, clear any completed migrations that occurred while offline,
+            // so they can run again now that we have updated user items. Only clear migrations that
+            // don't have `runOnlyOnce` set
+            var completedList = (await this.getCompletedMigrations()).slice();
+            for(var migrationName of completedList) {
+              let migration = await this.migrationForEncodedName(migrationName);
+              if(!migration.runOnlyOnce) {
+                _.pull(this._completed, migrationName);
+              }
+            }
           }
           this.runPendingMigrations();
         }
@@ -431,9 +440,19 @@ export class SFHttpManager {
     })
   }
 
-  async clearCompletedMigrations() {
-    var completed = await this.getCompletedMigrations();
-    completed.length = 0;
+  addCompletionHandler(handler) {
+    this.completionHandlers.push(handler);
+  }
+
+  removeCompletionHandler(handler) {
+    _.pull(this.completionHandlers, handler);
+  }
+
+  async migrationForEncodedName(name) {
+    let decoded = await this.decode(name);
+    return this.migrations.find((migration) => {
+      return migration.name == decoded;
+    })
   }
 
   loadMigrations() {
@@ -454,6 +473,7 @@ export class SFHttpManager {
     for(var migration of pending) {
       migration.items = [];
     }
+
     for(var item of this.modelManager.allItems) {
       for(var migration of pending) {
         if(item.content_type == migration.content_type) {
@@ -463,19 +483,23 @@ export class SFHttpManager {
     }
 
     for(var migration of pending) {
-      if(migration.items && migration.items.length > 0) {
-        this.runMigration(migration, migration.items);
+      if((migration.items && migration.items.length > 0) || migration.customHandler) {
+        await this.runMigration(migration, migration.items);
       } else {
         this.markMigrationCompleted(migration);
       }
     }
+
+    for(var handler of this.completionHandlers) {
+      handler();
+    }
   }
 
-  encode(text) {
+  async encode(text) {
     return window.btoa(text);
   }
 
-  decode(text) {
+  async decode(text) {
     return window.atob(text);
   }
 
@@ -493,22 +517,33 @@ export class SFHttpManager {
 
   async getPendingMigrations() {
     var completed = await this.getCompletedMigrations();
-    return this.migrations.filter((migration) => {
+    let pending = [];
+    for(var migration of this.migrations) {
       // if the name is not found in completed, then it is pending.
-      return completed.indexOf(this.encode(migration.name)) == -1;
-    })
+      if(completed.indexOf(await this.encode(migration.name)) == -1) {
+        pending.push(migration);
+      }
+    }
+    return pending;
   }
 
   async markMigrationCompleted(migration) {
     var completed = await this.getCompletedMigrations();
-    completed.push(this.encode(migration.name));
+    completed.push(await this.encode(migration.name));
     this.storageManager.setItem("migrations", JSON.stringify(completed));
   }
 
   async runMigration(migration, items) {
     console.log("Running migration:", migration.name);
-    migration.handler(items);
-    this.markMigrationCompleted(migration);
+    if(migration.customHandler) {
+      return migration.customHandler().then(() => {
+        this.markMigrationCompleted(migration);
+      })
+    } else {
+      return migration.handler(items).then(() => {
+        this.markMigrationCompleted(migration);
+      })
+    }
   }
 }
 ;export class SFModelManager {
@@ -2390,7 +2425,7 @@ export class SFStorageManager {
   stateless_downloadAllItems(options = {}) {
     return new Promise(async (resolve, reject) => {
       var params = {
-        limit: 500,
+        limit: options.limit || 500,
         sync_token: options.syncToken,
         cursor_token: options.cursorToken,
         content_type: options.contentType /* currently ignored by server, placed preemptively. See comment above */

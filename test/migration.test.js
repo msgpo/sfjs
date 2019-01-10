@@ -8,7 +8,7 @@ import Factory from './lib/factory.js';
 chai.use(chaiAsPromised);
 var expect = chai.expect;
 
-describe('migrations', () => {
+describe.only('migrations', () => {
   var email = Factory.globalStandardFile().crypto.generateUUIDSync();
   var password = Factory.globalStandardFile().crypto.generateUUIDSync();
 
@@ -41,7 +41,7 @@ describe('migrations', () => {
         {
           name: "migration-1",
           content_type: "Note",
-          handler: (items) => {
+          handler: async (items) => {
             for(var item of items) {
               item.content.foo = "bar";
             }
@@ -95,7 +95,7 @@ describe('migrations', () => {
         {
           name: "migration-2",
           content_type: "Note",
-          handler: (items) => {
+          handler: async (items) => {
             for(var item of items) {
               item.content.bar = randValue1;
             }
@@ -104,7 +104,7 @@ describe('migrations', () => {
         {
           name: "migration-3",
           content_type: "Note",
-          handler: (items) => {
+          handler: async (items) => {
             for(var item of items) {
               item.content.foo = randValue2;
             }
@@ -113,17 +113,22 @@ describe('migrations', () => {
       ]
     }
 
-    migrationManager.loadMigrations();
+    return new Promise(async (resolve, reject) => {
+      migrationManager.addCompletionHandler(() => {
+        expect(item.content.bar).to.equal(randValue1);
+        expect(item.content.foo).to.equal(randValue2);
+        resolve();
+      })
 
-    var item = modelManager.allItems[0];
-    expect(item.content.bar).to.not.equal(randValue1);
-    expect(item.content.foo).to.not.equal(randValue2);
+      migrationManager.loadMigrations();
 
-    await syncManager.loadLocalItems();
-    await syncManager.sync();
+      var item = modelManager.allItems[0];
+      expect(item.content.bar).to.not.equal(randValue1);
+      expect(item.content.foo).to.not.equal(randValue2);
 
-    expect(item.content.bar).to.equal(randValue1);
-    expect(item.content.foo).to.equal(randValue2);
+      await syncManager.loadLocalItems();
+      await syncManager.sync();
+    })
   })
 
   it("should run migrations while offline, then again after signing in", async () => {
@@ -145,7 +150,7 @@ describe('migrations', () => {
         {
           name: "migration-1",
           content_type: "Note",
-          handler: (items) => {
+          handler: async (items) => {
             for(var item of items) {
               item.content.foo = randValue;
             }
@@ -197,6 +202,8 @@ describe('migrations', () => {
     })
 
     await syncManager.sync();
+    // migrations run asyncronously
+    await Factory.sleep(0.1);
     var item = modelManager.findItem(params.uuid);
     expect(item.content.foo).to.equal(randValue);
   })
