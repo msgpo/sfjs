@@ -6196,7 +6196,6 @@ var SFSyncManager = exports.SFSyncManager = function () {
           while (1) {
             switch (_context86.prev = _context86.next) {
               case 0:
-                console.log("Sync error", response);
                 if (statusCode == 401) {
                   this.notifyEvent("sync-session-invalid");
                 }
@@ -6205,6 +6204,8 @@ var SFSyncManager = exports.SFSyncManager = function () {
 
                 if (!response) {
                   response = { error: { message: "Could not connect to server." } };
+                } else if (typeof response == 'string') {
+                  response = { error: { message: response } };
                 }
 
                 this.syncStatus.syncOpInProgress = false;
@@ -6222,7 +6223,7 @@ var SFSyncManager = exports.SFSyncManager = function () {
 
                 return _context86.abrupt("return", response);
 
-              case 13:
+              case 12:
               case "end":
                 return _context86.stop();
             }

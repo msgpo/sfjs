@@ -2315,7 +2315,6 @@ export class SFStorageManager {
   }
 
   async handleSyncError(response, statusCode, allDirtyItems) {
-    console.log("Sync error", response);
     if(statusCode == 401) {
       this.notifyEvent("sync-session-invalid");
     }
@@ -2324,6 +2323,8 @@ export class SFStorageManager {
 
     if(!response) {
       response = {error: {message: "Could not connect to server."}};
+    } else if(typeof response == 'string') {
+      response = {error: {message: response}};
     }
 
     this.syncStatus.syncOpInProgress = false;
