@@ -2957,29 +2957,54 @@ export class SFItem {
 
 }
 ;export class SFPredicate {
+
+
   constructor(keypath, operator, value) {
     this.keypath = keypath;
     this.operator = operator;
     this.value = value;
+
+    // Preprocessing to make predicate evaluation faster.
+    // Won't recurse forever, but with arbitrarily large input could get stuck. Hope there are input size limits
+    // somewhere else.
+    if(SFPredicate.IsRecursiveOperator(this.operator)) {
+      this.value = this.value.map(SFPredicate.fromArray);
+    }
   }
 
   static fromArray(array) {
-    var pred = new SFPredicate();
-    pred.keypath = array[0];
-    pred.operator = array[1];
-    pred.value = array[2];
-    return pred;
+    return new SFPredicate(array[0],array[1],array[2]);
   }
 
   static ObjectSatisfiesPredicate(object, predicate) {
-    var valueAtKeyPath = predicate.keypath.split('.').reduce((previous, current) => {
-      return previous && previous[current]
-    }, object);
+    if(SFPredicate.IsRecursiveOperator(predicate.operator)) {
+      if(predicate.operator === "and") {
+        for(var subPredicate of predicate.value) {
+          if (!this.ObjectSatisfiesPredicate(object, subPredicate)) {
+            return false;
+          }
+        }
+        return true;
+      }
+      if(predicate.operator === "or") {
+        for(var subPredicate of predicate.value) {
+          if (this.ObjectSatisfiesPredicate(object, subPredicate)) {
+            return true;
+          }
+        }
+        return false;
+      }
+    }
 
     var predicateValue = predicate.value;
     if(typeof(predicateValue) == 'string' && predicateValue.includes(".ago")) {
       predicateValue = this.DateFromString(predicateValue);
     }
+
+
+    var valueAtKeyPath = predicate.keypath.split('.').reduce((previous, current) => {
+      return previous && previous[current]
+    }, object);
 
     const falseyValues = [false, "", null, undefined, NaN];
 
@@ -3066,6 +3091,10 @@ export class SFItem {
       date.setHours(date.getHours() - offset);
     }
     return date;
+  }
+
+  static IsRecursiveOperator(operator) {
+    return ["and", "or"].includes(operator);
   }
 }
 ;export class SFPrivileges extends SFItem {
