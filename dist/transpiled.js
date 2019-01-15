@@ -2248,6 +2248,18 @@ var SFModelManager = exports.SFModelManager = function () {
       }
 
       var missedRefs = this.popMissedReferenceStructsForObjects(processedObjects);
+
+      var _loop = function _loop(ref) {
+        var model = models.find(function (candidate) {
+          return candidate.uuid == ref.reference_uuid;
+        });
+        // Model should 100% be defined here, but let's not be too overconfident
+        if (model) {
+          var itemWaitingForTheValueInThisCurrentLoop = ref.for_item;
+          itemWaitingForTheValueInThisCurrentLoop.addItemAsRelationship(model);
+        }
+      };
+
       var _iteratorNormalCompletion14 = true;
       var _didIteratorError14 = false;
       var _iteratorError14 = undefined;
@@ -2256,8 +2268,7 @@ var SFModelManager = exports.SFModelManager = function () {
         for (var _iterator14 = missedRefs[Symbol.iterator](), _step14; !(_iteratorNormalCompletion14 = (_step14 = _iterator14.next()).done); _iteratorNormalCompletion14 = true) {
           var ref = _step14.value;
 
-          var itemWaitingForTheValueInThisCurrentLoop = ref.for_item;
-          itemWaitingForTheValueInThisCurrentLoop.addItemAsRelationship(model);
+          _loop(ref);
         }
       } catch (err) {
         _didIteratorError14 = true;
@@ -2309,7 +2320,7 @@ var SFModelManager = exports.SFModelManager = function () {
           /*
           We used to do string.split to get at the UUID, but surprisingly,
           the performance of this was about 20x worse then just getting the substring.
-           var matches = candidateKey.split(":")[0] == object.uuid;
+           let matches = candidateKey.split(":")[0] == object.uuid;
           */
           var matches = uuids.includes(candidateKey.substring(0, genericUuidLength));
           if (matches) {
@@ -2439,12 +2450,12 @@ var SFModelManager = exports.SFModelManager = function () {
     value: function notifySyncObserversOfModels(models, source, sourceKey) {
       var _this9 = this;
 
-      var _loop = function _loop(observer) {
-        allRelevantItems = observer.types.includes("*") ? models : models.filter(function (item) {
+      var _loop2 = function _loop2(observer) {
+        var allRelevantItems = observer.types.includes("*") ? models : models.filter(function (item) {
           return observer.types.includes(item.content_type);
         });
-        validItems = [];
-        deletedItems = [];
+        var validItems = [],
+            deletedItems = [];
         var _iteratorNormalCompletion20 = true;
         var _didIteratorError20 = false;
         var _iteratorError20 = undefined;
@@ -2487,10 +2498,8 @@ var SFModelManager = exports.SFModelManager = function () {
       try {
         for (var _iterator19 = this.itemSyncObservers[Symbol.iterator](), _step19; !(_iteratorNormalCompletion19 = (_step19 = _iterator19.next()).done); _iteratorNormalCompletion19 = true) {
           var observer = _step19.value;
-          var allRelevantItems;
-          var validItems, deletedItems;
 
-          _loop(observer);
+          _loop2(observer);
         }
       } catch (err) {
         _didIteratorError19 = true;
@@ -4345,7 +4354,7 @@ var SFSingletonManager = exports.SFSingletonManager = function () {
       retrievedItems = retrievedItems || [];
       savedItems = savedItems || [];
 
-      var _loop2 = function _loop2(singletonHandler) {
+      var _loop3 = function _loop3(singletonHandler) {
         predicates = singletonHandler.predicates;
 
         var retrievedSingletonItems = _this17.modelManager.filterItemsWithPredicates(retrievedItems, predicates);
@@ -4450,7 +4459,7 @@ var SFSingletonManager = exports.SFSingletonManager = function () {
           var d;
           var singleton;
 
-          _loop2(singletonHandler);
+          _loop3(singletonHandler);
         }
       } catch (err) {
         _didIteratorError35 = true;

@@ -276,7 +276,7 @@ describe('app models', () => {
   });
 });
 
-describe("mapping performance", () => {
+describe.only("mapping performance", () => {
 
   it("shouldn't take a long time", () => {
     /*
@@ -339,6 +339,10 @@ describe("mapping performance", () => {
     var seconds = (t1 - t0) / 1000;
     const expectedRunTime = 3; // seconds
     expect(seconds).to.be.at.most(expectedRunTime);
+
+    for(let note of modelManager.validItemsForContentType("Note")) {
+      expect(note.referencingObjects.length).to.be.above(0);
+    }
   }).timeout(20000);
 
   it("mapping a tag with thousands of notes should be quick", () => {
@@ -395,6 +399,13 @@ describe("mapping performance", () => {
     var seconds = (t1 - t0) / 1000;
     const expectedRunTime = 3; // seconds
     expect(seconds).to.be.at.most(expectedRunTime);
+
+    let mappedTag = modelManager.validItemsForContentType("Tag")[0];
+    for(let note of modelManager.validItemsForContentType("Note")) {
+      expect(note.referencingObjects.length).to.equal(1);
+      expect(note.referencingObjects[0]).to.equal(mappedTag);
+    }
+
   }).timeout(20000);
 })
 

@@ -588,14 +588,14 @@ export class SFHttpManager {
   }
 
   notifyObserversOfUuidChange(oldItem, newItem) {
-    for(var observer of this.uuidChangeObservers) {
+    for(let observer of this.uuidChangeObservers) {
       observer.callback(oldItem, newItem);
     }
   }
 
   async alternateUUIDForItem(item) {
     // We need to clone this item and give it a new uuid, then delete item with old uuid from db (you can't modify uuid's in our indexeddb setup)
-    var newItem = this.createItem(item);
+    let newItem = this.createItem(item);
     newItem.uuid = await SFJS.crypto.generateUUID();
 
     // Update uuids of relationships
@@ -603,7 +603,7 @@ export class SFHttpManager {
     this.informModelsOfUUIDChangeForItem(newItem, item.uuid, newItem.uuid);
 
     // the new item should inherit the original's relationships
-    for(var referencingObject of item.referencingObjects) {
+    for(let referencingObject of item.referencingObjects) {
       referencingObject.setIsNoLongerBeingReferencedBy(item);
       referencingObject.addItemAsRelationship(newItem);
       referencingObject.setDirty(true);
@@ -639,7 +639,7 @@ export class SFHttpManager {
     // for example, editors have a one way relationship with notes. When a note changes its UUID, it has no way to inform the editor
     // to update its relationships
 
-    for(var model of this.items) {
+    for(let model of this.items) {
       model.potentialItemOfInterestHasChangedItsUUID(newItem, oldUUID, newUUID);
     }
   }
@@ -653,10 +653,10 @@ export class SFHttpManager {
   }
 
   mapResponseItemsToLocalModelsOmittingFields(items, omitFields, source, sourceKey) {
-    var models = [], processedObjects = [], modelsToNotifyObserversOf = [];
+    let models = [], processedObjects = [], modelsToNotifyObserversOf = [];
 
     // first loop should add and process items
-    for(var json_obj of items) {
+    for(let json_obj of items) {
       if(!json_obj) {
         continue;
       }
@@ -669,12 +669,12 @@ export class SFHttpManager {
       // Lodash's _.omit, which was previously used, seems to cause unexpected behavior
       // when json_obj is an ES6 item class. So we instead manually omit each key.
       if(Array.isArray(omitFields)) {
-        for(var key of omitFields) {
+        for(let key of omitFields) {
           delete json_obj[key];
         }
       }
 
-      var item = this.findItem(json_obj.uuid);
+      let item = this.findItem(json_obj.uuid);
 
       if(item) {
         item.updateFromJSON(json_obj);
@@ -688,12 +688,12 @@ export class SFHttpManager {
       }
 
       let contentType = json_obj["content_type"] || (item && item.content_type);
-      var unknownContentType = this.acceptableContentTypes && !this.acceptableContentTypes.includes(contentType);
+      let unknownContentType = this.acceptableContentTypes && !this.acceptableContentTypes.includes(contentType);
       if(unknownContentType) {
         continue;
       }
 
-      var isDirtyItemPendingDelete = false;
+      let isDirtyItemPendingDelete = false;
       if(json_obj.deleted == true) {
         if(json_obj.dirty) {
           // Item was marked as deleted but not yet synced
@@ -726,7 +726,7 @@ export class SFHttpManager {
 
     // second loop should process references
     for(let [index, json_obj] of processedObjects.entries()) {
-      var model = models[index];
+      let model = models[index];
       if(json_obj.content) {
         this.resolveReferencesForItem(model);
       }
@@ -734,10 +734,14 @@ export class SFHttpManager {
       model.didFinishSyncing();
     }
 
-    var missedRefs = this.popMissedReferenceStructsForObjects(processedObjects);
-    for(var ref of missedRefs) {
-      let itemWaitingForTheValueInThisCurrentLoop = ref.for_item;
-      itemWaitingForTheValueInThisCurrentLoop.addItemAsRelationship(model);
+    let missedRefs = this.popMissedReferenceStructsForObjects(processedObjects);
+    for(let ref of missedRefs) {
+      let model = models.find((candidate) => candidate.uuid == ref.reference_uuid);
+      // Model should 100% be defined here, but let's not be too overconfident
+      if(model) {
+        let itemWaitingForTheValueInThisCurrentLoop = ref.for_item;
+        itemWaitingForTheValueInThisCurrentLoop.addItemAsRelationship(model);
+      }
     }
 
     this.notifySyncObserversOfModels(modelsToNotifyObserversOf, source, sourceKey);
@@ -754,20 +758,20 @@ export class SFHttpManager {
       return [];
     }
 
-    var results = [];
-    var toDelete = [];
+    let results = [];
+    let toDelete = [];
     let uuids = objects.map((item) => item.uuid);
     let genericUuidLength = uuids[0].length;
 
     let keys = Object.keys(this.missedReferences);
-    for(var candidateKey of keys) {
+    for(let candidateKey of keys) {
       /*
       We used to do string.split to get at the UUID, but surprisingly,
       the performance of this was about 20x worse then just getting the substring.
 
-      var matches = candidateKey.split(":")[0] == object.uuid;
+      let matches = candidateKey.split(":")[0] == object.uuid;
       */
-      var matches = uuids.includes(candidateKey.substring(0, genericUuidLength));
+      let matches = uuids.includes(candidateKey.substring(0, genericUuidLength));
       if(matches) {
         results.push(this.missedReferences[candidateKey]);
         toDelete.push(candidateKey);
@@ -775,7 +779,7 @@ export class SFHttpManager {
     }
 
     // remove from hash
-    for(var key of toDelete) {
+    for(let key of toDelete) {
       delete this.missedReferences[key];
     }
 
@@ -786,7 +790,7 @@ export class SFHttpManager {
 
     // console.log("resolveReferencesForItem", item, "references", item.contentObject.references);
 
-    var contentObject = item.contentObject;
+    let contentObject = item.contentObject;
 
     // If another client removes an item's references, this client won't pick up the removal unless
     // we remove everything not present in the current list of references
@@ -796,11 +800,11 @@ export class SFHttpManager {
       return;
     }
 
-    var references = contentObject.references.slice(); // make copy, references will be modified in array
+    let references = contentObject.references.slice(); // make copy, references will be modified in array
 
-    var referencesIds = references.map((ref) => {return ref.uuid});
+    let referencesIds = references.map((ref) => {return ref.uuid});
     let includeBlanks = true;
-    var referencesObjectResults = this.findItems(referencesIds, includeBlanks);
+    let referencesObjectResults = this.findItems(referencesIds, includeBlanks);
 
     for(let [index, referencedItem] of referencesObjectResults.entries()) {
       if(referencedItem) {
@@ -809,10 +813,10 @@ export class SFHttpManager {
           referencedItem.setDirty(true);
         }
       } else {
-        var missingRefId = referencesIds[index];
+        let missingRefId = referencesIds[index];
         // Allows mapper to check when missing reference makes it through the loop,
         // and then runs resolveReferencesForItem again for the original item.
-        var mappingKey = this.missedReferenceBuildKey(missingRefId, item.uuid);
+        let mappingKey = this.missedReferenceBuildKey(missingRefId, item.uuid);
         if(!this.missedReferences[mappingKey]) {
           let missedRef = {reference_uuid: missingRefId, for_item: item};
           this.missedReferences[mappingKey] = missedRef;
@@ -825,8 +829,8 @@ export class SFHttpManager {
   notifySyncObserversOfModels(models, source, sourceKey) {
     // Make sure `let` is used in the for loops instead of `var`, as we will be using a timeout below.
     for(let observer of this.itemSyncObservers) {
-      var allRelevantItems = observer.types.includes("*") ? models : models.filter((item) => {return observer.types.includes(item.content_type)});
-      var validItems = [], deletedItems = [];
+      let allRelevantItems = observer.types.includes("*") ? models : models.filter((item) => {return observer.types.includes(item.content_type)});
+      let validItems = [], deletedItems = [];
       for(let item of allRelevantItems) {
         if(item.deleted) {
           deletedItems.push(item);
@@ -852,11 +856,11 @@ export class SFHttpManager {
   }
 
   createItem(json_obj, dontNotifyObservers) {
-    var itemClass = SFModelManager.ContentTypeClassMapping && SFModelManager.ContentTypeClassMapping[json_obj.content_type];
+    let itemClass = SFModelManager.ContentTypeClassMapping && SFModelManager.ContentTypeClassMapping[json_obj.content_type];
     if(!itemClass) {
       itemClass = SFItem;
     }
-    var item = new itemClass(json_obj);
+    let item = new itemClass(json_obj);
 
     // Some observers would be interested to know when an an item is locally created
     // If we don't send this out, these observers would have to wait until MappingSourceRemoteSaved
@@ -878,14 +882,14 @@ export class SFHttpManager {
     to check if this prospective duplicate item is identical to another item, including the references.
    */
   createConflictedItem(itemResponse) {
-    var dup = this.createItem(itemResponse, true);
+    let dup = this.createItem(itemResponse, true);
     return dup;
   }
 
   addConflictedItem(dup, original) {
     this.addItem(dup);
     // the duplicate should inherit the original's relationships
-    for(var referencingObject of original.referencingObjects) {
+    for(let referencingObject of original.referencingObjects) {
       referencingObject.addItemAsRelationship(dup);
       referencingObject.setDirty(true);
     }
@@ -895,14 +899,14 @@ export class SFHttpManager {
   }
 
   duplicateItem(item) {
-    var copy = new item.constructor({content: item.content});
+    let copy = new item.constructor({content: item.content});
     copy.created_at = item.created_at;
     copy.content_type = item.content_type;
 
     this.addItem(copy);
 
     // the duplicate should inherit the original's relationships
-    for(var referencingObject of item.referencingObjects) {
+    for(let referencingObject of item.referencingObjects) {
       referencingObject.addItemAsRelationship(copy);
       referencingObject.setDirty(true);
     }
@@ -946,7 +950,7 @@ export class SFHttpManager {
   }
 
   clearDirtyItems(items) {
-    for(var item of items) {
+    for(let item of items) {
       item.setDirty(false);
     }
   }
@@ -961,8 +965,8 @@ export class SFHttpManager {
 
   removeAndDirtyAllRelationshipsForItem(item) {
     // Handle direct relationships
-    for(var reference of item.content.references) {
-      var relationship = this.findItem(reference.uuid);
+    for(let reference of item.content.references) {
+      let relationship = this.findItem(reference.uuid);
       if(relationship) {
         item.removeItemAsRelationship(relationship);
         if(relationship.hasRelationshipWithItem(item)) {
@@ -973,7 +977,7 @@ export class SFHttpManager {
     }
 
     // Handle indirect relationships
-    for(var object of item.referencingObjects) {
+    for(let object of item.referencingObjects) {
       object.removeItemAsRelationship(item);
       object.setDirty(true);
     }
@@ -983,9 +987,9 @@ export class SFHttpManager {
 
   /* Used when changing encryption key */
   setAllItemsDirty(dontUpdateClientDates = true) {
-    var relevantItems = this.allItems;
+    let relevantItems = this.allItems;
 
-    for(var item of relevantItems) {
+    for(let item of relevantItems) {
       item.setDirty(true, dontUpdateClientDates);
     }
   }
@@ -1030,9 +1034,9 @@ export class SFHttpManager {
   }
 
   findItems(ids, includeBlanks = false) {
-    var results = [];
-    for(var id of ids) {
-      var item = this.itemsHash[id];
+    let results = [];
+    for(let id of ids) {
+      let item = this.itemsHash[id];
       if(item || includeBlanks) {
         results.push(item);
       }
@@ -1049,8 +1053,8 @@ export class SFHttpManager {
   }
 
   filterItemsWithPredicates(items, predicates) {
-    var results = items.filter((item) => {
-      for(var predicate of predicates)  {
+    let results = items.filter((item) => {
+      for(let predicate of predicates)  {
         if(!item.satisfiesPredicate(predicate)) {
           return false;
         }
@@ -1067,14 +1071,14 @@ export class SFHttpManager {
   */
 
   importItems(externalItems) {
-    var itemsToBeMapped = [];
-    for(var itemData of externalItems) {
-      var existing = this.findItem(itemData.uuid);
+    let itemsToBeMapped = [];
+    for(let itemData of externalItems) {
+      let existing = this.findItem(itemData.uuid);
       if(existing && !existing.errorDecrypting) {
         // if the item already exists, check to see if it's different from the import data.
         // If it's the same, do nothing, otherwise, create a copy.
         itemData.uuid = null;
-        var dup = this.createConflictedItem(itemData);
+        let dup = this.createConflictedItem(itemData);
         if(!itemData.deleted && !existing.isItemContentEqualWith(dup)) {
           // Data differs
           this.addConflictedItem(dup, existing);
@@ -1089,8 +1093,8 @@ export class SFHttpManager {
       }
     }
 
-    var items = this.mapResponseItemsToLocalModels(itemsToBeMapped, SFModelManager.MappingSourceFileImport);
-    for(var item of items) {
+    let items = this.mapResponseItemsToLocalModels(itemsToBeMapped, SFModelManager.MappingSourceFileImport);
+    for(let item of items) {
       item.setDirty(true, true);
       item.deleted = false;
     }
@@ -1104,14 +1108,14 @@ export class SFHttpManager {
 
   async getJSONDataForItems(items, keys, authParams, returnNullIfEmpty) {
     return Promise.all(items.map((item) => {
-      var itemParams = new SFItemParams(item, keys, authParams);
+      let itemParams = new SFItemParams(item, keys, authParams);
       return itemParams.paramsForExportFile();
     })).then((items) => {
       if(returnNullIfEmpty && items.length == 0) {
         return null;
       }
 
-      var data = {items: items}
+      let data = {items: items}
 
       if(keys) {
         // auth params are only needed when encrypted with a standard file key
