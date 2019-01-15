@@ -7479,6 +7479,12 @@ var SFPredicate = exports.SFPredicate = function () {
   }, {
     key: "ObjectSatisfiesPredicate",
     value: function ObjectSatisfiesPredicate(object, predicate) {
+      // Predicates may not always be created using the official constructor
+      // so if it's still an array here, convert to object
+      if (Array.isArray(predicate)) {
+        predicate = this.fromArray(predicate);
+      }
+
       if (SFPredicate.IsRecursiveOperator(predicate.operator)) {
         if (predicate.operator === "and") {
           var _iteratorNormalCompletion49 = true;
