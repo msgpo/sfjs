@@ -4950,6 +4950,7 @@ var SFSyncManager = exports.SFSyncManager = function () {
 
                               return _context72.abrupt("return", new Promise(function (innerResolve, innerReject) {
                                 _this19.$timeout(function () {
+                                  _this19.notifyEvent("local-data-incremental-load");
                                   incrementalCallback && incrementalCallback(current, total);
                                   decryptNext().then(innerResolve);
                                 });

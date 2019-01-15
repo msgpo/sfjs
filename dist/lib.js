@@ -1865,6 +1865,7 @@ export class SFStorageManager {
         if(current < total) {
           return new Promise((innerResolve, innerReject) => {
             this.$timeout(() => {
+              this.notifyEvent("local-data-incremental-load");
               incrementalCallback && incrementalCallback(current, total);
               decryptNext().then(innerResolve);
             });
