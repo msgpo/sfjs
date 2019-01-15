@@ -276,7 +276,7 @@ describe('app models', () => {
   });
 });
 
-describe.only("mapping performance", () => {
+describe("mapping performance", () => {
 
   it("shouldn't take a long time", () => {
     /*

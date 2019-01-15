@@ -1790,7 +1790,7 @@ export class SFStorageManager {
   }
 
   registerSyncStatusObserver(callback) {
-    var observer = {key: new Date(), callback: callback};
+    let observer = {key: new Date(), callback: callback};
     this.syncStatusObservers.push(observer);
     return observer;
   }
@@ -1826,7 +1826,7 @@ export class SFStorageManager {
   }
 
   notifyEvent(syncEvent, data) {
-    for(var handler of this.eventHandlers) {
+    for(let handler of this.eventHandlers) {
       handler(syncEvent, data || {});
     }
   }
@@ -1856,12 +1856,12 @@ export class SFStorageManager {
     return this.storageManager.getAllModels().then((items) => {
       // break it up into chunks to make interface more responsive for large item counts
       let total = items.length;
-      var current = 0;
-      var processed = [];
+      let current = 0;
+      let processed = [];
 
-      var decryptNext = async () => {
-        var subitems = items.slice(current, current + batchSize);
-        var processedSubitems = await this.handleItemsResponse(subitems, null, SFModelManager.MappingSourceLocalRetrieved, SFSyncManager.KeyRequestLoadLocal);
+      let decryptNext = async () => {
+        let subitems = items.slice(current, current + batchSize);
+        let processedSubitems = await this.handleItemsResponse(subitems, null, SFModelManager.MappingSourceLocalRetrieved, SFSyncManager.KeyRequestLoadLocal);
         processed.push(processedSubitems);
 
         current += subitems.length;
@@ -1895,7 +1895,7 @@ export class SFStorageManager {
       let info = await this.getActiveKeyInfo(SFSyncManager.KeyRequestSaveLocal);
 
       Promise.all(items.map(async (item) => {
-        var itemParams = new SFItemParams(item, info.keys, info.auth_params);
+        let itemParams = new SFItemParams(item, info.keys, info.auth_params);
         itemParams = await itemParams.paramsForLocalStorage();
         if(offlineOnly) {
           delete itemParams.dirty;
@@ -1924,10 +1924,10 @@ export class SFStorageManager {
 
   async syncOffline(items) {
     // Update all items updated_at to now
-    for(var item of items) { item.updated_at = new Date(); }
+    for(let item of items) { item.updated_at = new Date(); }
     return this.writeItemsToLocalStorage(items, true).then((responseItems) => {
       // delete anything needing to be deleted
-      for(var item of items) {
+      for(let item of items) {
         if(item.deleted) { this.modelManager.removeItemLocally(item);}
       }
 
@@ -1947,10 +1947,10 @@ export class SFStorageManager {
   async markAllItemsDirtyAndSaveOffline(alternateUUIDs) {
 
     // use a copy, as alternating uuid will affect array
-    var originalItems = this.modelManager.allItems.filter((item) => {return !item.errorDecrypting}).slice();
+    let originalItems = this.modelManager.allItems.filter((item) => {return !item.errorDecrypting}).slice();
 
     if(alternateUUIDs) {
-      for(var item of originalItems) {
+      for(let item of originalItems) {
         // Update: the last params has been removed. Defaults to true.
         // Old: alternateUUIDForItem last param is a boolean that controls whether the original item
         // should be removed locally after new item is created. We set this to true, since during sign in,
@@ -1963,8 +1963,8 @@ export class SFStorageManager {
       }
     }
 
-    var allItems = this.modelManager.allItems;
-    for(var item of allItems) { item.setDirty(true); }
+    let allItems = this.modelManager.allItems;
+    for(let item of allItems) { item.setDirty(true); }
     return this.writeItemsToLocalStorage(allItems, false);
   }
 
@@ -2008,9 +2008,9 @@ export class SFStorageManager {
   }
 
   callQueuedCallbacks(response) {
-    var allCallbacks = this.queuedCallbacks;
+    let allCallbacks = this.queuedCallbacks;
     if(allCallbacks.length) {
-      for(var eachCallback of allCallbacks) {
+      for(let eachCallback of allCallbacks) {
         eachCallback(response);
       }
       this.clearQueuedCallbacks();
@@ -2023,8 +2023,8 @@ export class SFStorageManager {
     }
     this.syncStatus.checker = this.$interval(function(){
       // check to see if the ongoing sync is taking too long, alert the user
-      var secondsPassed = (new Date() - this.syncStatus.syncStart) / 1000;
-      var warningThreshold = 5.0; // seconds
+      let secondsPassed = (new Date() - this.syncStatus.syncStart) / 1000;
+      let warningThreshold = 5.0; // seconds
       if(secondsPassed > warningThreshold) {
         this.notifyEvent("sync:taking-too-long");
         this.stopCheckingIfSyncIsTakingTooLong();
@@ -2060,7 +2060,7 @@ export class SFStorageManager {
 
       if(!options) options = {};
 
-      var allDirtyItems = this.modelManager.getDirtyItems();
+      let allDirtyItems = this.modelManager.getDirtyItems();
 
       /*
         When it comes to saving to disk before the sync request (both in syncOpInProgress and preSyncSave),
@@ -2104,14 +2104,14 @@ export class SFStorageManager {
         return;
       }
 
-      var isContinuationSync = this.syncStatus.needsMoreSync;
+      let isContinuationSync = this.syncStatus.needsMoreSync;
 
       this.syncStatus.syncOpInProgress = true;
       this.syncStatus.syncStart = new Date();
       this.beginCheckingIfSyncIsTakingTooLong();
 
       let submitLimit = 100;
-      var subItems = allDirtyItems.slice(0, submitLimit);
+      let subItems = allDirtyItems.slice(0, submitLimit);
       if(subItems.length < allDirtyItems.length) {
         // more items left to be synced, repeat
         this.syncStatus.needsMoreSync = true;
@@ -2154,12 +2154,12 @@ export class SFStorageManager {
         this.allSavedItems = [];
       }
 
-      var params = {};
+      let params = {};
       params.limit = 150;
 
       try {
         await Promise.all(subItems.map((item) => {
-          var itemParams = new SFItemParams(item, info.keys, info.auth_params);
+          let itemParams = new SFItemParams(item, info.keys, info.auth_params);
           itemParams.additionalFields = options.additionalFields;
           return itemParams.paramsForSync();
         })).then((itemsParams) => {
@@ -2169,7 +2169,7 @@ export class SFStorageManager {
         this.notifyEvent("sync-exception", e);
       }
 
-      for(var item of subItems) {
+      for(let item of subItems) {
         // Reset dirty counter to 0, since we're about to sync it.
         // This means anyone marking the item as dirty after this will cause it so sync again and not be cleared on sync completion.
         item.dirtyCount = 0;
@@ -2202,8 +2202,8 @@ export class SFStorageManager {
 
   async handleSyncSuccess(syncedItems, response, options) {
     // Check to make sure any subItem hasn't been marked as dirty again while a sync was ongoing
-    var itemsToClearAsDirty = [];
-    for(var item of syncedItems) {
+    let itemsToClearAsDirty = [];
+    for(let item of syncedItems) {
       if(item.dirtyCount == 0) {
         // Safe to clear as dirty
         itemsToClearAsDirty.push(item);
@@ -2224,7 +2224,7 @@ export class SFStorageManager {
 
     // Map retrieved items to local data
     // Note that deleted items will not be returned
-    var retrieved = await this.handleItemsResponse(response.retrieved_items, null, SFModelManager.MappingSourceRemoteRetrieved, SFSyncManager.KeyRequestLoadSaveAccount);
+    let retrieved = await this.handleItemsResponse(response.retrieved_items, null, SFModelManager.MappingSourceRemoteRetrieved, SFSyncManager.KeyRequestLoadSaveAccount);
 
     // Append items to master list of retrieved items for this ongoing sync operation
     this.allRetreivedItems = this.allRetreivedItems.concat(retrieved);
@@ -2233,16 +2233,16 @@ export class SFStorageManager {
     // Merge only metadata for saved items
     // we write saved items to disk now because it clears their dirty status then saves
     // if we saved items before completion, we had have to save them as dirty and save them again on success as clean
-    var omitFields = ["content", "auth_hash"];
+    let omitFields = ["content", "auth_hash"];
 
     // Map saved items to local data
-    var saved = await this.handleItemsResponse(response.saved_items, omitFields, SFModelManager.MappingSourceRemoteSaved, SFSyncManager.KeyRequestLoadSaveAccount);
+    let saved = await this.handleItemsResponse(response.saved_items, omitFields, SFModelManager.MappingSourceRemoteSaved, SFSyncManager.KeyRequestLoadSaveAccount);
 
     // Append items to master list of saved items for this ongoing sync operation
     this.allSavedItems = this.allSavedItems.concat(saved);
 
     // Create copies of items or alternate their uuids if neccessary
-    var unsaved = response.unsaved;
+    let unsaved = response.unsaved;
     // don't `await`. This function calls sync, so if you wait, it will call sync without having completed the sync we're in.
     // On second thought, calling await will only await the local conflict resolution and not await the sync call.
     // We do need to wait here for sync duplication to finish. If we don't, there seems to be an issue where if you import a large
@@ -2349,15 +2349,15 @@ export class SFStorageManager {
   }
 
   async handleItemsResponse(responseItems, omitFields, source, keyRequest) {
-    var keys = (await this.getActiveKeyInfo(keyRequest)).keys;
+    let keys = (await this.getActiveKeyInfo(keyRequest)).keys;
     await SFJS.itemTransformer.decryptMultipleItems(responseItems, keys);
-    var items = this.modelManager.mapResponseItemsToLocalModelsOmittingFields(responseItems, omitFields, source);
+    let items = this.modelManager.mapResponseItemsToLocalModelsOmittingFields(responseItems, omitFields, source);
 
     // During the decryption process, items may be marked as "errorDecrypting". If so, we want to be sure
     // to persist this new state by writing these items back to local storage. When an item's "errorDecrypting"
     // flag is changed, its "errorDecryptingValueChanged" flag will be set, so we can find these items by filtering (then unsetting) below:
-    var itemsWithErrorStatusChange = items.filter((item) => {
-      var valueChanged = item.errorDecryptingValueChanged;
+    let itemsWithErrorStatusChange = items.filter((item) => {
+      let valueChanged = item.errorDecryptingValueChanged;
       // unset after consuming value
       item.errorDecryptingValueChanged = false;
       return valueChanged;
@@ -2370,7 +2370,7 @@ export class SFStorageManager {
   }
 
   async refreshErroredItems() {
-    var erroredItems = this.modelManager.allItems.filter((item) => {return item.errorDecrypting == true});
+    let erroredItems = this.modelManager.allItems.filter((item) => {return item.errorDecrypting == true});
     if(erroredItems.length > 0) {
       return this.handleItemsResponse(erroredItems, null, SFModelManager.MappingSourceLocalRetrieved, SFSyncManager.KeyRequestLoadSaveAccount);
     }
@@ -2384,14 +2384,14 @@ export class SFStorageManager {
     console.log("Handle Conflicted Items:", unsaved);
 
     for(let mapping of unsaved) {
-      var itemResponse = mapping.item;
+      let itemResponse = mapping.item;
       await SFJS.itemTransformer.decryptMultipleItems([itemResponse], (await this.getActiveKeyInfo(SFSyncManager.KeyRequestLoadSaveAccount)).keys);
-      var item = this.modelManager.findItem(itemResponse.uuid);
+      let item = this.modelManager.findItem(itemResponse.uuid);
 
       // Could be deleted
       if(!item) { continue; }
 
-      var error = mapping.error;
+      let error = mapping.error;
 
       if(error.tag === "uuid_conflict") {
         // UUID conflicts can occur if a user attempts to
@@ -2404,7 +2404,7 @@ export class SFStorageManager {
         // We want a new uuid for the new item. Note that this won't neccessarily adjust references.
         itemResponse.uuid = await SFJS.crypto.generateUUID();
 
-        var dup = this.modelManager.createConflictedItem(itemResponse);
+        let dup = this.modelManager.createConflictedItem(itemResponse);
         if(!itemResponse.deleted && !item.isItemContentEqualWith(dup)) {
           this.modelManager.addConflictedItem(dup, item);
         }
@@ -2430,7 +2430,7 @@ export class SFStorageManager {
   */
   stateless_downloadAllItems(options = {}) {
     return new Promise(async (resolve, reject) => {
-      var params = {
+      let params = {
         limit: options.limit || 500,
         sync_token: options.syncToken,
         cursor_token: options.cursorToken,
@@ -2444,7 +2444,7 @@ export class SFStorageManager {
           }
 
           let incomingItems = response.retrieved_items;
-          var keys = (await this.getActiveKeyInfo(SFSyncManager.KeyRequestLoadSaveAccount)).keys;
+          let keys = (await this.getActiveKeyInfo(SFSyncManager.KeyRequestLoadSaveAccount)).keys;
           await SFJS.itemTransformer.decryptMultipleItems(incomingItems, keys);
 
           options.retrievedItems = options.retrievedItems.concat(incomingItems.map((incomingItem) => {

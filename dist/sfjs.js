@@ -5286,10 +5286,10 @@ var SFSyncManager = exports.SFSyncManager = function () {
 
                   try {
                     for (var _iterator39 = items[Symbol.iterator](), _step39; !(_iteratorNormalCompletion39 = (_step39 = _iterator39.next()).done); _iteratorNormalCompletion39 = true) {
-                      var item = _step39.value;
+                      var _item = _step39.value;
 
-                      if (item.deleted) {
-                        _this21.modelManager.removeItemLocally(item);
+                      if (_item.deleted) {
+                        _this21.modelManager.removeItemLocally(_item);
                       }
                     }
                   } catch (err) {
@@ -5339,7 +5339,7 @@ var SFSyncManager = exports.SFSyncManager = function () {
     key: "markAllItemsDirtyAndSaveOffline",
     value: function () {
       var _ref82 = _asyncToGenerator( /*#__PURE__*/regeneratorRuntime.mark(function _callee78(alternateUUIDs) {
-        var originalItems, _iteratorNormalCompletion40, _didIteratorError40, _iteratorError40, _iterator40, _step40, item, allItems, _iteratorNormalCompletion41, _didIteratorError41, _iteratorError41, _iterator41, _step41;
+        var originalItems, _iteratorNormalCompletion40, _didIteratorError40, _iteratorError40, _iterator40, _step40, item, allItems, _iteratorNormalCompletion41, _didIteratorError41, _iteratorError41, _iterator41, _step41, _item2;
 
         return regeneratorRuntime.wrap(function _callee78$(_context78) {
           while (1) {
@@ -5419,8 +5419,8 @@ var SFSyncManager = exports.SFSyncManager = function () {
                 _context78.prev = 32;
 
                 for (_iterator41 = allItems[Symbol.iterator](); !(_iteratorNormalCompletion41 = (_step41 = _iterator41.next()).done); _iteratorNormalCompletion41 = true) {
-                  item = _step41.value;
-                  item.setDirty(true);
+                  _item2 = _step41.value;
+                  _item2.setDirty(true);
                 }
                 _context78.next = 40;
                 break;
