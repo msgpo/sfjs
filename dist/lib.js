@@ -234,8 +234,8 @@ export class SFAlertManager {
       var params = _.merge({password: keys.pw, email: email}, extraParams);
 
       this.httpManager.postAbsolute(requestUrl, params, async (response) => {
-        this.notifyEvent(SFAuthManager.DidSignInEvent);
         await this.handleAuthResponse(response, email, url, authParams, keys);
+        this.notifyEvent(SFAuthManager.DidSignInEvent);
         this.$timeout(() => this.unlockAndResolve(resolve, response));
       }, (response) => {
         console.error("Error logging in", response);
@@ -787,6 +787,10 @@ export class SFHttpManager {
   }
 
   resolveReferencesForItem(item, markReferencesDirty = false) {
+
+    if(item.errorDecrypting) {
+      return;
+    }
 
     // console.log("resolveReferencesForItem", item, "references", item.contentObject.references);
 
@@ -2499,7 +2503,7 @@ export class SFItem {
       }
     }
 
-    if(!this.content.references) {
+    if(typeof this.content === 'object' && !this.content.references) {
       this.content.references = [];
     }
   }
@@ -2513,6 +2517,11 @@ export class SFItem {
   }
 
   get contentObject() {
+
+    if(this.errorDecrypting) {
+      return this.content;
+    }
+
     if(!this.content) {
       this.content = {};
       return this.content;
@@ -2573,11 +2582,15 @@ export class SFItem {
     // this.content = json.content will copy it by reference rather than value. So we need to do a deep merge after.
     // json.content can still be a string here. We copy it to this.content, then do a deep merge to transfer over all values.
 
-    try {
-      let parsedContent = typeof json.content === 'string' ? JSON.parse(json.content) : json.content;
-      SFItem.deepMerge(this.contentObject, parsedContent);
-    } catch (e) {
-      console.log("Error while updating item from json", e);
+    if(json.errorDecrypting) {
+      this.content = json.content;
+    } else {
+      try {
+        let parsedContent = typeof json.content === 'string' ? JSON.parse(json.content) : json.content;
+        SFItem.deepMerge(this.contentObject, parsedContent);
+      } catch (e) {
+        console.log("Error while updating item from json", e);
+      }
     }
 
     if(this.created_at) {

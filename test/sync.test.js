@@ -129,6 +129,27 @@ describe('online syncing', () => {
     })
   });
 
+  it.only("mapping should not mutate items with error decrypting state", async () => {
+    var item = Factory.createItem();
+    let originalTitle = item.content.title;
+    item.setDirty(true);
+    modelManager.addItem(item);
+    await syncManager.sync();
+    totalItemCount++;
+
+    let keys = await authManager.keys();
+    let authParams = await authManager.getAuthParams();
+    var itemParams = await new SFItemParams(item, keys, authParams).paramsForSync();
+    itemParams.errorDecrypting = true;
+    let mappedItem = modelManager.mapResponseItemsToLocalModels([itemParams])[0];
+    expect(typeof mappedItem.content).to.equal("string");
+
+    await SFJS.itemTransformer.decryptItem(itemParams, keys);
+    mappedItem = modelManager.mapResponseItemsToLocalModels([itemParams])[0];
+    expect(typeof mappedItem.content).to.equal("object");
+    expect(mappedItem.content.title).to.equal(originalTitle);
+  });
+
   it("should handle sync conflicts by duplicating differing data", async () => {
     // create an item and sync it
     var item = Factory.createItem();

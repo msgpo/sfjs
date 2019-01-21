@@ -628,11 +628,11 @@ var SFAuthManager = exports.SFAuthManager = function () {
                                   while (1) {
                                     switch (_context10.prev = _context10.next) {
                                       case 0:
-                                        _this3.notifyEvent(SFAuthManager.DidSignInEvent);
-                                        _context10.next = 3;
+                                        _context10.next = 2;
                                         return _this3.handleAuthResponse(response, email, url, authParams, keys);
 
-                                      case 3:
+                                      case 2:
+                                        _this3.notifyEvent(SFAuthManager.DidSignInEvent);
                                         _this3.$timeout(function () {
                                           return _this3.unlockAndResolve(resolve, response);
                                         });
@@ -2377,6 +2377,10 @@ var SFModelManager = exports.SFModelManager = function () {
     value: function resolveReferencesForItem(item) {
       var markReferencesDirty = arguments.length > 1 && arguments[1] !== undefined ? arguments[1] : false;
 
+
+      if (item.errorDecrypting) {
+        return;
+      }
 
       // console.log("resolveReferencesForItem", item, "references", item.contentObject.references);
 
@@ -6572,7 +6576,7 @@ var SFItem = exports.SFItem = function () {
       }
     }
 
-    if (!this.content.references) {
+    if (_typeof(this.content) === 'object' && !this.content.references) {
       this.content.references = [];
     }
   }
@@ -6665,11 +6669,15 @@ var SFItem = exports.SFItem = function () {
       // this.content = json.content will copy it by reference rather than value. So we need to do a deep merge after.
       // json.content can still be a string here. We copy it to this.content, then do a deep merge to transfer over all values.
 
-      try {
-        var parsedContent = typeof json.content === 'string' ? JSON.parse(json.content) : json.content;
-        SFItem.deepMerge(this.contentObject, parsedContent);
-      } catch (e) {
-        console.log("Error while updating item from json", e);
+      if (json.errorDecrypting) {
+        this.content = json.content;
+      } else {
+        try {
+          var parsedContent = typeof json.content === 'string' ? JSON.parse(json.content) : json.content;
+          SFItem.deepMerge(this.contentObject, parsedContent);
+        } catch (e) {
+          console.log("Error while updating item from json", e);
+        }
       }
 
       if (this.created_at) {
@@ -7027,6 +7035,11 @@ var SFItem = exports.SFItem = function () {
   }, {
     key: "contentObject",
     get: function get() {
+
+      if (this.errorDecrypting) {
+        return this.content;
+      }
+
       if (!this.content) {
         this.content = {};
         return this.content;
