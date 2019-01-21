@@ -44,9 +44,7 @@ const createItem = () => {
   return new SFItem(createItemParams());
 }
 
-
-
-describe("predicates", () => {
+describe.only("predicates", () => {
   it('test and operator', () => {
     let item = createItem();
     expect(item.satisfiesPredicate(new SFPredicate( "this_field_ignored", "and", [
@@ -93,6 +91,7 @@ describe("predicates", () => {
         ["content.title", "=", "Hello"],
       ]]
     ]))).to.equal(true);
+
     expect(item.satisfiesPredicate(new SFPredicate( "this_field_ignored", "and", [
       ["content.title", "=", "Hello"],
       ["this_field_ignored", "or", [
@@ -102,6 +101,16 @@ describe("predicates", () => {
       ]]
     ]))).to.equal(false);
   })
+
+  it('test custom and', () => {
+    let item = createItem();
+    item.setAppDataItem("pinned", true);
+    item.content.protected = true;
+    expect(item.satisfiesPredicate(new SFPredicate( "this_field_ignored", "and", [
+      ["pinned", "=", true],
+      ["content.protected", "=", true]
+    ]))).to.equal(true);
+  });
 
   it('test equality', () => {
     let item = createItem();

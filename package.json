@@ -1,6 +1,6 @@
 {
   "name": "standard-file-js",
-  "version": "0.3.35",
+  "version": "0.3.37",
   "main": "dist/sfjs.js",
   "scripts": {
     "test": "mocha --require babel-register"
