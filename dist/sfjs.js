@@ -4880,6 +4880,10 @@ var SFSyncManager = exports.SFSyncManager = function () {
     this.syncStatus = {};
     this.syncStatusObservers = [];
     this.eventHandlers = [];
+
+    // The number of changed items that constitute a major change
+    // This is used by the desktop app to create backups
+    this.MajorDataChangeThreshold = 15;
   }
 
   _createClass(SFSyncManager, [{
@@ -6016,7 +6020,7 @@ var SFSyncManager = exports.SFSyncManager = function () {
       var _ref90 = _asyncToGenerator( /*#__PURE__*/regeneratorRuntime.mark(function _callee85(syncedItems, response, options) {
         var _this23 = this;
 
-        var itemsToClearAsDirty, _iteratorNormalCompletion44, _didIteratorError44, _iteratorError44, _iterator44, _step44, item, allSavedUUIDs, retrieved, omitFields, saved, unsaved, isInitialSync, cursorToken, majorDataChangeThreshold;
+        var itemsToClearAsDirty, _iteratorNormalCompletion44, _didIteratorError44, _iteratorError44, _iterator44, _step44, item, allSavedUUIDs, retrieved, omitFields, saved, unsaved, isInitialSync, cursorToken;
 
         return regeneratorRuntime.wrap(function _callee85$(_context85) {
           while (1) {
@@ -6202,11 +6206,7 @@ var SFSyncManager = exports.SFSyncManager = function () {
                 this.syncStatus.retrievedCount = 0;
                 this.syncStatusDidChange();
 
-                // The number of changed items that constitute a major change
-                // This is used by the desktop app to create backups
-                majorDataChangeThreshold = 10;
-
-                if (this.allRetreivedItems.length >= majorDataChangeThreshold || saved.length >= majorDataChangeThreshold || unsaved.length >= majorDataChangeThreshold) {
+                if (this.allRetreivedItems.length >= this.majorDataChangeThreshold || saved.length >= this.majorDataChangeThreshold || unsaved.length >= this.majorDataChangeThreshold) {
                   this.notifyEvent("major-data-change");
                 }
 
@@ -6218,7 +6218,7 @@ var SFSyncManager = exports.SFSyncManager = function () {
 
                 return _context85.abrupt("return", response);
 
-              case 72:
+              case 71:
               case "end":
                 return _context85.stop();
             }

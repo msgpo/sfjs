@@ -1802,6 +1802,10 @@ export class SFStorageManager {
     this.syncStatus = {};
     this.syncStatusObservers = [];
     this.eventHandlers = [];
+
+    // The number of changed items that constitute a major change
+    // This is used by the desktop app to create backups
+    this.MajorDataChangeThreshold = 15;
   }
 
   async getServerURL() {
@@ -2353,13 +2357,10 @@ export class SFStorageManager {
       this.syncStatus.retrievedCount = 0;
       this.syncStatusDidChange();
 
-      // The number of changed items that constitute a major change
-      // This is used by the desktop app to create backups
-      let majorDataChangeThreshold = 10;
       if(
-        this.allRetreivedItems.length >= majorDataChangeThreshold ||
-        saved.length >= majorDataChangeThreshold ||
-        unsaved.length >= majorDataChangeThreshold
+        this.allRetreivedItems.length >= this.majorDataChangeThreshold ||
+        saved.length >= this.majorDataChangeThreshold ||
+        unsaved.length >= this.majorDataChangeThreshold
       ) {
         this.notifyEvent("major-data-change");
       }
