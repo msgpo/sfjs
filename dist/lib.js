@@ -474,7 +474,7 @@ export class SFHttpManager {
       migration.items = [];
     }
 
-    for(var item of this.modelManager.allItems) {
+    for(var item of this.modelManager.allNondummyItems) {
       for(var migration of pending) {
         if(item.content_type == migration.content_type) {
           migration.items.push(item);
@@ -1018,6 +1018,10 @@ export class SFHttpManager {
   /* Searching */
 
   get allItems() {
+    return this.items.slice();
+  }
+
+  get allNondummyItems() {
     return this.items.filter(function(item){
       return !item.dummy;
     })
@@ -1598,13 +1602,13 @@ export class SFSingletonManager {
     // here, we priortize ours loading as most important
     modelManager.addItemSyncObserverWithPriority({id: "sf-singleton-manager", types: "*", priority: -1,
       callback: () => {
-        this.resolveSingletons(modelManager.allItems, null, true);
+        this.resolveSingletons(modelManager.allNondummyItems, null, true);
       }
     })
 
     syncManager.addEventHandler((syncEvent, data) => {
       if(syncEvent == "local-data-loaded") {
-        this.resolveSingletons(modelManager.allItems, null, true);
+        this.resolveSingletons(modelManager.allNondummyItems, null, true);
         this.initialDataLoaded = true;
       } else if(syncEvent == "sync:completed") {
         // Wait for initial data load before handling any sync. If we don't want for initial data load,
@@ -1663,7 +1667,7 @@ export class SFSingletonManager {
 
       // We only want to consider saved items count to see if it's more than 0, and do nothing else with it.
       // This way we know there was some action and things need to be resolved. The saved items will come up
-      // in filterItemsWithPredicate(this.modelManager.allItems) and be deleted anyway
+      // in filterItemsWithPredicate(this.modelManager.allNondummyItems) and be deleted anyway
       let savedSingletonItemsCount = this.modelManager.filterItemsWithPredicates(savedItems, predicates).length;
 
       if(retrievedSingletonItems.length > 0 || savedSingletonItemsCount > 0) {
@@ -2006,7 +2010,7 @@ export class SFStorageManager {
   async markAllItemsDirtyAndSaveOffline(alternateUUIDs) {
 
     // use a copy, as alternating uuid will affect array
-    let originalItems = this.modelManager.allItems.filter((item) => {return !item.errorDecrypting}).slice();
+    let originalItems = this.modelManager.allNondummyItems.filter((item) => {return !item.errorDecrypting}).slice();
 
     if(alternateUUIDs) {
       for(let item of originalItems) {
@@ -2022,7 +2026,7 @@ export class SFStorageManager {
       }
     }
 
-    let allItems = this.modelManager.allItems;
+    let allItems = this.modelManager.allNondummyItems;
     for(let item of allItems) { item.setDirty(true); }
     return this.writeItemsToLocalStorage(allItems, false);
   }
@@ -2426,7 +2430,7 @@ export class SFStorageManager {
   }
 
   async refreshErroredItems() {
-    let erroredItems = this.modelManager.allItems.filter((item) => {return item.errorDecrypting == true});
+    let erroredItems = this.modelManager.allNondummyItems.filter((item) => {return item.errorDecrypting == true});
     if(erroredItems.length > 0) {
       return this.handleItemsResponse(erroredItems, null, SFModelManager.MappingSourceLocalRetrieved, SFSyncManager.KeyRequestLoadSaveAccount);
     }

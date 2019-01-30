@@ -1376,7 +1376,7 @@ var SFMigrationManager = exports.SFMigrationManager = function () {
                 _didIteratorError4 = false;
                 _iteratorError4 = undefined;
                 _context27.prev = 25;
-                _iterator4 = this.modelManager.allItems[Symbol.iterator]();
+                _iterator4 = this.modelManager.allNondummyItems[Symbol.iterator]();
 
               case 27:
                 if (_iteratorNormalCompletion4 = (_step4 = _iterator4.next()).done) {
@@ -3113,6 +3113,11 @@ var SFModelManager = exports.SFModelManager = function () {
   }, {
     key: "allItems",
     get: function get() {
+      return this.items.slice();
+    }
+  }, {
+    key: "allNondummyItems",
+    get: function get() {
       return this.items.filter(function (item) {
         return !item.dummy;
       });
@@ -4299,13 +4304,13 @@ var SFSingletonManager = exports.SFSingletonManager = function () {
     // here, we priortize ours loading as most important
     modelManager.addItemSyncObserverWithPriority({ id: "sf-singleton-manager", types: "*", priority: -1,
       callback: function callback() {
-        _this16.resolveSingletons(modelManager.allItems, null, true);
+        _this16.resolveSingletons(modelManager.allNondummyItems, null, true);
       }
     });
 
     syncManager.addEventHandler(function (syncEvent, data) {
       if (syncEvent == "local-data-loaded") {
-        _this16.resolveSingletons(modelManager.allItems, null, true);
+        _this16.resolveSingletons(modelManager.allNondummyItems, null, true);
         _this16.initialDataLoaded = true;
       } else if (syncEvent == "sync:completed") {
         // Wait for initial data load before handling any sync. If we don't want for initial data load,
@@ -4390,7 +4395,7 @@ var SFSingletonManager = exports.SFSingletonManager = function () {
 
         // We only want to consider saved items count to see if it's more than 0, and do nothing else with it.
         // This way we know there was some action and things need to be resolved. The saved items will come up
-        // in filterItemsWithPredicate(this.modelManager.allItems) and be deleted anyway
+        // in filterItemsWithPredicate(this.modelManager.allNondummyItems) and be deleted anyway
         var savedSingletonItemsCount = _this17.modelManager.filterItemsWithPredicates(savedItems, predicates).length;
 
         if (retrievedSingletonItems.length > 0 || savedSingletonItemsCount > 0) {
@@ -5271,7 +5276,7 @@ var SFSyncManager = exports.SFSyncManager = function () {
               case 0:
 
                 // use a copy, as alternating uuid will affect array
-                originalItems = this.modelManager.allItems.filter(function (item) {
+                originalItems = this.modelManager.allNondummyItems.filter(function (item) {
                   return !item.errorDecrypting;
                 }).slice();
 
@@ -5336,7 +5341,7 @@ var SFSyncManager = exports.SFSyncManager = function () {
                 return _context78.finish(20);
 
               case 28:
-                allItems = this.modelManager.allItems;
+                allItems = this.modelManager.allNondummyItems;
                 _iteratorNormalCompletion41 = true;
                 _didIteratorError41 = false;
                 _iteratorError41 = undefined;
@@ -6227,7 +6232,7 @@ var SFSyncManager = exports.SFSyncManager = function () {
           while (1) {
             switch (_context88.prev = _context88.next) {
               case 0:
-                erroredItems = this.modelManager.allItems.filter(function (item) {
+                erroredItems = this.modelManager.allNondummyItems.filter(function (item) {
                   return item.errorDecrypting == true;
                 });
 
