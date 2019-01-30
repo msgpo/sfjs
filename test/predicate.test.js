@@ -44,7 +44,7 @@ const createItem = () => {
   return new SFItem(createItemParams());
 }
 
-describe.only("predicates", () => {
+describe("predicates", () => {
   it('test and operator', () => {
     let item = createItem();
     expect(item.satisfiesPredicate(new SFPredicate( "this_field_ignored", "and", [

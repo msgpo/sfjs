@@ -4,6 +4,7 @@ import '../node_modules/chai/chai.js';
 import './vendor/chai-as-promised-built.js';
 import '../vendor/lodash/lodash.custom.js';
 import Factory from './lib/factory.js';
+import MemoryStorageManager from './lib/memoryStorageManager.js';
 
 chai.use(chaiAsPromised);
 var expect = chai.expect;
@@ -129,7 +130,7 @@ describe('online syncing', () => {
     })
   });
 
-  it.only("mapping should not mutate items with error decrypting state", async () => {
+  it("mapping should not mutate items with error decrypting state", async () => {
     var item = Factory.createItem();
     let originalTitle = item.content.title;
     item.setDirty(true);
@@ -351,6 +352,43 @@ describe('online syncing', () => {
 
     await localSyncManager.loadLocalItems();
     expect(localModelManager.allItems.length).to.equal(totalItemCount);
+  });
+
+  it("load local items should respect sort priority", async () => {
+    let localModelManager = Factory.createModelManager();
+    let localStorageManager = new MemoryStorageManager();
+    let localSyncManager = new SFSyncManager(localModelManager, localStorageManager, Factory.globalHttpManager());
+    localSyncManager.setKeyRequestHandler(async () => {
+      return {
+        offline: true
+      };
+    })
+
+    let contentTypes = ["A", "B", "C"];
+    let itemCount = 6;
+    for(var i = 0; i < itemCount; i++) {
+      var item = Factory.createItem();
+      item.content_type = contentTypes[Math.floor(i/2)];
+      item.setDirty(true);
+      localModelManager.addItem(item);
+    }
+
+    await localSyncManager.sync();
+    let models = await localStorageManager.getAllModels();
+
+    expect(models.length).to.equal(itemCount);
+
+    // reset items
+    localModelManager.handleSignout();
+
+    localSyncManager.contentTypeLoadPriority = ["C", "A", "B"];
+    await localSyncManager.loadLocalItems();
+
+    let items = localModelManager.allItems;
+
+    expect(items[0].content_type).to.equal("C");
+    expect(items[2].content_type).to.equal("A");
+    expect(items[4].content_type).to.equal("B");
   });
 
   it("should sign in and retrieve large number of items", async () => {

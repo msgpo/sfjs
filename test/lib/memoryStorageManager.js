@@ -45,9 +45,9 @@ export default class MemoryStorageManager extends SFStorageManager {
 
   async getAllModels() {
     var models = [];
-    for(var key of this.keys()) {
+    for(var key of Object.keys(this.memory)) {
       if(key.startsWith("item-")) {
-        models.push(JSON.parse(localStorage[key]))
+        models.push(JSON.parse(this.memory[key]))
       }
     }
     return models;
@@ -69,7 +69,7 @@ export default class MemoryStorageManager extends SFStorageManager {
 
   async clearAllModels() {
     // clear only models
-    for(var key in localStorage) {
+    for(var key of Object.keys(this.memory)) {
       if(key.startsWith("item-")) {
         this.removeItem(key);
       }

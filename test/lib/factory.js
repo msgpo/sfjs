@@ -57,6 +57,10 @@ export default class Factory {
     return new SFModelManager();
   }
 
+  static createStorageManager() {
+    return new LocalStorageManager();
+  }
+
   static createItemParams() {
     var params = {
       uuid: SFJS.crypto.generateUUIDSync(),

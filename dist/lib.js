@@ -832,7 +832,11 @@ export class SFHttpManager {
   /* Note that this function is public, and can also be called manually (desktopManager uses it) */
   notifySyncObserversOfModels(models, source, sourceKey) {
     // Make sure `let` is used in the for loops instead of `var`, as we will be using a timeout below.
-    for(let observer of this.itemSyncObservers) {
+    let observers = this.itemSyncObservers.sort((a, b) => {
+      // sort by priority
+      return a.priority < b.priority ? -1 : 1;
+    });
+    for(let observer of observers) {
       let allRelevantItems = observer.types.includes("*") ? models : models.filter((item) => {return observer.types.includes(item.content_type)});
       let validItems = [], deletedItems = [];
       for(let item of allRelevantItems) {
@@ -935,10 +939,14 @@ export class SFHttpManager {
 
   /* Notifies observers when an item has been synced or mapped from a remote response */
   addItemSyncObserver(id, types, callback) {
+    this.addItemSyncObserverWithPriority({id, types, callback, priority: 1})
+  }
+
+  addItemSyncObserverWithPriority({id, priority, types, callback}) {
     if(!Array.isArray(types)) {
       types = [types];
     }
-    this.itemSyncObservers.push({id: id, types: types, callback: callback});
+    this.itemSyncObservers.push({id, types, priority, callback});
   }
 
   removeItemSyncObserver(id) {
@@ -1583,6 +1591,17 @@ export class SFSingletonManager {
     this.modelManager = modelManager;
     this.singletonHandlers = [];
 
+    // We use sync observer instead of syncEvent `local-data-incremental-load`, because we want singletons
+    // to resolve with the first priority, because they generally dictate app state.
+    // If we used local-data-incremental-load, and 1 item was important singleton and 99 were heavy components,
+    // then given the random nature of notifiying observers, the heavy components would spend a lot of time loading first,
+    // here, we priortize ours loading as most important
+    modelManager.addItemSyncObserverWithPriority({id: "sf-singleton-manager", types: "*", priority: -1,
+      callback: () => {
+        this.resolveSingletons(modelManager.allItems, null, true);
+      }
+    })
+
     syncManager.addEventHandler((syncEvent, data) => {
       if(syncEvent == "local-data-loaded") {
         this.resolveSingletons(modelManager.allItems, null, true);
@@ -1611,7 +1630,7 @@ export class SFSingletonManager {
       their local reference to the object, since the object reference will change on uuid alternation
     */
     modelManager.addModelUuidChangeObserver("singleton-manager", (oldModel, newModel) => {
-      for(var handler of this.singletonHandlers) {
+      for(let handler of this.singletonHandlers) {
         if(handler.singleton && SFPredicate.ItemSatisfiesPredicates(newModel, handler.predicates)) {
           // Reference is now invalid, calling resolveSingleton should update it
           handler.singleton = null;
@@ -1639,7 +1658,7 @@ export class SFSingletonManager {
     savedItems = savedItems || [];
 
     for(let singletonHandler of this.singletonHandlers) {
-      var predicates = singletonHandler.predicates;
+      let predicates = singletonHandler.predicates;
       let retrievedSingletonItems = this.modelManager.filterItemsWithPredicates(retrievedItems, predicates);
 
       // We only want to consider saved items count to see if it's more than 0, and do nothing else with it.
@@ -1652,7 +1671,7 @@ export class SFSingletonManager {
           Check local inventory and make sure only 1 similar item exists. If more than 1, delete newest
           Note that this local inventory will also contain whatever is in retrievedItems.
         */
-        var allExtantItemsMatchingPredicate = this.modelManager.itemsMatchingPredicates(predicates);
+        let allExtantItemsMatchingPredicate = this.modelManager.itemsMatchingPredicates(predicates);
 
         /*
           Delete all but the earliest created
@@ -1673,7 +1692,7 @@ export class SFSingletonManager {
           // Delete everything but the first one
           let toDelete = sorted.slice(1, sorted.length);
 
-          for(var d of toDelete) {
+          for(let d of toDelete) {
             this.modelManager.setItemToBeDeleted(d);
           }
 
@@ -1684,9 +1703,9 @@ export class SFSingletonManager {
           singletonHandler.resolutionCallback && singletonHandler.resolutionCallback(winningItem);
 
         } else if(allExtantItemsMatchingPredicate.length == 1) {
+          let singleton = allExtantItemsMatchingPredicate[0];
           if(!singletonHandler.singleton || singletonHandler.singleton !== singleton) {
             // Not yet notified interested parties of object
-            var singleton = allExtantItemsMatchingPredicate[0];
             singletonHandler.singleton = singleton;
             singletonHandler.resolutionCallback && singletonHandler.resolutionCallback(singleton);
           }
@@ -1856,8 +1875,40 @@ export class SFStorageManager {
     return this._initialDataLoaded;
   }
 
+  static sortItemsByPriority(a, b, priorityList) {
+    let aPriority = priorityList.indexOf(a.content_type);
+    let bPriority = priorityList.indexOf(b.content_type);
+
+    if(aPriority == -1) {
+      // Not found in list, not prioritized. Set it to max value
+      aPriority = priorityList.length;
+    }
+    if(bPriority == -1) {
+      // Not found in list, not prioritized. Set it to max value
+      bPriority = priorityList.length;
+    }
+
+    if(aPriority == bPriority) {
+      return 0;
+    }
+
+    // aPriority < bPriority means a should come first
+    return aPriority < bPriority ? -1 : 1;
+  }
+
   async loadLocalItems(incrementalCallback, batchSize = 100) {
     return this.storageManager.getAllModels().then((items) => {
+      // put most recently updated at beginning
+      items = items.sort((a,b) =>{
+        return new Date(b.updated_at) - new Date(a.updated_at);
+      })
+
+      if(this.contentTypeLoadPriority) {
+        items = items.sort((a, b) => {
+          return SFSyncManager.sortItemsByPriority(a, b, this.contentTypeLoadPriority);
+        });
+      }
+
       // break it up into chunks to make interface more responsive for large item counts
       let total = items.length;
       let current = 0;
