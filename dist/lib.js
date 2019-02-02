@@ -2612,6 +2612,11 @@ export class SFItem {
   }
 
   updateFromJSON(json) {
+    // Don't expect this to ever be the case but we're having a crash with Android and this is the only suspect.
+    if(!json) {
+      return;
+    }
+
     // Manually merge top level data instead of wholesale merge
     this.created_at = json.created_at;
     this.updated_at = json.updated_at;
