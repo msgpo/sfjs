@@ -5075,16 +5075,39 @@ var SFSyncManager = exports.SFSyncManager = function () {
             switch (_context73.prev = _context73.next) {
               case 0:
                 return _context73.abrupt("return", this.storageManager.getAllModels().then(function (items) {
-                  // put most recently updated at beginning
+                  // put most recently updated at beginning, sorted by priority
                   items = items.sort(function (a, b) {
-                    return new Date(b.updated_at) - new Date(a.updated_at);
-                  });
+                    var dateResult = new Date(b.updated_at) - new Date(a.updated_at);
 
-                  if (_this19.contentTypeLoadPriority) {
-                    items = items.sort(function (a, b) {
-                      return SFSyncManager.sortItemsByPriority(a, b, _this19.contentTypeLoadPriority);
-                    });
-                  }
+                    var priorityList = _this19.contentTypeLoadPriority;
+                    var aPriority = 0,
+                        bPriority = 0;
+                    if (priorityList) {
+                      aPriority = priorityList.indexOf(a.content_type);
+                      bPriority = priorityList.indexOf(b.content_type);
+                      if (aPriority == -1) {
+                        // Not found in list, not prioritized. Set it to max value
+                        aPriority = priorityList.length;
+                      }
+                      if (bPriority == -1) {
+                        // Not found in list, not prioritized. Set it to max value
+                        bPriority = priorityList.length;
+                      }
+                    }
+
+                    if (aPriority == bPriority) {
+                      return dateResult;
+                    }
+
+                    if (aPriority < bPriority) {
+                      return -1;
+                    } else {
+                      return 1;
+                    }
+
+                    // aPriority < bPriority means a should come first
+                    return aPriority < bPriority ? -1 : 1;
+                  });
 
                   // break it up into chunks to make interface more responsive for large item counts
                   var total = items.length;
@@ -6245,11 +6268,11 @@ var SFSyncManager = exports.SFSyncManager = function () {
           while (1) {
             switch (_context86.prev = _context86.next) {
               case 0:
+                console.log("Sync error: ", response);
+
                 if (statusCode == 401) {
                   this.notifyEvent("sync-session-invalid");
                 }
-
-                console.log("Sync error: ", response);
 
                 if (!response) {
                   response = { error: { message: "Could not connect to server." } };
@@ -6699,28 +6722,6 @@ var SFSyncManager = exports.SFSyncManager = function () {
         this._queuedCallbacks = [];
       }
       return this._queuedCallbacks;
-    }
-  }], [{
-    key: "sortItemsByPriority",
-    value: function sortItemsByPriority(a, b, priorityList) {
-      var aPriority = priorityList.indexOf(a.content_type);
-      var bPriority = priorityList.indexOf(b.content_type);
-
-      if (aPriority == -1) {
-        // Not found in list, not prioritized. Set it to max value
-        aPriority = priorityList.length;
-      }
-      if (bPriority == -1) {
-        // Not found in list, not prioritized. Set it to max value
-        bPriority = priorityList.length;
-      }
-
-      if (aPriority == bPriority) {
-        return 0;
-      }
-
-      // aPriority < bPriority means a should come first
-      return aPriority < bPriority ? -1 : 1;
     }
   }]);
 

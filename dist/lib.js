@@ -1883,39 +1883,40 @@ export class SFStorageManager {
     return this._initialDataLoaded;
   }
 
-  static sortItemsByPriority(a, b, priorityList) {
-    let aPriority = priorityList.indexOf(a.content_type);
-    let bPriority = priorityList.indexOf(b.content_type);
-
-    if(aPriority == -1) {
-      // Not found in list, not prioritized. Set it to max value
-      aPriority = priorityList.length;
-    }
-    if(bPriority == -1) {
-      // Not found in list, not prioritized. Set it to max value
-      bPriority = priorityList.length;
-    }
-
-    if(aPriority == bPriority) {
-      return 0;
-    }
-
-    // aPriority < bPriority means a should come first
-    return aPriority < bPriority ? -1 : 1;
-  }
-
   async loadLocalItems(incrementalCallback, batchSize = 100) {
     return this.storageManager.getAllModels().then((items) => {
-      // put most recently updated at beginning
-      items = items.sort((a,b) =>{
-        return new Date(b.updated_at) - new Date(a.updated_at);
-      })
+      // put most recently updated at beginning, sorted by priority
+      items = items.sort((a,b) => {
+        let dateResult = new Date(b.updated_at) - new Date(a.updated_at);
 
-      if(this.contentTypeLoadPriority) {
-        items = items.sort((a, b) => {
-          return SFSyncManager.sortItemsByPriority(a, b, this.contentTypeLoadPriority);
-        });
-      }
+        let priorityList = this.contentTypeLoadPriority;
+        let aPriority = 0, bPriority = 0;
+        if(priorityList) {
+          aPriority = priorityList.indexOf(a.content_type);
+          bPriority = priorityList.indexOf(b.content_type);
+          if(aPriority == -1) {
+            // Not found in list, not prioritized. Set it to max value
+            aPriority = priorityList.length;
+          }
+          if(bPriority == -1) {
+            // Not found in list, not prioritized. Set it to max value
+            bPriority = priorityList.length;
+          }
+        }
+
+        if(aPriority == bPriority) {
+          return dateResult;
+        }
+
+        if(aPriority < bPriority) {
+          return -1;
+        } else {
+          return 1;
+        }
+
+        // aPriority < bPriority means a should come first
+        return aPriority < bPriority ? -1 : 1;
+      })
 
       // break it up into chunks to make interface more responsive for large item counts
       let total = items.length;
@@ -2380,11 +2381,11 @@ export class SFStorageManager {
   }
 
   async handleSyncError(response, statusCode, allDirtyItems) {
+    console.log("Sync error: ", response);
+
     if(statusCode == 401) {
       this.notifyEvent("sync-session-invalid");
     }
-
-    console.log("Sync error: ", response);
 
     if(!response) {
       response = {error: {message: "Could not connect to server."}};
