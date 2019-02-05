@@ -89,11 +89,11 @@ export default class Factory {
     })
   }
 
-  static async newRegisteredUser(email, password) {
+  static async newRegisteredUser(email, password, authManager) {
     let url = this.serverURL();
     if(!email) email = sf_default.crypto.generateUUIDSync();
     if(!password) password = sf_default.crypto.generateUUIDSync();
-    return this.globalAuthManager().register(url, email, password, false);
+    return (authManager ? authManager : this.globalAuthManager()).register(url, email, password, false);
   }
 
   static shuffleArray(a) {

@@ -1006,7 +1006,7 @@ export class SFHttpManager {
     }
   }
 
-  removeItemLocally(item, callback) {
+  async removeItemLocally(item) {
     _.remove(this.items, {uuid: item.uuid});
     delete this.itemsHash[item.uuid]
 
@@ -1140,6 +1140,16 @@ export class SFHttpManager {
 
       return JSON.stringify(data, null, 2 /* pretty print */);
     })
+  }
+
+  async computeDataIntegrityHash() {
+    let items = this.allNondummyItems.sort((a, b) => {
+      return b.updated_at - a.updated_at;
+    })
+    let dates = items.map((item) => item.updated_at.getTime());
+    let string = dates.join(",");
+    let hash = await SFJS.crypto.sha256(string);
+    return hash;
   }
 }
 ;export class SFPrivilegesManager {
@@ -1807,9 +1817,55 @@ export class SFStorageManager {
     this.syncStatusObservers = [];
     this.eventHandlers = [];
 
+    this.PerSyncItemUploadLimit = 100;
+
     // The number of changed items that constitute a major change
     // This is used by the desktop app to create backups
     this.MajorDataChangeThreshold = 15;
+
+    // Sync integrity checking
+    // If X consective sync requests return mismatching hashes, then we officially enter out-of-sync.
+    this.MaxDiscordanceBeforeOutOfSync = 5;
+
+    // Unix timestamp + 3 extra digits for milliseconds.
+    // The server has up to 6 digits after main timestamp (for 16 total digits),
+    // but JS client only stores 3 extra.
+    this.IntegrityHashDatePrecision = 13;
+
+    // How many consective sync results have had mismatching hashes. This value can never exceed this.MaxDiscordanceBeforeOutOfSync.
+    this.syncDiscordance = 0;
+  }
+
+  async handleServerIntegrityHash(serverHash) {
+    if(!serverHash || serverHash.length == 0) {
+      return true;
+    }
+
+    let localHash = await this.modelManager.computeDataIntegrityHash();
+    if(localHash !== serverHash) {
+      this.syncDiscordance++;
+      if(this.syncDiscordance >= this.MaxDiscordanceBeforeOutOfSync) {
+        if(!this.outOfSync) {
+          this.outOfSync = true;
+          this.notifyEvent("enter-out-of-sync");
+        }
+      }
+      return false;
+    } else {
+      // Integrity matches
+      if(this.outOfSync) {
+        this.outOfSync = false;
+        this.notifyEvent("exit-out-of-sync");
+      }
+      this.syncDiscordance = 0;
+      return true;
+    }
+  }
+
+  isOutOfSync() {
+    // Once we are outOfSync, it's up to the client to display UI to the user to instruct them
+    // to take action. The client should present a reconciliation wizard.
+    return this.outOfSync;
   }
 
   async getServerURL() {
@@ -2174,7 +2230,7 @@ export class SFStorageManager {
       this.syncStatus.syncStart = new Date();
       this.beginCheckingIfSyncIsTakingTooLong();
 
-      let submitLimit = 100;
+      let submitLimit = this.PerSyncItemUploadLimit;
       let subItems = allDirtyItems.slice(0, submitLimit);
       if(subItems.length < allDirtyItems.length) {
         // more items left to be synced, repeat
@@ -2220,6 +2276,11 @@ export class SFStorageManager {
 
       let params = {};
       params.limit = 150;
+
+      if(options.performIntegrityCheck) {
+        params.compute_integrity = true;
+        params.integrity_date_precision = this.IntegrityHashDatePrecision;
+      }
 
       try {
         await Promise.all(subItems.map((item) => {
@@ -2328,6 +2389,17 @@ export class SFStorageManager {
     this.setCursorToken(response.cursor_token);
 
     this.stopCheckingIfSyncIsTakingTooLong();
+
+    if(response.integrity_hash) {
+      let matches = await this.handleServerIntegrityHash(response.integrity_hash);
+      if(!matches) {
+        // If the server hash doesn't match our local hash, we want to continue syncing until we reach
+        // the max discordance threshold
+        if(this.syncDiscordance < this.MaxDiscordanceBeforeOutOfSync) {
+          this.repeatOnCompletion = true;
+        }
+      }
+    }
 
     // Oct 2018: Why use both this.syncStatus.needsMoreSync and this.repeatOnCompletion?
     // They seem to do the same thing.

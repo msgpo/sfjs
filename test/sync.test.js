@@ -489,6 +489,102 @@ describe('sync params', () => {
     expect(itemParams.content_type).to.not.be.null;
     expect(itemParams.created_at).to.not.be.null;
   });
+});
 
 
+describe.only('sync discordance', () => {
+  var email = Factory.globalStandardFile().crypto.generateUUIDSync();
+  var password = Factory.globalStandardFile().crypto.generateUUIDSync();
+  var totalItemCount = 0;
+
+  let localStorageManager = new MemoryStorageManager();
+  let localAuthManager = new SFAuthManager(localStorageManager, Factory.globalHttpManager());
+
+  before((done) => {
+    localStorageManager.clearAllData().then(() => {
+      Factory.newRegisteredUser(email, password, localAuthManager).then((user) => {
+        done();
+      })
+    })
+  })
+
+  let localHttpManager = new SFHttpManager();
+  localHttpManager.setJWTRequestHandler(async () => {
+    return localStorageManager.getItem("jwt");;
+  })
+  let localModelManager = Factory.createModelManager();
+  let localSyncManager = new SFSyncManager(localModelManager, localStorageManager, localHttpManager);
+
+  localSyncManager.setKeyRequestHandler(async () => {
+    return {
+      keys: await localAuthManager.keys(),
+      auth_params: await localAuthManager.getAuthParams(),
+      offline: false
+    };
+  })
+
+  it("should begin discordance upon instructions", async () => {
+    let response = await localSyncManager.sync({performIntegrityCheck: false});
+    expect(response.integrity_hash).to.not.be.ok;
+
+
+    response = await localSyncManager.sync({performIntegrityCheck: true});
+    expect(response.integrity_hash).to.not.be.null;
+
+    // integrity should be valid
+    expect(localSyncManager.syncDiscordance).to.equal(0);
+
+    // sync should no longer request integrity hash from server
+    response = await localSyncManager.sync({performIntegrityCheck: false});
+    expect(response.integrity_hash).to.not.be.ok;
+
+    // we expect another integrity check here
+    response = await localSyncManager.sync({performIntegrityCheck: true});
+    expect(response.integrity_hash).to.not.be.null;
+
+    // integrity should be valid
+    expect(localSyncManager.syncDiscordance).to.equal(0);
+  }).timeout(10000);
+
+  it("should increase discordance as client server mismatches", async () => {
+    let response = await localSyncManager.sync();
+
+    var item = Factory.createItem();
+    item.setDirty(true);
+    localModelManager.addItem(item);
+
+    await localSyncManager.sync({performIntegrityCheck: true});
+
+    // Expect no discordance
+    expect(localSyncManager.syncDiscordance).to.equal(0);
+
+    // Delete item locally only without notifying server. We should then be in discordance.
+    await localModelManager.removeItemLocally(item);
+
+    // wait for integrity check interval
+    await localSyncManager.sync({performIntegrityCheck: true});
+
+    // We expect now to be in discordance. What the client has is different from what the server has
+    // The above sync will not resolve until it syncs enough time to meet discordance threshold
+    expect(localSyncManager.syncDiscordance).to.equal(localSyncManager.MaxDiscordanceBeforeOutOfSync);
+
+    // We now expect out of sync to be true, since we have reached MaxDiscordanceBeforeOutOfSync
+    expect(localSyncManager.isOutOfSync()).to.equal(true);
+
+    // Integrity checking should now be disabled until the next interval
+    response = await localSyncManager.sync();
+    expect(response.integrity_hash).to.not.be.ok;
+
+    // We should still be in discordance and out of sync at this point
+    expect(localSyncManager.syncDiscordance).to.equal(localSyncManager.MaxDiscordanceBeforeOutOfSync);
+    expect(localSyncManager.isOutOfSync()).to.equal(true);
+
+    // We will now reinstate the item and sync, which should repair everything
+    item.setDirty(true);
+    localModelManager.addItem(item);
+    await localSyncManager.sync({performIntegrityCheck: true});
+
+    expect(localSyncManager.isOutOfSync()).to.equal(false);
+    expect(localSyncManager.syncDiscordance).to.equal(0);
+  }).timeout(10000);
 });
