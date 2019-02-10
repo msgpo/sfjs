@@ -6865,7 +6865,8 @@ var SFSyncManager = exports.SFSyncManager = function () {
                     limit: options.limit || 500,
                     sync_token: options.syncToken,
                     cursor_token: options.cursorToken,
-                    content_type: options.contentType
+                    content_type: options.contentType,
+                    event: options.event
                   };
                   _context96.prev = 1;
                   _context96.t0 = _this24.httpManager;
@@ -6963,7 +6964,7 @@ var SFSyncManager = exports.SFSyncManager = function () {
           while (1) {
             switch (_context98.prev = _context98.next) {
               case 0:
-                return _context98.abrupt("return", this.stateless_downloadAllItems().then(function () {
+                return _context98.abrupt("return", this.stateless_downloadAllItems({ event: "resolve-out-of-sync" }).then(function () {
                   var _ref104 = _asyncToGenerator( /*#__PURE__*/regeneratorRuntime.mark(function _callee97(downloadedItems) {
                     var itemsToMap, _iteratorNormalCompletion46, _didIteratorError46, _iteratorError46, _iterator46, _step46, downloadedItem, existingItem, contentDoesntMatch, duplicate;
 
