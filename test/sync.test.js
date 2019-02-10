@@ -492,7 +492,7 @@ describe('sync params', () => {
 });
 
 
-describe.only('sync discordance', () => {
+describe('sync discordance', () => {
   var email = Factory.globalStandardFile().crypto.generateUUIDSync();
   var password = Factory.globalStandardFile().crypto.generateUUIDSync();
   var totalItemCount = 0;
@@ -515,6 +515,8 @@ describe.only('sync discordance', () => {
   let localModelManager = Factory.createModelManager();
   let localSyncManager = new SFSyncManager(localModelManager, localStorageManager, localHttpManager);
 
+  let itemCount = 0;
+
   localSyncManager.setKeyRequestHandler(async () => {
     return {
       keys: await localAuthManager.keys(),
@@ -526,7 +528,6 @@ describe.only('sync discordance', () => {
   it("should begin discordance upon instructions", async () => {
     let response = await localSyncManager.sync({performIntegrityCheck: false});
     expect(response.integrity_hash).to.not.be.ok;
-
 
     response = await localSyncManager.sync({performIntegrityCheck: true});
     expect(response.integrity_hash).to.not.be.null;
@@ -552,6 +553,7 @@ describe.only('sync discordance', () => {
     var item = Factory.createItem();
     item.setDirty(true);
     localModelManager.addItem(item);
+    itemCount++;
 
     await localSyncManager.sync({performIntegrityCheck: true});
 
@@ -587,4 +589,49 @@ describe.only('sync discordance', () => {
     expect(localSyncManager.isOutOfSync()).to.equal(false);
     expect(localSyncManager.syncDiscordance).to.equal(0);
   }).timeout(10000);
+
+  it("should perform sync resolution in which differing items are duplicated instead of merged", async () => {
+    var item = Factory.createItem();
+    item.setDirty(true);
+    localModelManager.addItem(item);
+    itemCount++;
+
+    await localSyncManager.sync();
+
+    // Delete item locally only without notifying server. We should then be in discordance.
+    // Don't use localModelManager.removeItemLocally(item), as it saves some state about itemsPendingDeletion. Use internal API
+    _.remove(localModelManager.items, {uuid: item.uuid});
+    delete localModelManager.itemsHash[item.uuid]
+
+    await localSyncManager.sync({performIntegrityCheck: true});
+    expect(localSyncManager.isOutOfSync()).to.equal(true);
+
+    // lets resolve sync where content does not differ
+    await localSyncManager.resolveOutOfSync();
+    expect(localSyncManager.isOutOfSync()).to.equal(false);
+
+    // expect a clean merge
+    expect(localModelManager.allItems.length).to.equal(itemCount);
+
+    // lets enter back into out of sync
+    item = localModelManager.allItems[0];
+    // now lets change the local content without syncing it.
+    item.content.text = "discordance";
+
+    // When we resolve out of sync now (even though we're not currently officially out of sync)
+    // we expect that the remote content coming in doesn't wipe out our pending change. A conflict should be created
+    await localSyncManager.resolveOutOfSync();
+    expect(localSyncManager.isOutOfSync()).to.equal(false);
+    expect(localModelManager.allItems.length).to.equal(itemCount + 1);
+
+    for(let item of localModelManager.allItems) {
+      expect(item.uuid).not.be.null;
+    }
+
+    // now lets sync the item, just to make sure it doesn't cause any problems
+    item.setDirty(true);
+    await localSyncManager.sync({performIntegrityCheck: true});
+    expect(localSyncManager.isOutOfSync()).to.equal(false);
+    expect(localModelManager.allItems.length).to.equal(itemCount + 1);
+  });
 });

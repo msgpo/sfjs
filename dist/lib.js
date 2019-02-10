@@ -649,10 +649,14 @@ export class SFHttpManager {
   }
 
   mapResponseItemsToLocalModels(items, source, sourceKey) {
-    return this.mapResponseItemsToLocalModelsOmittingFields(items, null, source, sourceKey);
+    return this.mapResponseItemsToLocalModelsWithOptions({items, source, sourceKey});
   }
 
   mapResponseItemsToLocalModelsOmittingFields(items, omitFields, source, sourceKey) {
+    return this.mapResponseItemsToLocalModelsWithOptions({items, omitFields, source, sourceKey});
+  }
+
+  mapResponseItemsToLocalModelsWithOptions({items, omitFields, source, sourceKey, options}) {
     let models = [], processedObjects = [], modelsToNotifyObserversOf = [];
 
     // first loop should add and process items
@@ -889,7 +893,9 @@ export class SFHttpManager {
     This method creates but does not add the item to the global inventory. It's used by syncManager
     to check if this prospective duplicate item is identical to another item, including the references.
    */
-  createConflictedItem(itemResponse) {
+  async createConflictedItem(itemResponse) {
+    let uuid = await SFJS.crypto.generateUUID();
+    itemResponse = _.merge(itemResponse, {uuid: uuid});
     let dup = this.createItem(itemResponse, true);
     return dup;
   }
@@ -1086,15 +1092,14 @@ export class SFHttpManager {
   Archives
   */
 
-  importItems(externalItems) {
+  async importItems(externalItems) {
     let itemsToBeMapped = [];
     for(let itemData of externalItems) {
       let existing = this.findItem(itemData.uuid);
       if(existing && !existing.errorDecrypting) {
         // if the item already exists, check to see if it's different from the import data.
         // If it's the same, do nothing, otherwise, create a copy.
-        itemData.uuid = null;
-        let dup = this.createConflictedItem(itemData);
+        let dup = await this.createConflictedItem(itemData);
         if(!itemData.deleted && !existing.isItemContentEqualWith(dup)) {
           // Data differs
           this.addConflictedItem(dup, existing);
@@ -1143,13 +1148,18 @@ export class SFHttpManager {
   }
 
   async computeDataIntegrityHash() {
-    let items = this.allNondummyItems.sort((a, b) => {
-      return b.updated_at - a.updated_at;
-    })
-    let dates = items.map((item) => item.updated_at.getTime());
-    let string = dates.join(",");
-    let hash = await SFJS.crypto.sha256(string);
-    return hash;
+    try {
+      let items = this.allNondummyItems.sort((a, b) => {
+        return b.updated_at - a.updated_at;
+      })
+      let dates = items.map((item) => item.updatedAtTimestamp());
+      let string = dates.join(",");
+      let hash = await SFJS.crypto.sha256(string);
+      return hash;
+    } catch (e) {
+      console.error("Error computing data integrity hash", e);
+      return null;
+    }
   }
 }
 ;export class SFPrivilegesManager {
@@ -1842,6 +1852,12 @@ export class SFStorageManager {
     }
 
     let localHash = await this.modelManager.computeDataIntegrityHash();
+
+    // if localHash is null, it means computation failed. We can do nothing but return true for success here
+    if(!localHash) {
+      return true;
+    }
+
     if(localHash !== serverHash) {
       this.syncDiscordance++;
       if(this.syncDiscordance >= this.MaxDiscordanceBeforeOutOfSync) {
@@ -2534,10 +2550,7 @@ export class SFStorageManager {
 
       else if(error.tag === "sync_conflict") {
         // Create a new item with the same contents of this item if the contents differ
-        // We want a new uuid for the new item. Note that this won't neccessarily adjust references.
-        itemResponse.uuid = await SFJS.crypto.generateUUID();
-
-        let dup = this.modelManager.createConflictedItem(itemResponse);
+        let dup = await this.modelManager.createConflictedItem(itemResponse);
         if(!itemResponse.deleted && !item.isItemContentEqualWith(dup)) {
           this.modelManager.addConflictedItem(dup, item);
         }
@@ -2558,8 +2571,7 @@ export class SFStorageManager {
     but won't do anything with them other than decrypting, creating respective objects, and returning them to caller. (it does not map them nor establish their relationships)
     The use case came primarly for clients who had ignored a certain content_type in sync, but later issued an update
     indicated they actually did want to start handling that content type. In that case, they would need to download all items
-    freshly from the server.(Ideally in the future the server would accept a content_type param to only download items of that type.
-    We've inserted that into the params in anticipation, but the server currently totally ignores that.
+    freshly from the server.
   */
   stateless_downloadAllItems(options = {}) {
     return new Promise(async (resolve, reject) => {
@@ -2567,7 +2579,7 @@ export class SFStorageManager {
         limit: options.limit || 500,
         sync_token: options.syncToken,
         cursor_token: options.cursorToken,
-        content_type: options.contentType /* currently ignored by server, placed preemptively. See comment above */
+        content_type: options.contentType
       };
 
       try {
@@ -2600,6 +2612,35 @@ export class SFStorageManager {
         reject(e);
       }
     });
+  }
+
+  async resolveOutOfSync() {
+    // Sync all items again to resolve out-of-sync state
+    return this.stateless_downloadAllItems().then(async (downloadedItems) => {
+      let itemsToMap = [];
+      for(let downloadedItem of downloadedItems) {
+        // Note that deleted items will not be sent back by the server.
+        let existingItem = this.modelManager.findItem(downloadedItem.uuid);
+        if(existingItem) {
+          // Check if the content differs. If it does, create a new item, and do not map downloadedItem.
+          let contentDoesntMatch = !downloadedItem.isItemContentEqualWith(existingItem);
+          if(contentDoesntMatch) {
+            // We create a copy of the local existing item and sync that up. It will be a "conflict" of itself
+            let duplicate = await this.modelManager.createConflictedItem(existingItem, existingItem);
+            this.modelManager.addConflictedItem(duplicate, existingItem);
+          }
+        }
+
+        // Map the downloadedItem as authoritive content. If client copy at all differed, we would have created a duplicate of it above and synced it.
+        // This is also neccessary to map the updated_at value from the server
+        itemsToMap.push(downloadedItem);
+      }
+
+      this.modelManager.mapResponseItemsToLocalModelsWithOptions({items: itemsToMap, source: SFModelManager.MappingSourceRemoteRetrieved});
+      // Save all items locally. Usually sync() would save downloaded items locally, but we're using stateless_sync here, so we have to do it manually
+      await this.writeItemsToLocalStorage(this.modelManager.allNondummyItems);
+      return this.sync({performIntegrityCheck: true});
+    })
   }
 
   async handleSignout() {
@@ -3005,6 +3046,10 @@ export class SFItem {
 
   updatedAtString() {
     return this.dateToLocalizedString(this.client_updated_at);
+  }
+
+  updatedAtTimestamp() {
+    return this.updated_at.getTime();
   }
 
   dateToLocalizedString(date) {
