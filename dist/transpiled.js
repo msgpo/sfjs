@@ -7126,7 +7126,7 @@ var SFItem = exports.SFItem = function () {
 
       // When updating from server response (as opposed to local json response), these keys will be missing.
       // So we only want to update these values if they are explicitly present.
-      var clientKeys = ["errorDecrypting", "conflict_of", "dirty", "dirtyCount"];
+      var clientKeys = ["errorDecrypting", "conflict_of", "dirty", "dirtyCount", "dummy"];
       var _iteratorNormalCompletion47 = true;
       var _didIteratorError47 = false;
       var _iteratorError47 = undefined;

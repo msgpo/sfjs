@@ -2743,7 +2743,7 @@ export class SFItem {
 
     // When updating from server response (as opposed to local json response), these keys will be missing.
     // So we only want to update these values if they are explicitly present.
-    let clientKeys = ["errorDecrypting", "conflict_of", "dirty", "dirtyCount"];
+    let clientKeys = ["errorDecrypting", "conflict_of", "dirty", "dirtyCount", "dummy"];
     for(var key of clientKeys) {
       if(json[key] !== undefined) {
         this[key] = json[key];
