@@ -119,6 +119,21 @@ describe('app models', () => {
     expect(modelManager.allItems.length).to.equal(0);
   });
 
+  it('mapping an item twice shouldnt cause problems', () => {
+    let modelManager = createModelManager();
+    var params1 = createItem();
+    params1.content.foo = "bar";
+
+    let items = modelManager.mapResponseItemsToLocalModels([params1]);
+    let item = items[0];
+    expect(item).to.not.be.null;
+
+    items = modelManager.mapResponseItemsToLocalModels([item]);
+    item = items[0];
+
+    expect(item.content.foo).to.equal("bar");
+  });
+
   it('fixes relationship integrity', () => {
     let modelManager = createModelManager();
     var item1 = createItem();
@@ -625,4 +640,29 @@ describe("items", () => {
     expect(item1.content.references.length).to.equal(0);
     expect(item2.content.references.length).to.equal(0);
   });
+
+  it('content equality should not have side effects', () => {
+    let modelManager = createModelManager();
+    var params1 = createItemParams();
+    var params2 = createItemParams();
+    modelManager.mapResponseItemsToLocalModels([params1, params2]);
+
+    let item1 = modelManager.items[0];
+    let item2 = modelManager.items[1];
+
+    item1.content.foo = "bar";
+    expect(item1.content.foo).to.equal("bar");
+
+    item1.keysToIgnoreWhenCheckingContentEquality = () => {
+      return ["foo"];
+    }
+
+    // calling isItemContentEqualWith should not have side effects
+    // There was an issue where calling that function would modify values directly to omit keys
+    // in keysToIgnoreWhenCheckingContentEquality.
+    expect(item1.isItemContentEqualWith(item2)).to.equal(true);
+    expect(item2.isItemContentEqualWith(item1)).to.equal(true);
+
+    expect(item1.content.foo).to.equal("bar");
+  })
 })

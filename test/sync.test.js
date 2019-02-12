@@ -302,7 +302,7 @@ describe('online syncing', () => {
         var item1 = models[0];
         var item2 = models[1];
 
-        expect(item2.conflict_of).to.equal(item1.uuid);
+        expect(item2.content.conflict_of).to.equal(item1.uuid);
         // Two items now link to this original object
         expect(originalItem2.referencingObjects.length).to.equal(2);
         expect(originalItem2.referencingObjects[0]).to.not.equal(originalItem2.referencingObjects[1]);
@@ -590,7 +590,7 @@ describe('sync discordance', () => {
     expect(localSyncManager.syncDiscordance).to.equal(0);
   }).timeout(10000);
 
-  it("should perform sync resolution in which differing items are duplicated instead of merged", async () => {
+  it.only("should perform sync resolution in which differing items are duplicated instead of merged", async () => {
     var item = Factory.createItem();
     item.setDirty(true);
     localModelManager.addItem(item);

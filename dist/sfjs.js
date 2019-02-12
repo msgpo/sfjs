@@ -2236,6 +2236,7 @@ var SFModelManager = exports.SFModelManager = function () {
           if (!json_obj) {
             continue;
           }
+
           if ((!json_obj.content_type || !json_obj.content || !json_obj.uuid) && !json_obj.deleted && !json_obj.errorDecrypting) {
             // An item that is not deleted should never have empty content
             console.error("Server response item is corrupt:", json_obj);
@@ -5080,6 +5081,7 @@ var SFSyncManager = exports.SFSyncManager = function () {
 
     // How many consective sync results have had mismatching hashes. This value can never exceed this.MaxDiscordanceBeforeOutOfSync.
     this.syncDiscordance = 0;
+    this.outOfSync = false;
   }
 
   _createClass(SFSyncManager, [{
@@ -7576,12 +7578,14 @@ var SFItem = exports.SFItem = function () {
         return obj;
       };
 
-      var left = this.structureParams();
-      left.appData[SFItem.AppDomain] = omit(left.appData[SFItem.AppDomain], this.appDataKeysToIgnoreWhenCheckingContentEquality());
+      // Create copies of objects before running omit as not to modify source values directly.
+
+      var left = Object.assign({}, this.structureParams());
+      left.appData[SFItem.AppDomain] = omit(Object.assign({}, left.appData[SFItem.AppDomain]), this.appDataKeysToIgnoreWhenCheckingContentEquality());
       left = omit(left, this.keysToIgnoreWhenCheckingContentEquality());
 
-      var right = otherItem.structureParams();
-      right.appData[SFItem.AppDomain] = omit(right.appData[SFItem.AppDomain], otherItem.appDataKeysToIgnoreWhenCheckingContentEquality());
+      var right = Object.assign({}, otherItem.structureParams());
+      right.appData[SFItem.AppDomain] = omit(Object.assign({}, right.appData[SFItem.AppDomain]), otherItem.appDataKeysToIgnoreWhenCheckingContentEquality());
       right = omit(right, otherItem.keysToIgnoreWhenCheckingContentEquality());
 
       return JSON.stringify(left) === JSON.stringify(right);
