@@ -4964,11 +4964,6 @@ var SFSyncManager = exports.SFSyncManager = function () {
     // If X consective sync requests return mismatching hashes, then we officially enter out-of-sync.
     this.MaxDiscordanceBeforeOutOfSync = 5;
 
-    // Unix timestamp + 3 extra digits for milliseconds.
-    // The server has up to 6 digits after main timestamp (for 16 total digits),
-    // but JS client only stores 3 extra.
-    this.IntegrityHashDatePrecision = 13;
-
     // How many consective sync results have had mismatching hashes. This value can never exceed this.MaxDiscordanceBeforeOutOfSync.
     this.syncDiscordance = 0;
   }
@@ -6058,7 +6053,6 @@ var SFSyncManager = exports.SFSyncManager = function () {
 
                             if (options.performIntegrityCheck) {
                               params.compute_integrity = true;
-                              params.integrity_date_precision = _this22.IntegrityHashDatePrecision;
                             }
 
                             _context88.prev = 38;
@@ -6352,7 +6346,10 @@ var SFSyncManager = exports.SFSyncManager = function () {
 
                 this.stopCheckingIfSyncIsTakingTooLong();
 
-                if (!response.integrity_hash) {
+                // if a cursor token is available, dont perform integrity calculation,
+                // as content is still on the server waiting to be downloaded
+
+                if (!(response.integrity_hash && !response.cursor_token)) {
                   _context90.next = 56;
                   break;
                 }
