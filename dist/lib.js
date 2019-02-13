@@ -595,7 +595,7 @@ export class SFHttpManager {
 
   async alternateUUIDForItem(item) {
     // We need to clone this item and give it a new uuid, then delete item with old uuid from db (you can't modify uuid's in our indexeddb setup)
-    let newItem = this.createItem(item);
+    let newItem = this.createItem(item, true);
     newItem.uuid = await SFJS.crypto.generateUUID();
 
     // Update uuids of relationships
@@ -605,9 +605,14 @@ export class SFHttpManager {
     // the new item should inherit the original's relationships
     for(let referencingObject of item.referencingObjects) {
       referencingObject.setIsNoLongerBeingReferencedBy(item);
+      item.setIsNoLongerBeingReferencedBy(referencingObject);
+
       referencingObject.addItemAsRelationship(newItem);
       referencingObject.setDirty(true);
     }
+
+    // Used to set up referencingObjects for new item (so that other items can now properly reference this new item)
+    this.resolveReferencesForItem(newItem);
 
     console.log(item.uuid, "-->", newItem.uuid);
 
@@ -625,9 +630,6 @@ export class SFHttpManager {
     // add new item
     this.addItem(newItem);
     newItem.setDirty(true);
-
-    // We don't need to do this. The only purpose would be to set up referencingObjects, but we do that above now.
-    // this.resolveReferencesForItem(newItem);
 
     this.notifyObserversOfUuidChange(item, newItem);
 
@@ -2855,8 +2857,6 @@ export class SFItem {
 
   // When another object has a relationship with us, we push that object into memory here.
   // We use this so that when `this` is deleted, we're able to update the references of those other objects.
-  // For example, a Note has a one way relationship with a Tag. If a Tag is deleted, we want to update
-  // the Note's references to remove the tag relationship.
   setIsBeingReferencedBy(item) {
     if(!_.find(this.referencingObjects, {uuid: item.uuid})) {
       this.referencingObjects.push(item);

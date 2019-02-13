@@ -590,7 +590,7 @@ describe('sync discordance', () => {
     expect(localSyncManager.syncDiscordance).to.equal(0);
   }).timeout(10000);
 
-  it.only("should perform sync resolution in which differing items are duplicated instead of merged", async () => {
+  it("should perform sync resolution in which differing items are duplicated instead of merged", async () => {
     var item = Factory.createItem();
     item.setDirty(true);
     localModelManager.addItem(item);

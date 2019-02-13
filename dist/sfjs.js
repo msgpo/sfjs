@@ -2067,7 +2067,7 @@ var SFModelManager = exports.SFModelManager = function () {
             switch (_context34.prev = _context34.next) {
               case 0:
                 // We need to clone this item and give it a new uuid, then delete item with old uuid from db (you can't modify uuid's in our indexeddb setup)
-                newItem = this.createItem(item);
+                newItem = this.createItem(item, true);
                 _context34.next = 3;
                 return SFJS.crypto.generateUUID();
 
@@ -2088,10 +2088,13 @@ var SFModelManager = exports.SFModelManager = function () {
                   referencingObject = _step10.value;
 
                   referencingObject.setIsNoLongerBeingReferencedBy(item);
+                  item.setIsNoLongerBeingReferencedBy(referencingObject);
+
                   referencingObject.addItemAsRelationship(newItem);
                   referencingObject.setDirty(true);
                 }
 
+                // Used to set up referencingObjects for new item (so that other items can now properly reference this new item)
                 _context34.next = 17;
                 break;
 
@@ -2126,6 +2129,8 @@ var SFModelManager = exports.SFModelManager = function () {
                 return _context34.finish(17);
 
               case 25:
+                this.resolveReferencesForItem(newItem);
+
                 console.log(item.uuid, "-->", newItem.uuid);
 
                 // Set to deleted, then run through mapping function so that observers can be notified
@@ -2143,14 +2148,11 @@ var SFModelManager = exports.SFModelManager = function () {
                 this.addItem(newItem);
                 newItem.setDirty(true);
 
-                // We don't need to do this. The only purpose would be to set up referencingObjects, but we do that above now.
-                // this.resolveReferencesForItem(newItem);
-
                 this.notifyObserversOfUuidChange(item, newItem);
 
                 return _context34.abrupt("return", newItem);
 
-              case 34:
+              case 35:
               case "end":
                 return _context34.stop();
             }
@@ -7389,8 +7391,6 @@ var SFItem = exports.SFItem = function () {
 
     // When another object has a relationship with us, we push that object into memory here.
     // We use this so that when `this` is deleted, we're able to update the references of those other objects.
-    // For example, a Note has a one way relationship with a Tag. If a Tag is deleted, we want to update
-    // the Note's references to remove the tag relationship.
 
   }, {
     key: "setIsBeingReferencedBy",

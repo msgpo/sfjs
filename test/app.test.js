@@ -207,7 +207,7 @@ describe('app models', () => {
     expect(originalItem2.referencingObjects.length).to.equal(1);
   });
 
-  it('properly handles single item uuid alternation', () => {
+  it('properly handles single item uuid alternation', async () => {
     let modelManager = createModelManager();
     var originalItem1 = createItem();
     var originalItem2 = createItem();
@@ -217,28 +217,30 @@ describe('app models', () => {
     originalItem1.addItemAsRelationship(originalItem2);
     originalItem2.addItemAsRelationship(originalItem1);
 
-    return expect(modelManager.alternateUUIDForItem(originalItem1)).to.be.fulfilled.then(async (alternatedItem1) => {
+    expect(originalItem1.referencingObjects.length).to.equal(1);
+    expect(originalItem2.referencingObjects.length).to.equal(1);
 
-      expect(modelManager.allItems.length).to.equal(2);
+    let alternatedItem1 = await modelManager.alternateUUIDForItem(originalItem1);
 
-      // item 1 now is at the end of the array
-      var item1 = modelManager.allItems[1];
+    expect(modelManager.allItems.length).to.equal(2);
 
-      expect(originalItem1.uuid).to.not.equal(alternatedItem1.uuid);
-      expect(item1.uuid).to.equal(alternatedItem1.uuid);
+    expect(originalItem1.uuid).to.not.equal(alternatedItem1.uuid);
+    expect(alternatedItem1.uuid).to.equal(alternatedItem1.uuid);
 
-      expect(item1.content.references.length).to.equal(1);
-      expect(originalItem2.content.references.length).to.equal(1);
-      expect(alternatedItem1.content.references.length).to.equal(1);
+    expect(alternatedItem1.content.references.length).to.equal(1);
+    expect(originalItem2.content.references.length).to.equal(1);
+    expect(alternatedItem1.content.references.length).to.equal(1);
 
-      expect(item1.hasRelationshipWithItem(originalItem2)).to.equal(true);
-      expect(originalItem2.hasRelationshipWithItem(item1)).to.equal(true);
+    expect(alternatedItem1.referencingObjects.length).to.equal(1);
+    expect(originalItem2.referencingObjects.length).to.equal(1);
 
-      expect(originalItem2.hasRelationshipWithItem(alternatedItem1)).to.equal(true);
-      expect(alternatedItem1.hasRelationshipWithItem(originalItem2)).to.equal(true);
+    expect(alternatedItem1.hasRelationshipWithItem(originalItem2)).to.equal(true);
+    expect(originalItem2.hasRelationshipWithItem(alternatedItem1)).to.equal(true);
 
-      expect(alternatedItem1.dirty).to.equal(true);
-    })
+    expect(originalItem2.hasRelationshipWithItem(alternatedItem1)).to.equal(true);
+    expect(alternatedItem1.hasRelationshipWithItem(originalItem2)).to.equal(true);
+
+    expect(alternatedItem1.dirty).to.equal(true);
   });
 
   it('properly handles mutli item uuid alternation', async () => {
@@ -249,6 +251,8 @@ describe('app models', () => {
     modelManager.addItem(originalItem2);
 
     originalItem1.addItemAsRelationship(originalItem2);
+
+    expect(originalItem2.referencingObjects.length).to.equal(1);
 
     var alternatedItem1 = await modelManager.alternateUUIDForItem(originalItem1);
     var alternatedItem2 = await modelManager.alternateUUIDForItem(originalItem2);
