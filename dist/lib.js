@@ -667,7 +667,10 @@ export class SFHttpManager {
         continue;
       }
 
-      if((!json_obj.content_type || !json_obj.content || !json_obj.uuid) && !json_obj.deleted && !json_obj.errorDecrypting) {
+      // content is missing if it has been sucessfullly decrypted but no content
+      let isMissingContent = !json_obj.content && !json_obj.errorDecrypting;
+      let isCorrupt = !json_obj.content_type || !json_obj.uuid;
+      if((isCorrupt || isMissingContent) && !json_obj.deleted) {
         // An item that is not deleted should never have empty content
         console.error("Server response item is corrupt:", json_obj);
         continue;
