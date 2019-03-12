@@ -3520,9 +3520,6 @@ var SFPrivilegesManager = exports.SFPrivilegesManager = function () {
                   var contentTypePredicate = new SFPredicate("content_type", "=", privsContentType);
                   _this11.singletonManager.registerSingleton([contentTypePredicate], function (resolvedSingleton) {
                     _this11.privileges = resolvedSingleton;
-                    if (!_this11.privileges.content.desktopPrivileges) {
-                      _this11.privileges.content.desktopPrivileges = {};
-                    }
                     resolve(resolvedSingleton);
                   }, function () {
                     var _ref49 = _asyncToGenerator( /*#__PURE__*/regeneratorRuntime.mark(function _callee42(valueCallback) {
@@ -8107,10 +8104,23 @@ var SFPredicate = exports.SFPredicate = function () {
 var SFPrivileges = exports.SFPrivileges = function (_SFItem) {
   _inherits(SFPrivileges, _SFItem);
 
-  function SFPrivileges() {
+  _createClass(SFPrivileges, null, [{
+    key: "contentType",
+    value: function contentType() {
+      // It has prefix SN since it was originally imported from SN codebase
+      return "SN|Privileges";
+    }
+  }]);
+
+  function SFPrivileges(json_obj) {
     _classCallCheck(this, SFPrivileges);
 
-    return _possibleConstructorReturn(this, (SFPrivileges.__proto__ || Object.getPrototypeOf(SFPrivileges)).apply(this, arguments));
+    var _this26 = _possibleConstructorReturn(this, (SFPrivileges.__proto__ || Object.getPrototypeOf(SFPrivileges)).call(this, json_obj));
+
+    if (!_this26.content.desktopPrivileges) {
+      _this26.content.desktopPrivileges = {};
+    }
+    return _this26;
   }
 
   _createClass(SFPrivileges, [{
@@ -8149,12 +8159,6 @@ var SFPrivileges = exports.SFPrivileges = function (_SFItem) {
     value: function isCredentialRequiredForAction(action, credential) {
       var credentialsRequired = this.getCredentialsForAction(action);
       return credentialsRequired.includes(credential);
-    }
-  }], [{
-    key: "contentType",
-    value: function contentType() {
-      // It has prefix SN since it was originally imported from SN codebase
-      return "SN|Privileges";
     }
   }]);
 

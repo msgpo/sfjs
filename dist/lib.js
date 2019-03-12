@@ -1269,9 +1269,6 @@ export class SFHttpManager {
       let contentTypePredicate = new SFPredicate("content_type", "=", privsContentType);
       this.singletonManager.registerSingleton([contentTypePredicate], (resolvedSingleton) => {
         this.privileges = resolvedSingleton;
-        if(!this.privileges.content.desktopPrivileges) {
-          this.privileges.content.desktopPrivileges = {};
-        }
         resolve(resolvedSingleton);
       }, async (valueCallback) => {
         // Safe to create. Create and return object.
@@ -3309,6 +3306,14 @@ export class SFItem {
   static contentType() {
     // It has prefix SN since it was originally imported from SN codebase
     return "SN|Privileges";
+  }
+
+  constructor(json_obj) {
+    super(json_obj);
+
+    if(!this.content.desktopPrivileges) {
+      this.content.desktopPrivileges = {};
+    }
   }
 
   setCredentialsForAction(action, credentials) {
