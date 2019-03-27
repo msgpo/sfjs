@@ -193,6 +193,7 @@ describe('app models', () => {
   it('properly duplicates item', async () => {
     let modelManager = createModelManager();
     var originalItem1 = createItem();
+    originalItem1.setAppDataItem("locked", true);
     var originalItem2 = createItem();
     originalItem1.addItemAsRelationship(originalItem2);
 
@@ -200,7 +201,7 @@ describe('app models', () => {
 
     let duplicate = modelManager.duplicateItem(originalItem1);
 
-    expect(JSON.stringify(originalItem1.content)).to.equal(JSON.stringify(duplicate.content));
+    expect(originalItem1.isItemContentEqualWith(duplicate)).to.equal(true);
     expect(originalItem1.created_at).to.equal(duplicate.created_at);
     expect(originalItem1.content_type).to.equal(duplicate.content_type);
     expect(duplicate.content.references.length).to.equal(1);
@@ -661,11 +662,25 @@ describe("items", () => {
       return ["foo"];
     }
 
+    item2.keysToIgnoreWhenCheckingContentEquality = () => {
+      return ["foo"];
+    }
+
     // calling isItemContentEqualWith should not have side effects
     // There was an issue where calling that function would modify values directly to omit keys
     // in keysToIgnoreWhenCheckingContentEquality.
+
+    item1.setDirty(true);
+    item2.setDirty(true);
+
+    expect(item1.getAppDataItem("client_updated_at")).to.be.ok;
+    expect(item2.getAppDataItem("client_updated_at")).to.be.ok;
+
     expect(item1.isItemContentEqualWith(item2)).to.equal(true);
     expect(item2.isItemContentEqualWith(item1)).to.equal(true);
+
+    expect(item1.getAppDataItem("client_updated_at")).to.be.ok;
+    expect(item2.getAppDataItem("client_updated_at")).to.be.ok;
 
     expect(item1.content.foo).to.equal("bar");
   })

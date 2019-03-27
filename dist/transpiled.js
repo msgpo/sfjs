@@ -7054,7 +7054,6 @@ var SFItem = exports.SFItem = function () {
 
     _classCallCheck(this, SFItem);
 
-    this.appData = {};
     this.content = {};
     this.referencingObjects = [];
     this.updateFromJSON(json_obj);
@@ -7194,25 +7193,11 @@ var SFItem = exports.SFItem = function () {
     }
   }, {
     key: "mapContentToLocalProperties",
-    value: function mapContentToLocalProperties(contentObj) {
-      if (contentObj.appData) {
-        this.appData = contentObj.appData;
-      }
-      if (!this.appData) {
-        this.appData = {};
-      }
-    }
+    value: function mapContentToLocalProperties(contentObj) {}
   }, {
     key: "createContentJSONFromProperties",
     value: function createContentJSONFromProperties() {
-      return this.structureParams();
-    }
-  }, {
-    key: "structureParams",
-    value: function structureParams() {
-      var params = this.contentObject;
-      params.appData = this.appData;
-      return params;
+      return this.getContentCopy();
     }
 
     /* Allows the item to handle the case where the item is deleted and the content is null */
@@ -7373,12 +7358,17 @@ var SFItem = exports.SFItem = function () {
         console.error("SFItem.AppDomain needs to be set.");
         return;
       }
-      var data = this.appData[domain];
+
+      if (!this.content.appData) {
+        this.content.appData = {};
+      }
+
+      var data = this.content.appData[domain];
       if (!data) {
         data = {};
       }
       data[key] = value;
-      this.appData[domain] = data;
+      this.content.appData[domain] = data;
     }
   }, {
     key: "getDomainDataItem",
@@ -7387,7 +7377,12 @@ var SFItem = exports.SFItem = function () {
         console.error("SFItem.AppDomain needs to be set.");
         return;
       }
-      var data = this.appData[domain];
+
+      if (!this.content.appData) {
+        this.content.appData = {};
+      }
+
+      var data = this.content.appData[domain];
       if (data) {
         return data[key];
       } else {
@@ -7430,6 +7425,12 @@ var SFItem = exports.SFItem = function () {
       return ["client_updated_at"];
     }
   }, {
+    key: "getContentCopy",
+    value: function getContentCopy() {
+      var contentCopy = JSON.parse(JSON.stringify(this.content));
+      return contentCopy;
+    }
+  }, {
     key: "isItemContentEqualWith",
     value: function isItemContentEqualWith(otherItem) {
       var omit = function omit(obj, keys) {
@@ -7466,15 +7467,19 @@ var SFItem = exports.SFItem = function () {
 
       // Create copies of objects before running omit as not to modify source values directly.
 
-      var left = Object.assign({}, this.structureParams());
-      left.appData[SFItem.AppDomain] = omit(Object.assign({}, left.appData[SFItem.AppDomain]), this.appDataKeysToIgnoreWhenCheckingContentEquality());
-      left = omit(left, this.keysToIgnoreWhenCheckingContentEquality());
+      var leftContent = this.getContentCopy();
+      if (leftContent.appData) {
+        omit(leftContent.appData[SFItem.AppDomain], this.appDataKeysToIgnoreWhenCheckingContentEquality());
+      }
+      leftContent = omit(leftContent, this.keysToIgnoreWhenCheckingContentEquality());
 
-      var right = Object.assign({}, otherItem.structureParams());
-      right.appData[SFItem.AppDomain] = omit(Object.assign({}, right.appData[SFItem.AppDomain]), otherItem.appDataKeysToIgnoreWhenCheckingContentEquality());
-      right = omit(right, otherItem.keysToIgnoreWhenCheckingContentEquality());
+      var rightContent = otherItem.getContentCopy();
+      if (rightContent.appData) {
+        omit(rightContent.appData[SFItem.AppDomain], otherItem.appDataKeysToIgnoreWhenCheckingContentEquality());
+      }
+      rightContent = omit(rightContent, otherItem.keysToIgnoreWhenCheckingContentEquality());
 
-      return JSON.stringify(left) === JSON.stringify(right);
+      return JSON.stringify(leftContent) === JSON.stringify(rightContent);
     }
   }, {
     key: "satisfiesPredicate",
