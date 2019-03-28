@@ -7197,6 +7197,26 @@ var SFItem = exports.SFItem = function () {
   }, {
     key: "createContentJSONFromProperties",
     value: function createContentJSONFromProperties() {
+      /*
+      NOTE: This function does have side effects and WILL modify our content.
+      
+      Subclasses will override structureParams, and add their own custom content and properties to the object returned from structureParams
+      These are properties that this superclass will not be aware of, like 'title' or 'text'
+       When we call createContentJSONFromProperties, we want to update our own inherit 'content' field with the values returned from structureParams,
+      so that our content field is up to date.
+       Each subclass will call super.structureParams and merge it with its own custom result object.
+      Since our own structureParams gets a real-time copy of our content, it should be safe to merge the aggregate value back into our own content field.
+      */
+      var content = this.structureParams();
+
+      SFItem.deepMerge(this.contentObject, content);
+
+      // Return the content item copy and not our actual value, as we don't want it to be mutated outside our control.
+      return content;
+    }
+  }, {
+    key: "structureParams",
+    value: function structureParams() {
       return this.getContentCopy();
     }
 
