@@ -989,13 +989,16 @@ export class SFHttpManager {
 
   removeAndDirtyAllRelationshipsForItem(item) {
     // Handle direct relationships
-    for(let reference of item.content.references) {
-      let relationship = this.findItem(reference.uuid);
-      if(relationship) {
-        item.removeItemAsRelationship(relationship);
-        if(relationship.hasRelationshipWithItem(item)) {
-          relationship.removeItemAsRelationship(item);
-          relationship.setDirty(true);
+    // An item with errorDecrypting will not have valid content field
+    if(!item.errorDecrypting) {
+      for(let reference of item.content.references) {
+        let relationship = this.findItem(reference.uuid);
+        if(relationship) {
+          item.removeItemAsRelationship(relationship);
+          if(relationship.hasRelationshipWithItem(item)) {
+            relationship.removeItemAsRelationship(item);
+            relationship.setDirty(true);
+          }
         }
       }
     }
@@ -1685,8 +1688,19 @@ export class SFSingletonManager {
     savedItems = savedItems || [];
 
     for(let singletonHandler of this.singletonHandlers) {
-      let predicates = singletonHandler.predicates;
+      let predicates = singletonHandler.predicates.slice();
       let retrievedSingletonItems = this.modelManager.filterItemsWithPredicates(retrievedItems, predicates);
+
+      let handleCreation = () => {
+        if(singletonHandler.createBlock) {
+          singletonHandler.pendingCreateBlockCallback = true;
+          singletonHandler.createBlock((created) => {
+            singletonHandler.singleton = created;
+            singletonHandler.pendingCreateBlockCallback = false;
+            singletonHandler.resolutionCallback && singletonHandler.resolutionCallback(created);
+          });
+        }
+      }
 
       // We only want to consider saved items count to see if it's more than 0, and do nothing else with it.
       // This way we know there was some action and things need to be resolved. The saved items will come up
@@ -1709,6 +1723,15 @@ export class SFSingletonManager {
               If compareFunction(a, b) is less than 0, sort a to an index lower than b, i.e. a comes first.
               If compareFunction(a, b) is greater than 0, sort b to an index lower than a, i.e. b comes first.
             */
+
+            if(a.errorDecrypting) {
+              return 1;
+            }
+
+            if(b.errorDecrypting) {
+              return -1;
+            }
+
             return a.created_at < b.created_at ? -1 : 1;
           });
 
@@ -1731,7 +1754,12 @@ export class SFSingletonManager {
 
         } else if(allExtantItemsMatchingPredicate.length == 1) {
           let singleton = allExtantItemsMatchingPredicate[0];
-          if(!singletonHandler.singleton || singletonHandler.singleton !== singleton) {
+          if(singleton.errorDecrypting) {
+            // Delete the current singleton and create a new one
+            this.modelManager.setItemToBeDeleted(singleton);
+            handleCreation();
+          }
+          else if(!singletonHandler.singleton || singletonHandler.singleton !== singleton) {
             // Not yet notified interested parties of object
             singletonHandler.singleton = singleton;
             singletonHandler.resolutionCallback && singletonHandler.resolutionCallback(singleton);
@@ -1742,14 +1770,7 @@ export class SFSingletonManager {
         // we need to create one. Only do this on actual sync completetions and not on initial data load. Because we want
         // to get the latest from the server before making the decision to create a new item
         if(!singletonHandler.singleton && !initialLoad && !singletonHandler.pendingCreateBlockCallback) {
-          if(singletonHandler.createBlock) {
-            singletonHandler.pendingCreateBlockCallback = true;
-            singletonHandler.createBlock((created) => {
-              singletonHandler.singleton = created;
-              singletonHandler.pendingCreateBlockCallback = false;
-              singletonHandler.resolutionCallback && singletonHandler.resolutionCallback(created);
-            });
-          }
+          handleCreation();
         }
       }
     }
@@ -2793,7 +2814,7 @@ export class SFItem {
   createContentJSONFromProperties() {
     /*
     NOTE: This function does have side effects and WILL modify our content.
-    
+
     Subclasses will override structureParams, and add their own custom content and properties to the object returned from structureParams
     These are properties that this superclass will not be aware of, like 'title' or 'text'
 
@@ -2933,6 +2954,10 @@ export class SFItem {
       return;
     }
 
+    if(this.errorDecrypting) {
+      return;
+    }
+
     if(!this.content.appData) {
       this.content.appData = {};
     }
@@ -2948,6 +2973,10 @@ export class SFItem {
   getDomainDataItem(key, domain) {
     if(!domain) {
       console.error("SFItem.AppDomain needs to be set.");
+      return;
+    }
+
+    if(this.errorDecrypting) {
       return;
     }
 
@@ -3235,15 +3264,19 @@ export class SFItem {
       predicateValue = this.DateFromString(predicateValue);
     }
 
-
     var valueAtKeyPath = predicate.keypath.split('.').reduce((previous, current) => {
       return previous && previous[current]
     }, object);
 
     const falseyValues = [false, "", null, undefined, NaN];
 
+    // If the value at keyPath is undefined, either because the property is nonexistent or the value is null.
     if(valueAtKeyPath == undefined) {
-      return falseyValues.includes(predicate.value);
+      if(predicate.operator == "!=") {
+        return !falseyValues.includes(predicate.value);
+      } else {
+        return falseyValues.includes(predicate.value);
+      }
     }
 
     if(predicate.operator == "=") {
@@ -3252,6 +3285,13 @@ export class SFItem {
         return JSON.stringify(valueAtKeyPath) == JSON.stringify(predicateValue);
       } else {
         return valueAtKeyPath == predicateValue;
+      }
+    } else if(predicate.operator == "!=") {
+      // Use array comparison
+      if(Array.isArray(valueAtKeyPath)) {
+        return JSON.stringify(valueAtKeyPath) != JSON.stringify(predicateValue);
+      } else {
+        return valueAtKeyPath !== predicateValue;
       }
     } else if(predicate.operator == "<")  {
       return valueAtKeyPath < predicateValue;

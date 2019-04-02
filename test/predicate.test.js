@@ -123,7 +123,31 @@ describe("predicates", () => {
 
     expect(item.satisfiesPredicate(new SFPredicate("content.numbers", "=", ["1"]))).to.equal(false);
     expect(item.satisfiesPredicate(new SFPredicate("content.numbers", "=", ["1", "2", "3"]))).to.equal(true);
+  });
 
+  it('test inequality', () => {
+    let item = createItem();
+
+    expect(item.satisfiesPredicate(new SFPredicate("content_type", "!=", "Foo"))).to.equal(true);
+    expect(item.satisfiesPredicate(new SFPredicate("content_type", "!=", "Item"))).to.equal(false);
+
+    expect(item.satisfiesPredicate(new SFPredicate("content.title", "!=", "Foo"))).to.equal(true);
+    expect(item.satisfiesPredicate(new SFPredicate("content.title", "!=", "Hello"))).to.equal(false);
+
+    expect(item.satisfiesPredicate(new SFPredicate("content.numbers", "!=", ["1"]))).to.equal(true);
+    expect(item.satisfiesPredicate(new SFPredicate("content.numbers", "!=", ["1", "2", "3"]))).to.equal(false);
+  });
+
+  it('test nonexistent property', () => {
+    let item = createItem();
+
+    expect(item.satisfiesPredicate(new SFPredicate("foobar", "!=", "Foo"))).to.equal(true);
+    expect(item.satisfiesPredicate(new SFPredicate("foobar", "=", "Foo"))).to.equal(false);
+
+    expect(item.satisfiesPredicate(new SFPredicate("foobar", "<", 3))).to.equal(false);
+    expect(item.satisfiesPredicate(new SFPredicate("foobar", ">", 3))).to.equal(false);
+    expect(item.satisfiesPredicate(new SFPredicate("foobar", "<=", 3))).to.equal(false);
+    expect(item.satisfiesPredicate(new SFPredicate("foobar", "includes", 3))).to.equal(false);
   });
 
   it("test includes", () => {
