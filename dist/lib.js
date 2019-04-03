@@ -400,7 +400,7 @@ export class SFHttpManager {
 }
 ;export class SFMigrationManager {
 
-  constructor(modelManager, syncManager, storageManager) {
+  constructor(modelManager, syncManager, storageManager, authManager) {
     this.modelManager = modelManager;
     this.syncManager = syncManager;
     this.storageManager = storageManager;
@@ -408,6 +408,17 @@ export class SFHttpManager {
     this.completionHandlers = [];
 
     this.loadMigrations();
+
+    // The syncManager used to dispatch a param called 'initialSync' in the 'sync:completed' event
+    // to let us know of the first sync completion after login.
+    // however it was removed as it was deemed to be unreliable (returned wrong value when a single sync request repeats on completion for pagination)
+    // We'll now use authManager's events instead
+    let didReceiveSignInEvent = false;
+    let signInHandler = authManager.addEventHandler((event) => {
+      if(event == SFAuthManager.DidSignInEvent) {
+        didReceiveSignInEvent = true;
+      }
+    })
 
     this.syncManager.addEventHandler(async (event, data) => {
       var dataLoadedEvent = event == "local-data-loaded";
@@ -422,7 +433,12 @@ export class SFHttpManager {
 
         // We want to run pending migrations only after local data has been loaded, and a sync has been completed.
         if(this.receivedLocalDataEvent && this.receivedSyncCompletedEvent) {
-          if(data && data.initialSync) {
+          // Only perform these steps on the first succcessful sync after sign in
+          if(didReceiveSignInEvent) {
+            // Reset our collected state about sign in
+            didReceiveSignInEvent = false;
+            authManager.removeEventHandler(signInHandler);
+
             // If initial online sync, clear any completed migrations that occurred while offline,
             // so they can run again now that we have updated user items. Only clear migrations that
             // don't have `runOnlyOnce` set
@@ -531,10 +547,18 @@ export class SFHttpManager {
     var completed = await this.getCompletedMigrations();
     completed.push(await this.encode(migration.name));
     this.storageManager.setItem("migrations", JSON.stringify(completed));
+    migration.running = false;
   }
 
   async runMigration(migration, items) {
     console.log("Running migration:", migration.name);
+    // To protect against running more than once, especially if it's a long-running migration,
+    // we'll add this flag, and clear it on completion.
+    if(migration.running) {
+      return;
+    }
+
+    migration.running = true;
     if(migration.customHandler) {
       return migration.customHandler().then(() => {
         this.markMigrationCompleted(migration);
@@ -2417,8 +2441,6 @@ export class SFStorageManager {
 
     this.syncStatusDidChange();
 
-    let isInitialSync = (await this.getSyncToken()) == null;
-
     // set the sync token at the end, so that if any errors happen above, you can resync
     this.setSyncToken(response.sync_token);
     this.setCursorToken(response.cursor_token);
@@ -2480,7 +2502,7 @@ export class SFStorageManager {
       }
 
       this.callQueuedCallbacks(response);
-      this.notifyEvent("sync:completed", {retrievedItems: this.allRetreivedItems, savedItems: this.allSavedItems, unsavedItems: unsaved, initialSync: isInitialSync});
+      this.notifyEvent("sync:completed", {retrievedItems: this.allRetreivedItems, savedItems: this.allSavedItems, unsavedItems: unsaved});
 
       this.allRetreivedItems = [];
       this.allSavedItems = [];

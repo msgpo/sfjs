@@ -1124,7 +1124,7 @@ var SFHttpManager = exports.SFHttpManager = function () {
 
 ;
 var SFMigrationManager = exports.SFMigrationManager = function () {
-  function SFMigrationManager(modelManager, syncManager, storageManager) {
+  function SFMigrationManager(modelManager, syncManager, storageManager, authManager) {
     var _this7 = this;
 
     _classCallCheck(this, SFMigrationManager);
@@ -1136,6 +1136,17 @@ var SFMigrationManager = exports.SFMigrationManager = function () {
     this.completionHandlers = [];
 
     this.loadMigrations();
+
+    // The syncManager used to dispatch a param called 'initialSync' in the 'sync:completed' event
+    // to let us know of the first sync completion after login.
+    // however it was removed as it was deemed to be unreliable (returned wrong value when a single sync request repeats on completion for pagination)
+    // We'll now use authManager's events instead
+    var didReceiveSignInEvent = false;
+    var signInHandler = authManager.addEventHandler(function (event) {
+      if (event == SFAuthManager.DidSignInEvent) {
+        didReceiveSignInEvent = true;
+      }
+    });
 
     this.syncManager.addEventHandler(function () {
       var _ref25 = _asyncToGenerator( /*#__PURE__*/regeneratorRuntime.mark(function _callee25(event, data) {
@@ -1149,7 +1160,7 @@ var SFMigrationManager = exports.SFMigrationManager = function () {
                 syncCompleteEvent = event == "sync:completed";
 
                 if (!(dataLoadedEvent || syncCompleteEvent)) {
-                  _context25.next = 38;
+                  _context25.next = 40;
                   break;
                 }
 
@@ -1162,91 +1173,98 @@ var SFMigrationManager = exports.SFMigrationManager = function () {
                 // We want to run pending migrations only after local data has been loaded, and a sync has been completed.
 
                 if (!(_this7.receivedLocalDataEvent && _this7.receivedSyncCompletedEvent)) {
-                  _context25.next = 38;
+                  _context25.next = 40;
                   break;
                 }
 
-                if (!(data && data.initialSync)) {
-                  _context25.next = 37;
+                if (!didReceiveSignInEvent) {
+                  _context25.next = 39;
                   break;
                 }
 
-                _context25.next = 8;
+                // Reset our collected state about sign in
+                didReceiveSignInEvent = false;
+                authManager.removeEventHandler(signInHandler);
+
+                // If initial online sync, clear any completed migrations that occurred while offline,
+                // so they can run again now that we have updated user items. Only clear migrations that
+                // don't have `runOnlyOnce` set
+                _context25.next = 10;
                 return _this7.getCompletedMigrations();
 
-              case 8:
+              case 10:
                 completedList = _context25.sent.slice();
                 _iteratorNormalCompletion2 = true;
                 _didIteratorError2 = false;
                 _iteratorError2 = undefined;
-                _context25.prev = 12;
+                _context25.prev = 14;
                 _iterator2 = completedList[Symbol.iterator]();
 
-              case 14:
+              case 16:
                 if (_iteratorNormalCompletion2 = (_step2 = _iterator2.next()).done) {
-                  _context25.next = 23;
+                  _context25.next = 25;
                   break;
                 }
 
                 migrationName = _step2.value;
-                _context25.next = 18;
+                _context25.next = 20;
                 return _this7.migrationForEncodedName(migrationName);
 
-              case 18:
+              case 20:
                 migration = _context25.sent;
 
                 if (!migration.runOnlyOnce) {
                   _.pull(_this7._completed, migrationName);
                 }
 
-              case 20:
+              case 22:
                 _iteratorNormalCompletion2 = true;
-                _context25.next = 14;
-                break;
-
-              case 23:
-                _context25.next = 29;
+                _context25.next = 16;
                 break;
 
               case 25:
-                _context25.prev = 25;
-                _context25.t0 = _context25["catch"](12);
+                _context25.next = 31;
+                break;
+
+              case 27:
+                _context25.prev = 27;
+                _context25.t0 = _context25["catch"](14);
                 _didIteratorError2 = true;
                 _iteratorError2 = _context25.t0;
 
-              case 29:
-                _context25.prev = 29;
-                _context25.prev = 30;
+              case 31:
+                _context25.prev = 31;
+                _context25.prev = 32;
 
                 if (!_iteratorNormalCompletion2 && _iterator2.return) {
                   _iterator2.return();
                 }
 
-              case 32:
-                _context25.prev = 32;
+              case 34:
+                _context25.prev = 34;
 
                 if (!_didIteratorError2) {
-                  _context25.next = 35;
+                  _context25.next = 37;
                   break;
                 }
 
                 throw _iteratorError2;
 
-              case 35:
-                return _context25.finish(32);
-
-              case 36:
-                return _context25.finish(29);
-
               case 37:
-                _this7.runPendingMigrations();
+                return _context25.finish(34);
 
               case 38:
+                return _context25.finish(31);
+
+              case 39:
+                _this7.runPendingMigrations();
+
+              case 40:
               case "end":
                 return _context25.stop();
             }
           }
-        }, _callee25, _this7, [[12, 25, 29, 37], [30,, 32, 36]]);
+        }, _callee25, _this7, [[14, 27, 31, 39], [32,, 34, 38]]);
       }));
 
       return function (_x52, _x53) {
@@ -1813,8 +1831,9 @@ var SFMigrationManager = exports.SFMigrationManager = function () {
                 _context32.t0.push.call(_context32.t0, _context32.t1);
 
                 this.storageManager.setItem("migrations", JSON.stringify(completed));
+                migration.running = false;
 
-              case 9:
+              case 10:
               case "end":
                 return _context32.stop();
             }
@@ -1839,9 +1858,22 @@ var SFMigrationManager = exports.SFMigrationManager = function () {
             switch (_context33.prev = _context33.next) {
               case 0:
                 console.log("Running migration:", migration.name);
+                // To protect against running more than once, especially if it's a long-running migration,
+                // we'll add this flag, and clear it on completion.
+
+                if (!migration.running) {
+                  _context33.next = 3;
+                  break;
+                }
+
+                return _context33.abrupt("return");
+
+              case 3:
+
+                migration.running = true;
 
                 if (!migration.customHandler) {
-                  _context33.next = 5;
+                  _context33.next = 8;
                   break;
                 }
 
@@ -1849,12 +1881,12 @@ var SFMigrationManager = exports.SFMigrationManager = function () {
                   _this8.markMigrationCompleted(migration);
                 }));
 
-              case 5:
+              case 8:
                 return _context33.abrupt("return", migration.handler(items).then(function () {
                   _this8.markMigrationCompleted(migration);
                 }));
 
-              case 6:
+              case 9:
               case "end":
                 return _context33.stop();
             }
@@ -6227,7 +6259,7 @@ var SFSyncManager = exports.SFSyncManager = function () {
       var _ref96 = _asyncToGenerator( /*#__PURE__*/regeneratorRuntime.mark(function _callee90(syncedItems, response, options) {
         var _this23 = this;
 
-        var itemsToClearAsDirty, _iteratorNormalCompletion44, _didIteratorError44, _iteratorError44, _iterator44, _step44, item, allSavedUUIDs, retrieved, omitFields, saved, unsaved, isInitialSync, matches, cursorToken;
+        var itemsToClearAsDirty, _iteratorNormalCompletion44, _didIteratorError44, _iteratorError44, _iterator44, _step44, item, allSavedUUIDs, retrieved, omitFields, saved, unsaved, matches, cursorToken;
 
         return regeneratorRuntime.wrap(function _callee90$(_context90) {
           while (1) {
@@ -6355,14 +6387,6 @@ var SFSyncManager = exports.SFSyncManager = function () {
 
                 this.syncStatusDidChange();
 
-                _context90.next = 46;
-                return this.getSyncToken();
-
-              case 46:
-                _context90.t1 = _context90.sent;
-                isInitialSync = _context90.t1 == null;
-
-
                 // set the sync token at the end, so that if any errors happen above, you can resync
                 this.setSyncToken(response.sync_token);
                 this.setCursorToken(response.cursor_token);
@@ -6373,14 +6397,14 @@ var SFSyncManager = exports.SFSyncManager = function () {
                 // as content is still on the server waiting to be downloaded
 
                 if (!(response.integrity_hash && !response.cursor_token)) {
-                  _context90.next = 56;
+                  _context90.next = 52;
                   break;
                 }
 
-                _context90.next = 54;
+                _context90.next = 50;
                 return this.handleServerIntegrityHash(response.integrity_hash);
 
-              case 54:
+              case 50:
                 matches = _context90.sent;
 
                 if (!matches) {
@@ -6391,15 +6415,15 @@ var SFSyncManager = exports.SFSyncManager = function () {
                   }
                 }
 
-              case 56:
-                _context90.next = 58;
+              case 52:
+                _context90.next = 54;
                 return this.getCursorToken();
 
-              case 58:
+              case 54:
                 cursorToken = _context90.sent;
 
                 if (!(cursorToken || this.syncStatus.needsMoreSync)) {
-                  _context90.next = 63;
+                  _context90.next = 59;
                   break;
                 }
 
@@ -6409,9 +6433,9 @@ var SFSyncManager = exports.SFSyncManager = function () {
                   }.bind(_this23), 10); // wait 10ms to allow UI to update
                 }));
 
-              case 63:
+              case 59:
                 if (!this.repeatOnCompletion) {
-                  _context90.next = 68;
+                  _context90.next = 64;
                   break;
                 }
 
@@ -6422,7 +6446,7 @@ var SFSyncManager = exports.SFSyncManager = function () {
                   }.bind(_this23), 10); // wait 10ms to allow UI to update
                 }));
 
-              case 68:
+              case 64:
                 /*
                 // await this.writeItemsToLocalStorage(this.allRetreivedItems, false);
                   We used to do this, but the problem is, if you're saving 2000 items at the end of a sign in,
@@ -6438,14 +6462,14 @@ var SFSyncManager = exports.SFSyncManager = function () {
                 }
 
                 this.callQueuedCallbacks(response);
-                this.notifyEvent("sync:completed", { retrievedItems: this.allRetreivedItems, savedItems: this.allSavedItems, unsavedItems: unsaved, initialSync: isInitialSync });
+                this.notifyEvent("sync:completed", { retrievedItems: this.allRetreivedItems, savedItems: this.allSavedItems, unsavedItems: unsaved });
 
                 this.allRetreivedItems = [];
                 this.allSavedItems = [];
 
                 return _context90.abrupt("return", response);
 
-              case 76:
+              case 72:
               case "end":
                 return _context90.stop();
             }

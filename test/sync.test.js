@@ -130,6 +130,29 @@ describe('online syncing', () => {
     })
   });
 
+  it("every sync request should trigger a completion event", async () => {
+    let syncCount = 10;
+    let successes = 0;
+    let events = 0;
+
+    syncManager.addEventHandler(async (event, data) => {
+      if(event == "sync:completed") {
+        events++;
+      }
+    });
+
+    for(let i = 0; i < syncCount; i++) {
+      syncManager.sync().then(() => {
+        successes++;
+      })
+    }
+
+    await Factory.sleep(1);
+
+    expect(successes).to.equal(syncCount);
+    expect(events).to.equal(syncCount);
+  }).timeout(5000);
+
   it("mapping should not mutate items with error decrypting state", async () => {
     var item = Factory.createItem();
     let originalTitle = item.content.title;
