@@ -551,12 +551,13 @@ export class SFHttpManager {
   }
 
   async runMigration(migration, items) {
-    console.log("Running migration:", migration.name);
     // To protect against running more than once, especially if it's a long-running migration,
     // we'll add this flag, and clear it on completion.
     if(migration.running) {
       return;
     }
+
+    console.log("Running migration:", migration.name);
 
     migration.running = true;
     if(migration.customHandler) {

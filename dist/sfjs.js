@@ -1971,18 +1971,16 @@ var SFMigrationManager = exports.SFMigrationManager = function () {
           while (1) {
             switch (_context33.prev = _context33.next) {
               case 0:
-                console.log("Running migration:", migration.name);
-                // To protect against running more than once, especially if it's a long-running migration,
-                // we'll add this flag, and clear it on completion.
-
                 if (!migration.running) {
-                  _context33.next = 3;
+                  _context33.next = 2;
                   break;
                 }
 
                 return _context33.abrupt("return");
 
-              case 3:
+              case 2:
+
+                console.log("Running migration:", migration.name);
 
                 migration.running = true;
 
