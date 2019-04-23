@@ -37,6 +37,11 @@ module.exports = function(grunt) {
         dest: 'dist/regenerator.js'
       },
 
+      lodash: {
+        src: ['vendor/lodash/lodash.custom.min.js'],
+        dest: 'dist/lodash.min.js'
+      },
+
       dist: {
         src: ['dist/vendor.js', 'dist/transpiled.js'],
         dest: 'dist/sfjs.js',
@@ -84,6 +89,6 @@ module.exports = function(grunt) {
   grunt.loadNpmTasks('grunt-browserify');
   grunt.loadNpmTasks('grunt-contrib-concat');
 
-  grunt.registerTask('default', ['concat:lib', 'babel', 'concat:vendor', 'concat:dist', 'concat:regenerator', 'browserify']);
+  grunt.registerTask('default', ['concat:lib', 'babel', 'concat:lodash', 'concat:vendor', 'concat:dist', 'concat:regenerator', 'browserify']);
   grunt.registerTask('minify', ['uglify']);
 };
