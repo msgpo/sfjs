@@ -81,6 +81,7 @@ describe("basic auth", () => {
     // create conflict for an item
     var item = modelManager.allItems[0];
     item.content.foo = "bar";
+    item.updated_at = Factory.yesterday();
     item.setDirty(true);
     totalItemCount++;
 
@@ -163,6 +164,6 @@ describe("basic auth", () => {
 
       _keys = await Factory.globalAuthManager().keys();
     }
-  }).timeout(10000);
+  }).timeout(30000);
 
 })

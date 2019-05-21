@@ -185,35 +185,59 @@ describe('online syncing', () => {
     let models = await Factory.globalStorageManager().getAllModels();
     expect(models.length).to.equal(totalItemCount);
 
-    // modify this item to have different values
+    // modify this item to have stale values
     item.content.title = `${Math.random()}`;
+    item.updated_at = Factory.yesterday();
     item.setDirty(true);
 
     // We expect this item to be duplicated
     totalItemCount++;
 
-    // clear sync token so that all items are retrieved on next sync
-    syncManager.clearSyncToken();
-
     // wait about 1s, which is the value the dev server will ignore conflicting changes
-    return expect(new Promise((resolve, reject) => {
-      setTimeout(function () {
-        resolve();
-      }, 1100);
-    })).to.be.fulfilled.then(async () => {
-      return expect(syncManager.sync()).to.be.fulfilled.then(async (response) => {
-        expect(response).to.be.ok;
+    await Factory.sleep(1.1);
+    await syncManager.sync()
 
-        let memModels = modelManager.allItems;
-        expect(memModels.length).to.equal(totalItemCount);
+    let memModels = modelManager.allItems;
+    expect(memModels.length).to.equal(totalItemCount);
 
-        console.log("Checking storage models");
-
-        let storedModels = await Factory.globalStorageManager().getAllModels();
-        expect(storedModels.length).to.equal(totalItemCount);
-      })
-    })
+    let storedModels = await Factory.globalStorageManager().getAllModels();
+    expect(storedModels.length).to.equal(totalItemCount);
   }).timeout(5000);
+
+  it("should duplicate item if saving a modified item and clearing our sync token", async () => {
+    var item = Factory.createItem();
+    item.setDirty(true);
+    modelManager.addItem(item);
+    await syncManager.sync();
+    totalItemCount++;
+
+    // modify this item to have stale values
+    let newTitle = `${Math.random()}`;
+    item.content.title = newTitle;
+    // Do not set updated_at to old value. We we intentionally want to avoid that scenario, since that's easily handled.
+    // We're testing the case where we save something that will be retrieved.
+    // Actually, as explained in sync-log, this would never happen. updated_at would always have an inferior value if it were in retrieved items and is dirty. (except if the sync token is explicitely cleared, but that never happens)
+    item.updated_at = Factory.yesterday();
+    item.setDirty(true, true); // set client modified
+
+    // We expect this item to be duplicated
+    totalItemCount++;
+
+    await syncManager.clearSyncToken();
+    // wait about 1s, which is the value the dev server will ignore conflicting changes
+    await Factory.sleep(1.1);
+    await syncManager.sync()
+
+    // We expect the item title to be the new title, and not rolled back to original value
+    expect(item.content.title).to.equal(newTitle);
+
+    let memModels = modelManager.allItems;
+    expect(memModels.length).to.equal(totalItemCount);
+
+    let storedModels = await Factory.globalStorageManager().getAllModels();
+    expect(storedModels.length).to.equal(totalItemCount);
+  }).timeout(5000);
+
 
   it("should handle sync conflicts by not duplicating same data", async () => {
     // create an item and sync it
@@ -241,6 +265,38 @@ describe('online syncing', () => {
         expect(models.length).to.equal(totalItemCount);
       })
     })
+  }).timeout(5000);
+
+  it("should create conflict if syncing an item that is stale", async () => {
+    // Typically if the client attempted to save an item for which the server has a newer change,
+    // the server will instruct the client to duplicate it. But this only works according to the syncToken
+    // sent in. However, when it comes to dealing with sync tokens and cursor tokens, it may be that
+    // the subset of items sent up (limit ~150) does not match up with what the server has for a given token,
+    // so the server will not determine that an incoming item has an existing change.
+
+    // We'll simulate rogue client behavior here, which syncs up a stale note,
+    // with a sync token that has already downloaded all changes. With as-of-now current server behavior, we expect it
+    // to save the stale item (which is no good). After the server updates, it will
+    // compare updated_at of any incoming items. If the incoming item updated_at does not match what the server has,
+    // it means we're trying to save an item that hasn't been updated yet. We should conflict immediately at that point.
+
+    var item = Factory.createItem();
+    totalItemCount++;
+    item.setDirty(true);
+    modelManager.addItem(item);
+    await syncManager.sync();
+
+    let yesterday = Factory.yesterday();
+    item.content.text = "Stale text";
+    item.updated_at = yesterday;
+    item.setDirty(true);
+    await syncManager.sync();
+
+    // We expect now that the item was conflicted
+    totalItemCount++;
+
+    let models = await Factory.globalStorageManager().getAllModels();
+    expect(models.length).to.equal(totalItemCount);
   }).timeout(5000);
 
   it("should sync an item twice if it's marked dirty while a sync is ongoing", async () => {
@@ -304,41 +360,35 @@ describe('online syncing', () => {
     originalItem2.setDirty(true);
 
     await syncManager.sync();
-    await syncManager.clearSyncToken();
 
     expect(modelManager.allItems.length).to.equal(totalItemCount);
 
     originalItem1.content.title = `${Math.random()}`
+    originalItem1.updated_at = Factory.yesterday();
     originalItem1.setDirty(true);
 
     // wait about 1s, which is the value the dev server will ignore conflicting changes
-    return expect(new Promise((resolve, reject) => {
-      setTimeout(function () {
-        resolve();
-      }, 1100);
-    })).to.be.fulfilled.then(async () => {
-      return expect(syncManager.sync()).to.be.fulfilled.then(async (response) => {
-        // item should now be conflicted and a copy created
-        totalItemCount++;
-        expect(modelManager.allItems.length).to.equal(totalItemCount);
-        let models = modelManager.allItemsMatchingTypes(["Foo"]);
-        var item1 = models[0];
-        var item2 = models[1];
+    await Factory.sleep(1.1);
+    await syncManager.sync();
+    // item should now be conflicted and a copy created
+    totalItemCount++;
+    expect(modelManager.allItems.length).to.equal(totalItemCount);
+    let models = modelManager.allItemsMatchingTypes(["Foo"]);
+    var item1 = models[0];
+    var item2 = models[1];
 
-        expect(item2.content.conflict_of).to.equal(item1.uuid);
-        // Two items now link to this original object
-        expect(originalItem2.referencingObjects.length).to.equal(2);
-        expect(originalItem2.referencingObjects[0]).to.not.equal(originalItem2.referencingObjects[1]);
+    expect(item2.content.conflict_of).to.equal(item1.uuid);
+    // Two items now link to this original object
+    expect(originalItem2.referencingObjects.length).to.equal(2);
+    expect(originalItem2.referencingObjects[0]).to.not.equal(originalItem2.referencingObjects[1]);
 
-        expect(originalItem1.referencingObjects.length).to.equal(0);
-        expect(item1.referencingObjects.length).to.equal(0);
-        expect(item2.referencingObjects.length).to.equal(0);
+    expect(originalItem1.referencingObjects.length).to.equal(0);
+    expect(item1.referencingObjects.length).to.equal(0);
+    expect(item2.referencingObjects.length).to.equal(0);
 
-        expect(item1.content.references.length).to.equal(1);
-        expect(item2.content.references.length).to.equal(1);
-        expect(originalItem2.content.references.length).to.equal(0);
-      })
-    })
+    expect(item1.content.references.length).to.equal(1);
+    expect(item2.content.references.length).to.equal(1);
+    expect(originalItem2.content.references.length).to.equal(0);
   }).timeout(10000);
 
   let largeItemCount = 300;
@@ -357,7 +407,7 @@ describe('online syncing', () => {
       let models = await Factory.globalStorageManager().getAllModels();
       expect(models.length).to.equal(totalItemCount);
     })
-  }).timeout(15000);
+  }).timeout(25000);
 
   it("should be able to download all items separate of sync", async () => {
     return expect(syncManager.stateless_downloadAllItems()).to.be.fulfilled.then(async (downloadedItems) => {
@@ -430,6 +480,97 @@ describe('online syncing', () => {
       expect(models.length).to.equal(totalItemCount);
     })
   }).timeout(15000);
+
+  it("handles stale data in bulk", async () => {
+
+    let itemCount = 200;
+    // syncManager.PerSyncItemUploadLimit = 1;
+    // syncManager.ServerItemDownloadLimit = 2;
+
+    for(var i = 0; i < itemCount; i++) {
+      var item = Factory.createItem();
+      item.setDirty(true);
+      modelManager.addItem(item);
+    }
+
+    totalItemCount += itemCount;
+    await syncManager.sync();
+    let items = modelManager.allItems;
+    expect(items.length).to.equal(totalItemCount);
+
+    // We want to see what will happen if we upload everything we have to the server as dirty,
+    // with no sync token, so that the server also gives us everything it has. Where I expect some awkwardness
+    // is with subsets. That is, sync requests are broken up, so if I'm sending up 150/400, will the server know to conflict it?
+
+    // With rails-engine behavior 0.3.1, we expect syncing up stale data with old updated_at dates
+    // to overwrite whatever is on the server. With the 0.3.2 update, we expect this data will be conflicted
+    // since what the server has for updated_at doesn't match what we're sending it.
+
+    // In the test below, we expect all models to double. We'll modify the content, and act as if the change
+    // were from yesterday. The server would have the current time as its updated_at. This test succeeds
+    // when you're only dealing with 100 items. But if you go up to 300 where pagination is required, you can see
+    // that the server can't properly handle conflicts. 0.3.2 of the server will add an additional conflict check
+    // by comparing the incoming updated_at with the existing, and if it's in the past, we'll conflict it.
+
+    let yesterday = new Date(new Date().setDate(new Date().getDate() - 1));
+    for(let item of items) {
+      item.content.text = `${Math.random()}`;
+      item.updated_at = yesterday;
+      item.setDirty(true);
+    }
+
+    await syncManager.sync();
+
+    // We expect all the models to have been duplicated now, exactly.
+    totalItemCount *= 2;
+
+    items = modelManager.allItems;
+    expect(items.length).to.equal(totalItemCount);
+
+    let storage = await Factory.globalStorageManager().getAllModels();
+    expect(storage.length).to.equal(totalItemCount);
+  }).timeout(45000);
+
+  it('when a note is conflicted, its tags should not be duplicated.', async () => {
+    /*
+      If you have a note and a tag, and the tag has 1 reference to the note,
+      and you import the same two items, except modify the note value so that a duplicate is created,
+      we expect only the note to be duplicated, and the tag not to.
+      However, if only the note changes, and you duplicate the note, which causes the tag's references content to change,
+      then when the incoming tag is being processed, it will also think it has changed, since our local value now doesn't match
+      what's coming in. The solution is to get all values ahead of time before any changes are made.
+    */
+    var tag = Factory.createItem();
+    tag.content_type = "Tag";
+
+    var note = Factory.createItem();
+    modelManager.addItem(note);
+    modelManager.addItem(tag);
+    tag.addItemAsRelationship(note);
+    tag.setDirty(true);
+    note.setDirty(true);
+    totalItemCount += 2;
+
+    await syncManager.sync();
+
+    // conflict the note
+    let newText = `${Math.random()}`;
+    note.updated_at = Factory.yesterday();
+    note.content.text = newText;
+    note.setDirty(true);
+
+    // conflict the tag but keep its content the same
+    tag.updated_at = Factory.yesterday();
+    tag.setDirty(true);
+
+    await Factory.sleep(1.1);
+    await syncManager.sync();
+
+    // We expect now that the total item count has went up by just 1 (the note), and not 2 (the note and tag)
+    totalItemCount += 1;
+    expect(modelManager.allItems.length).to.equal(totalItemCount);
+    expect(tag.content.references.length).to.equal(2);
+  });
 });
 
 describe('sync params', () => {

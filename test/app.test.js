@@ -199,7 +199,7 @@ describe('app models', () => {
 
     expect(originalItem2.referencingObjects.length).to.equal(1);
 
-    let duplicate = modelManager.duplicateItem(originalItem1);
+    let duplicate = modelManager.duplicateItemAndAdd(originalItem1);
 
     expect(originalItem1.isItemContentEqualWith(duplicate)).to.equal(true);
     expect(originalItem1.created_at).to.equal(duplicate.created_at);
@@ -285,13 +285,44 @@ describe('app models', () => {
 
     expect(tag.content.references.length).to.equal(1);
 
-    var noteCopy = modelManager.duplicateItem(note);
+    var noteCopy = modelManager.duplicateItemAndAdd(note);
 
     expect(modelManager.allItems.length).to.equal(3);
     expect(note.uuid).to.not.equal(noteCopy.uuid);
 
     expect(note.content.references.length).to.equal(0);
     expect(noteCopy.content.references.length).to.equal(0);
+    expect(tag.content.references.length).to.equal(2);
+  });
+
+  it('when importing items, imported values should not be used to determine if changed', async () => {
+    /*
+      If you have a note and a tag, and the tag has 1 reference to the note,
+      and you import the same two items, except modify the note value so that a duplicate is created,
+      we expect only the note to be duplicated, and the tag not to.
+      However, if only the note changes, and you duplicate the note, which causes the tag's references content to change,
+      then when the incoming tag is being processed, it will also think it has changed, since our local value now doesn't match
+      what's coming in. The solution is to get all values ahead of time before any changes are made.
+    */
+    let modelManager = createModelManager();
+    var tag = createItem();
+    var note = createItem();
+    modelManager.addItem(tag);
+    modelManager.addItem(note);
+
+    tag.addItemAsRelationship(note);
+
+    let externalNote = Object.assign({}, {content: note.getContentCopy(), content_type: note.content_type});
+    externalNote.uuid = note.uuid;
+    externalNote.content.text = `${Math.random()}`;
+
+    let externalTag = Object.assign({}, {content: tag.getContentCopy(), content_type: tag.content_type});
+    externalTag.uuid = tag.uuid;
+
+    await modelManager.importItems([externalNote, externalTag]);
+
+    // We expect now that the total item count is 3, not 4.
+    expect(modelManager.allItems.length).to.equal(3);
     expect(tag.content.references.length).to.equal(2);
   });
 });
@@ -565,7 +596,7 @@ describe("items", () => {
     let item = modelManager.items[0];
     var prevDate = item.client_updated_at.getTime();
     setTimeout(function () {
-      item.setDirty(true);
+      item.setDirty(true, true);
       var newDate = item.client_updated_at.getTime();
       expect(prevDate).to.not.equal(newDate);
       done();
@@ -579,7 +610,7 @@ describe("items", () => {
     let item = modelManager.items[0];
     var prevDate = item.client_updated_at.getTime();
     setTimeout(function () {
-      item.setDirty(true, true /* dontUpdateClientDate */);
+      item.setDirty(true, false);
       var newDate = item.client_updated_at.getTime();
       expect(prevDate).to.equal(newDate);
       done();

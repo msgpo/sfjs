@@ -314,11 +314,18 @@ export class SFAlertManager {
 }
 ;var globalScope = typeof window !== 'undefined' ? window : (typeof global !== 'undefined' ? global : null);
 
+const UseAPIVersion = "20190520";
+
 export class SFHttpManager {
 
-  constructor(timeout) {
+  static getApiVersion() {
+    return UseAPIVersion;
+  }
+
+  constructor(timeout, apiVersion) {
     // calling callbacks in a $timeout allows UI to update
     this.$timeout = timeout || setTimeout.bind(globalScope);
+    this.apiVersion = apiVersion || UseAPIVersion;
   }
 
   setJWTRequestHandler(handler) {
@@ -345,6 +352,10 @@ export class SFHttpManager {
   }
 
   async httpRequest(verb, url, params, onsuccess, onerror) {
+    if(!params["api_version"]) {
+      params["api_version"] = this.apiVersion;
+    }
+
     return new Promise(async (resolve, reject) => {
         var xmlhttp = new XMLHttpRequest();
 
@@ -924,42 +935,65 @@ export class SFHttpManager {
     This method creates but does not add the item to the global inventory. It's used by syncManager
     to check if this prospective duplicate item is identical to another item, including the references.
    */
-  async createConflictedItem(itemResponse) {
-    let uuid = await SFJS.crypto.generateUUID();
-    itemResponse = _.merge(itemResponse, {uuid: uuid});
-    let dup = this.createItem(itemResponse, true);
-    return dup;
-  }
-
-  addConflictedItem(dup, original) {
-    this.addItem(dup);
-    // the duplicate should inherit the original's relationships
-    for(let referencingObject of original.referencingObjects) {
-      referencingObject.addItemAsRelationship(dup);
-      referencingObject.setDirty(true);
+  async createDuplicateItemFromResponseItem(itemResponse) {
+    if(typeof itemResponse.setDirty === 'function') {
+      // You should never pass in objects here, as we will modify the itemResponse's uuid below (update: we now make a copy of input value).
+      console.error("Attempting to create conflicted copy of non-response item.");
+      return null;
     }
-    this.resolveReferencesForItem(dup);
-    dup.content.conflict_of = original.uuid;
-    dup.setDirty(true);
+    // Make a copy so we don't modify input value.
+    let itemResponseCopy = JSON.parse(JSON.stringify(itemResponse));
+    itemResponseCopy.uuid = await SFJS.crypto.generateUUID();
+    let duplicate = this.createItem(itemResponseCopy, true);
+    return duplicate;
   }
 
-  duplicateItem(item) {
+  duplicateItemAndAddAsConflict(duplicateOf) {
+    return this.duplicateItemWithCustomContentAndAddAsConflict({content: duplicateOf.content, duplicateOf});
+  }
+
+  duplicateItemWithCustomContentAndAddAsConflict({content, duplicateOf}) {
+    let copy = this.duplicateItemWithCustomContent({content, duplicateOf});
+    this.addDuplicatedItemAsConflict({duplicate: copy, duplicateOf});
+    return copy;
+  }
+
+  addDuplicatedItemAsConflict({duplicate, duplicateOf}) {
+    this.addDuplicatedItem(duplicate, duplicateOf);
+    duplicate.content.conflict_of = duplicateOf.uuid;
+  }
+
+  duplicateItemWithCustomContent({content, duplicateOf}) {
+    let copy = new duplicateOf.constructor({content});
+    copy.created_at = duplicateOf.created_at;
+    copy.content_type = duplicateOf.content_type;
+    return copy;
+  }
+
+  duplicateItemAndAdd(item) {
+    let copy = this.duplicateItemWithoutAdding(item);
+    this.addDuplicatedItem(copy, item);
+    return copy;
+  }
+
+  duplicateItemWithoutAdding(item) {
     let copy = new item.constructor({content: item.content});
     copy.created_at = item.created_at;
     copy.content_type = item.content_type;
-
-    this.addItem(copy);
-
-    // the duplicate should inherit the original's relationships
-    for(let referencingObject of item.referencingObjects) {
-      referencingObject.addItemAsRelationship(copy);
-      referencingObject.setDirty(true);
-    }
-    this.resolveReferencesForItem(copy);
-    copy.setDirty(true);
-
     return copy;
   }
+
+  addDuplicatedItem(duplicate, original) {
+    this.addItem(duplicate);
+    // the duplicate should inherit the original's relationships
+    for(let referencingObject of original.referencingObjects) {
+      referencingObject.addItemAsRelationship(duplicate);
+      referencingObject.setDirty(true);
+    }
+    this.resolveReferencesForItem(duplicate);
+    duplicate.setDirty(true);
+  }
+
 
   addItem(item, globalOnly = false) {
     this.addItems([item], globalOnly);
@@ -1038,11 +1072,10 @@ export class SFHttpManager {
   }
 
   /* Used when changing encryption key */
-  setAllItemsDirty(dontUpdateClientDates = true) {
+  setAllItemsDirty() {
     let relevantItems = this.allItems;
-
     for(let item of relevantItems) {
-      item.setDirty(true, dontUpdateClientDates);
+      item.setDirty(true);
     }
   }
 
@@ -1128,22 +1161,36 @@ export class SFHttpManager {
 
   async importItems(externalItems) {
     let itemsToBeMapped = [];
+    // Get local values before doing any processing. This way, if a note change below modifies a tag,
+    // and the tag is going to be iterated on in the same loop, then we don't want this change to be compared
+    // to the local value.
+    let localValues = {};
     for(let itemData of externalItems) {
-      let existing = this.findItem(itemData.uuid);
-      if(existing && !existing.errorDecrypting) {
+      let localItem = this.findItem(itemData.uuid);
+      if(!localItem) {
+        localValues[itemData.uuid] = {};
+        continue;
+      }
+      let frozenValue = this.duplicateItemWithoutAdding(localItem);
+      localValues[itemData.uuid] = {frozenValue, itemRef: localItem};
+    }
+
+    for(let itemData of externalItems) {
+      let {frozenValue, itemRef} = localValues[itemData.uuid];
+      if(frozenValue && !itemRef.errorDecrypting) {
         // if the item already exists, check to see if it's different from the import data.
         // If it's the same, do nothing, otherwise, create a copy.
-        let dup = await this.createConflictedItem(itemData);
-        if(!itemData.deleted && !existing.isItemContentEqualWith(dup)) {
+        let duplicate = await this.createDuplicateItemFromResponseItem(itemData);
+        if(!itemData.deleted && !frozenValue.isItemContentEqualWith(duplicate)) {
           // Data differs
-          this.addConflictedItem(dup, existing);
-          itemsToBeMapped.push(dup);
+          this.addDuplicatedItemAsConflict({duplicate, duplicateOf: itemRef});
+          itemsToBeMapped.push(duplicate);
         }
       } else {
         // it doesn't exist, push it into items to be mapped
         itemsToBeMapped.push(itemData);
-        if(existing && existing.errorDecrypting) {
-          existing.errorDecrypting = false;
+        if(itemRef && itemRef.errorDecrypting) {
+          itemRef.errorDecrypting = false;
         }
       }
     }
@@ -1876,7 +1923,10 @@ export class SFStorageManager {
     this.syncStatusObservers = [];
     this.eventHandlers = [];
 
-    this.PerSyncItemUploadLimit = 100;
+    // this.loggingEnabled = true;
+
+    this.PerSyncItemUploadLimit = 150;
+    this.ServerItemDownloadLimit = 150;
 
     // The number of changed items that constitute a major change
     // This is used by the desktop app to create backups
@@ -2336,7 +2386,7 @@ export class SFStorageManager {
       }
 
       let params = {};
-      params.limit = 150;
+      params.limit = this.ServerItemDownloadLimit;
 
       if(options.performIntegrityCheck) {
         params.compute_integrity = true;
@@ -2386,6 +2436,38 @@ export class SFStorageManager {
   }
 
   async handleSyncSuccess(syncedItems, response, options) {
+    this.syncStatus.error = null;
+
+    if(this.loggingEnabled) {
+      console.log("Sync response", response);
+    }
+
+    let allSavedUUIDs = this.allSavedItems.map((item) => item.uuid);
+    let currentRequestSavedUUIDs = response.saved_items.map((savedResponse) => savedResponse.uuid);
+
+    response.retrieved_items = response.retrieved_items.filter((retrievedItem) => {
+      let isInPreviousSaved = allSavedUUIDs.includes(retrievedItem.uuid);
+      let isInCurrentSaved = currentRequestSavedUUIDs.includes(retrievedItem.uuid);
+      if(isInPreviousSaved || isInCurrentSaved) {
+        return false;
+      }
+
+      let localItem = this.modelManager.findItem(retrievedItem.uuid);
+      if(localItem && localItem.dirty) {
+        return false;
+      }
+      return true;
+    });
+
+    // Map retrieved items to local data
+    // Note that deleted items will not be returned
+    let retrieved = await this.handleItemsResponse(response.retrieved_items, null, SFModelManager.MappingSourceRemoteRetrieved, SFSyncManager.KeyRequestLoadSaveAccount);
+
+    // Append items to master list of retrieved items for this ongoing sync operation
+    this.allRetreivedItems = this.allRetreivedItems.concat(retrieved);
+    this.syncStatus.retrievedCount = this.allRetreivedItems.length;
+
+    // Clear dirty items after we've handled filtering retrieved_items, since that depends on dirty items.
     // Check to make sure any subItem hasn't been marked as dirty again while a sync was ongoing
     let itemsToClearAsDirty = [];
     for(let item of syncedItems) {
@@ -2395,25 +2477,6 @@ export class SFStorageManager {
       }
     }
     this.modelManager.clearDirtyItems(itemsToClearAsDirty);
-    this.syncStatus.error = null;
-
-    // Filter retrieved_items to remove any items that may be in saved_items for this complete sync operation
-    // When signing in, and a user requires many round trips to complete entire retrieval of data, an item may be saved
-    // on the first trip, then on subsequent trips using cursor_token, this same item may be returned, since it's date is
-    // greater than cursor_token. We keep track of all saved items in whole sync operation with this.allSavedItems
-    // We need this because singletonManager looks at retrievedItems as higher precendence than savedItems, but if it comes in both
-    // then that's problematic.
-
-    let allSavedUUIDs = this.allSavedItems.map((item) => {return item.uuid});
-    response.retrieved_items = response.retrieved_items.filter((candidate) => {return !allSavedUUIDs.includes(candidate.uuid)});
-
-    // Map retrieved items to local data
-    // Note that deleted items will not be returned
-    let retrieved = await this.handleItemsResponse(response.retrieved_items, null, SFModelManager.MappingSourceRemoteRetrieved, SFSyncManager.KeyRequestLoadSaveAccount);
-
-    // Append items to master list of retrieved items for this ongoing sync operation
-    this.allRetreivedItems = this.allRetreivedItems.concat(retrieved);
-    this.syncStatus.retrievedCount = this.allRetreivedItems.length;
 
     // Merge only metadata for saved items
     // we write saved items to disk now because it clears their dirty status then saves
@@ -2426,13 +2489,12 @@ export class SFStorageManager {
     // Append items to master list of saved items for this ongoing sync operation
     this.allSavedItems = this.allSavedItems.concat(saved);
 
-    // Create copies of items or alternate their uuids if neccessary
-    let unsaved = response.unsaved;
-    // don't `await`. This function calls sync, so if you wait, it will call sync without having completed the sync we're in.
-    // On second thought, calling await will only await the local conflict resolution and not await the sync call.
-    // We do need to wait here for sync duplication to finish. If we don't, there seems to be an issue where if you import a large
-    // backup with uuid-conflcits (from another account), you'll see very confused duplication.
-    await this.handleUnsavedItemsResponse(unsaved);
+    // 'unsaved' is deprecated and replaced with 'conflicts' in newer version.
+    let deprecated_unsaved = response.unsaved;
+    await this.deprecated_handleUnsavedItemsResponse(deprecated_unsaved);
+
+    let conflicts = response.conflicts;
+    await this.handleConflictsResponse(conflicts);
 
     await this.writeItemsToLocalStorage(saved, false);
     await this.writeItemsToLocalStorage(retrieved, false);
@@ -2483,27 +2545,20 @@ export class SFStorageManager {
     }
 
     else {
-      /*
-      // await this.writeItemsToLocalStorage(this.allRetreivedItems, false);
-        We used to do this, but the problem is, if you're saving 2000 items at the end of a sign in,
-        then refresh or close the page, the items will not be saved, and the sync token will be the lastest.
-        So the data won't be downloaded again. Instead, we'll save retrieved as they come.
-      */
-
-
       this.syncStatus.retrievedCount = 0;
       this.syncStatusDidChange();
 
       if(
         this.allRetreivedItems.length >= this.majorDataChangeThreshold ||
         saved.length >= this.majorDataChangeThreshold ||
-        unsaved.length >= this.majorDataChangeThreshold
+        (deprecated_unsaved && deprecated_unsaved.length >= this.majorDataChangeThreshold) ||
+        (conflicts && conflicts.length >= this.majorDataChangeThreshold)
       ) {
         this.notifyEvent("major-data-change");
       }
 
       this.callQueuedCallbacks(response);
-      this.notifyEvent("sync:completed", {retrievedItems: this.allRetreivedItems, savedItems: this.allSavedItems, unsavedItems: unsaved});
+      this.notifyEvent("sync:completed", {retrievedItems: this.allRetreivedItems, savedItems: this.allSavedItems});
 
       this.allRetreivedItems = [];
       this.allSavedItems = [];
@@ -2569,12 +2624,15 @@ export class SFStorageManager {
     }
   }
 
-  async handleUnsavedItemsResponse(unsaved) {
-    if(unsaved.length == 0) {
+  // Legacy API
+  async deprecated_handleUnsavedItemsResponse(unsaved) {
+    if(!unsaved || unsaved.length == 0) {
       return;
     }
 
-    console.log("Handle Conflicted Items:", unsaved);
+    if(this.loggingEnabled) {
+      console.log("Handle Unsaved Items:", unsaved);
+    }
 
     for(let mapping of unsaved) {
       let itemResponse = mapping.item;
@@ -2594,20 +2652,142 @@ export class SFStorageManager {
 
       else if(error.tag === "sync_conflict") {
         // Create a new item with the same contents of this item if the contents differ
-        let dup = await this.modelManager.createConflictedItem(itemResponse);
+        let dup = await this.modelManager.createDuplicateItemFromResponseItem(itemResponse);
         if(!itemResponse.deleted && !item.isItemContentEqualWith(dup)) {
-          this.modelManager.addConflictedItem(dup, item);
+          this.modelManager.addDuplicatedItemAsConflict({duplicate: dup, duplicateOf: item});
         }
       }
     }
 
-    // This will immediately result in "Sync op in progress" and sync will be queued.
-    // That's ok. You actually want a sync op in progress so that the new items are saved to disk right away.
-    // If you add a timeout here of 100ms, you'll avoid sync op in progress, but it will be a few ms before the items
-    // are saved to disk, meaning that the user may see All changes saved a few ms before changes are saved to disk.
-    // You could also just write to disk manually here, but syncing here is 100% sure to trigger sync op in progress as that's
-    // where it's being called from.
     this.sync(null, {additionalFields: ["created_at", "updated_at"]});
+  }
+
+  /*
+  The difference between 'unsaved' (deprecated_handleUnsavedItemsResponse) and 'conflicts' (handleConflictsResponse) is that
+  with unsaved items, the local copy is triumphant on the server, and we check the server copy to see if we should
+  create it as a duplicate. This is for the legacy API where it would save what you sent the server no matter its value,
+  and the client would decide what to do with the previous server value.
+
+  handleConflictsResponse on the other hand handles where the local copy save was not triumphant on the server.
+  Instead the conflict includes the server item. Here we immediately map the server value onto our local value,
+  but before that, we give our local value a chance to duplicate itself if it differs from the server value.
+  */
+  async handleConflictsResponse(conflicts) {
+    if(!conflicts || conflicts.length == 0) { return; }
+
+    if(this.loggingEnabled) {
+      console.log("Handle Conflicted Items:", conflicts);
+    }
+
+    // Get local values before doing any processing. This way, if a note change below modifies a tag,
+    // and the tag is going to be iterated on in the same loop, then we don't want this change to be compared
+    // to the local value.
+    let localValues = {};
+    for(let conflict of conflicts) {
+      let serverItemResponse = conflict.server_item || conflict.unsaved_item;
+      let localItem = this.modelManager.findItem(serverItemResponse.uuid);
+      if(!localItem) {
+        localValues[serverItemResponse.uuid] = {};
+        continue;
+      }
+      let frozenContent = localItem.getContentCopy();
+      localValues[serverItemResponse.uuid] = {frozenContent, itemRef: localItem};
+    }
+
+    for(let conflict of conflicts) {
+      // if sync_conflict, we receive conflict.server_item.
+      // If uuid_conflict, we receive the value we attempted to save.
+      let serverItemResponse = conflict.server_item || conflict.unsaved_item;
+      await SFJS.itemTransformer.decryptMultipleItems([serverItemResponse], (await this.getActiveKeyInfo(SFSyncManager.KeyRequestLoadSaveAccount)).keys);
+      let {frozenContent, itemRef} = localValues[serverItemResponse.uuid];
+
+      // Could be deleted
+      if(!itemRef) { continue; }
+
+      if(conflict.type === "uuid_conflict") {
+        // UUID conflicts can occur if a user attempts to
+        // import an old data archive with uuids from the old account into a new account
+        await this.modelManager.alternateUUIDForItem(itemRef);
+        continue;
+      }
+
+      if(conflict.type !== "sync_conflict") {
+        console.error("Unsupported conflict type", conflict.type);
+        continue;
+      }
+
+      let tempServerItem = await this.modelManager.createDuplicateItemFromResponseItem(serverItemResponse);
+      // Convert to an object simply so we can have access to the `isItemContentEqualWith` function.
+      let _tempItemWithFrozenValues = this.modelManager.duplicateItemWithCustomContent({
+        content: frozenContent, duplicateOf: itemRef
+      });
+
+      // if !frozenContentDiffers && currentContentDiffers, it means values have changed as we were looping through conflicts here.
+      let frozenContentDiffers = !_tempItemWithFrozenValues.isItemContentEqualWith(tempServerItem);
+      let currentContentDiffers = !itemRef.isItemContentEqualWith(tempServerItem);
+
+      let duplicateLocal = false;
+      let duplicateServer = false;
+      let keepLocal = false;
+      let keepServer = false;
+
+      if(frozenContentDiffers) {
+        const IsActiveItemSecondsThreshold = 20;
+        let isActivelyBeingEdited = (new Date() - itemRef.client_updated_at) / 1000 < IsActiveItemSecondsThreshold;
+        if(isActivelyBeingEdited) {
+          keepLocal = true;
+          duplicateServer = true;
+        } else {
+          duplicateLocal = true;
+          keepServer = true;
+        }
+      }
+      else if(serverItemResponse.deleted) {
+        duplicateLocal = true;
+        keepServer = true;
+      }
+      else if(currentContentDiffers) {
+        let contentExcludingReferencesDiffers = !SFItem.AreItemContentsEqual({
+          leftContent: itemRef.content,
+          rightContent: tempServerItem.content,
+          keysToIgnore: itemRef.keysToIgnoreWhenCheckingContentEquality().concat(["references"]),
+          appDataKeysToIgnore: itemRef.appDataKeysToIgnoreWhenCheckingContentEquality()
+        })
+
+        let isOnlyReferenceChange = !contentExcludingReferencesDiffers;
+        if(isOnlyReferenceChange) {
+          keepServer = false;
+          keepLocal = true;
+        } else {
+          duplicateLocal = true;
+          keepServer = true;
+        }
+      }
+
+      if(duplicateLocal) {
+        await this.modelManager.duplicateItemWithCustomContentAndAddAsConflict({
+          content: frozenContent, duplicateOf: itemRef
+        });
+      }
+
+      if(duplicateServer) {
+        this.modelManager.addDuplicatedItemAsConflict({
+          duplicate: tempServerItem,
+          duplicateOf: itemRef
+        });
+      }
+
+      if(keepServer) {
+        this.modelManager.mapResponseItemsToLocalModelsOmittingFields([serverItemResponse], null, SFModelManager.MappingSourceRemoteRetrieved);
+      }
+
+      if(keepLocal) {
+        itemRef.updated_at = tempServerItem.updated_at;
+        itemRef.setDirty(true);
+      }
+    }
+
+    this.sync();
   }
 
   /*
@@ -2671,8 +2851,7 @@ export class SFStorageManager {
           let contentDoesntMatch = !downloadedItem.isItemContentEqualWith(existingItem);
           if(contentDoesntMatch) {
             // We create a copy of the local existing item and sync that up. It will be a "conflict" of itself
-            let duplicate = await this.modelManager.createConflictedItem(existingItem, existingItem);
-            this.modelManager.addConflictedItem(duplicate, existingItem);
+            await this.modelManager.duplicateItemAndAddAsConflict(existingItem);
           }
         }
 
@@ -2864,7 +3043,7 @@ export class SFItem {
     // Subclasses can override
   }
 
-  setDirty(dirty, dontUpdateClientDate) {
+  setDirty(dirty, updateClientDate) {
     this.dirty = dirty;
 
     // Allows the syncManager to check if an item has been marked dirty after a sync has been started
@@ -2877,11 +3056,11 @@ export class SFItem {
       this.dirtyCount = 0;
     }
 
-    if(dirty && !dontUpdateClientDate) {
+    if(dirty && updateClientDate) {
       // Set the client modified date to now if marking the item as dirty
       this.client_updated_at = new Date();
     } else if(!this.hasRawClientUpdatedAtValue()) {
-      // copy updated_at
+      // if we don't have an explcit raw value, we initialize client_updated_at.
       this.client_updated_at = new Date(this.updated_at);
     }
   }
@@ -3082,6 +3261,15 @@ export class SFItem {
   }
 
   isItemContentEqualWith(otherItem) {
+    return SFItem.AreItemContentsEqual({
+      leftContent: this.content,
+      rightContent: otherItem.content,
+      keysToIgnore: this.keysToIgnoreWhenCheckingContentEquality(),
+      appDataKeysToIgnore: this.appDataKeysToIgnoreWhenCheckingContentEquality()
+    })
+  }
+
+  static AreItemContentsEqual({leftContent, rightContent, keysToIgnore, appDataKeysToIgnore}) {
     const omit = (obj, keys) => {
       if(!obj) { return obj; }
       for(let key of keys) {
@@ -3091,18 +3279,17 @@ export class SFItem {
     }
 
     // Create copies of objects before running omit as not to modify source values directly.
-
-    let leftContent = this.getContentCopy();
+    leftContent = JSON.parse(JSON.stringify(leftContent));
     if(leftContent.appData) {
-      omit(leftContent.appData[SFItem.AppDomain], this.appDataKeysToIgnoreWhenCheckingContentEquality());
+      omit(leftContent.appData[SFItem.AppDomain], appDataKeysToIgnore);
     }
-    leftContent = omit(leftContent, this.keysToIgnoreWhenCheckingContentEquality());
+    leftContent = omit(leftContent, keysToIgnore);
 
-    var rightContent = otherItem.getContentCopy();
+    rightContent = JSON.parse(JSON.stringify(rightContent));
     if(rightContent.appData) {
-      omit(rightContent.appData[SFItem.AppDomain], otherItem.appDataKeysToIgnoreWhenCheckingContentEquality());
+      omit(rightContent.appData[SFItem.AppDomain], appDataKeysToIgnore);
     }
-    rightContent = omit(rightContent, otherItem.keysToIgnoreWhenCheckingContentEquality());
+    rightContent = omit(rightContent, keysToIgnore);
 
     return JSON.stringify(leftContent) === JSON.stringify(rightContent);
   }
@@ -3201,7 +3388,7 @@ export class SFItem {
 
   async __params() {
 
-    var params = {uuid: this.item.uuid, content_type: this.item.content_type, deleted: this.item.deleted, created_at: this.item.created_at};
+    var params = { uuid: this.item.uuid, content_type: this.item.content_type, deleted: this.item.deleted, created_at: this.item.created_at, updated_at: this.item.updated_at};
     if(!this.item.errorDecrypting) {
       // Items should always be encrypted for export files. Only respect item.doNotEncrypt for remote sync params.
       var doNotEncrypt = this.item.doNotEncrypt() && !this.forExportFile;
@@ -4075,7 +4262,7 @@ export class SFCryptoWeb extends SFAbstractCrypto {
       return hash;
     })
     .catch(function(err){
-      console.error("Error computing hmac");
+      console.error("Error computing hmac", err);
     });
   }
 

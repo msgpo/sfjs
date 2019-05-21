@@ -34,8 +34,9 @@ describe('migrations', () => {
       };
     })
 
-    var migrationManager = new SFMigrationManager(modelManager, syncManager, Factory.globalStorageManager());
+    var migrationManager = new SFMigrationManager(modelManager, syncManager, Factory.globalStorageManager(), authManager);
 
+    
     migrationManager.registeredMigrations = () => {
       return [
         {
@@ -49,7 +50,7 @@ describe('migrations', () => {
         }
       ]
     }
-
+    
     var item = modelManager.allItems[0];
     expect(item.content.foo).to.not.equal("bar");
 
@@ -86,7 +87,7 @@ describe('migrations', () => {
       };
     })
 
-    var migrationManager = new SFMigrationManager(modelManager, syncManager, Factory.globalStorageManager());
+    var migrationManager = new SFMigrationManager(modelManager, syncManager, Factory.globalStorageManager(), authManager);
 
     let randValue1 = Math.random();
     let randValue2 = Math.random();
@@ -139,7 +140,7 @@ describe('migrations', () => {
     let modelManager = Factory.createModelManager();
     let syncManager = new SFSyncManager(modelManager, Factory.globalStorageManager(), Factory.globalHttpManager());
 
-    var migrationManager = new SFMigrationManager(modelManager, syncManager, Factory.globalStorageManager());
+    var migrationManager = new SFMigrationManager(modelManager, syncManager, Factory.globalStorageManager(), authManager);
 
     var params1 = Factory.createItem();
     modelManager.addItem(params1);

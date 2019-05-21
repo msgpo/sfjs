@@ -81,6 +81,10 @@ export default class Factory {
     return "http://localhost:3000";
   }
 
+  static yesterday() {
+    return new Date(new Date().setDate(new Date().getDate() - 1));
+  }
+
   static async sleep(seconds) {
     return new Promise((resolve, reject) => {
       setTimeout(function () {
