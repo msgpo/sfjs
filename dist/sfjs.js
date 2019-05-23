@@ -6277,7 +6277,7 @@ var SFSyncManager = exports.SFSyncManager = function () {
                 }
 
                 if (!this.initialDataLoaded()) {
-                  console.warn("Attempting to perform online sync before local data has loaded");
+                  console.warn("(1) Attempting to perform online sync before local data has loaded");
                 } else {
                   console.warn("Attempting to sync while existing sync is in progress.");
                 }
@@ -6312,7 +6312,7 @@ var SFSyncManager = exports.SFSyncManager = function () {
                   break;
                 }
 
-                console.error("Attempting to perform online sync before local data has loaded");
+                console.error("(2) Attempting to perform online sync before local data has loaded");
                 return _context89.abrupt("return");
 
               case 23:
@@ -7687,15 +7687,13 @@ var SFSyncManager = exports.SFSyncManager = function () {
             switch (_context101.prev = _context101.next) {
               case 0:
                 this.loadLocalDataPromise = null;
-                this._initialDataLoaded = false;
                 this.repeatOnCompletion = false;
                 this.syncStatus.syncOpInProgress = false;
-                this._syncToken = null;
-                this._cursorToken = null;
                 this._queuedCallbacks = [];
                 this.syncStatus = {};
+                return _context101.abrupt("return", this.clearSyncToken());
 
-              case 8:
+              case 6:
               case "end":
                 return _context101.stop();
             }
@@ -7735,6 +7733,11 @@ var SFSyncManager = exports.SFSyncManager = function () {
 
       return clearSyncToken;
     }()
+  }, {
+    key: "__setLocalDataNotLoaded",
+    value: function __setLocalDataNotLoaded() {
+      this._initialDataLoaded = false;
+    }
   }, {
     key: "queuedCallbacks",
     get: function get() {

@@ -61,6 +61,8 @@ describe("basic auth", () => {
       modelManager.setItemDirty(item, true);
     }
 
+    await syncManager.loadLocalItems();
+
     await syncManager.sync();
 
     var strict = false;
@@ -78,6 +80,8 @@ describe("basic auth", () => {
     modelManager.setAllItemsDirty();
     await syncManager.sync();
 
+    expect(modelManager.allItems.length).to.equal(totalItemCount);
+
     // create conflict for an item
     var item = modelManager.allItems[0];
     item.content.foo = "bar";
@@ -87,11 +91,10 @@ describe("basic auth", () => {
 
     // Wait so that sync conflict can be created
     await Factory.sleep(1.1);
+    await syncManager.sync();
 
     // clear sync token, clear storage, download all items, and ensure none of them have error decrypting
-    await syncManager.clearSyncToken();
-    await syncManager.sync();
-    await syncManager.clearSyncToken();
+    await syncManager.handleSignout();
     await storageManager.clearAllModels();
     modelManager.handleSignout();
 

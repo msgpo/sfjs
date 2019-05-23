@@ -2330,7 +2330,7 @@ export class SFStorageManager {
 
     if(isSyncInProgress || !this.initialDataLoaded()) {
       if(!this.initialDataLoaded()) {
-        console.warn("Attempting to perform online sync before local data has loaded");
+        console.warn("(1) Attempting to perform online sync before local data has loaded");
       } else {
         console.warn("Attempting to sync while existing sync is in progress.");
       }
@@ -2353,7 +2353,7 @@ export class SFStorageManager {
     }
 
     if(!this.initialDataLoaded()) {
-      console.error("Attempting to perform online sync before local data has loaded");
+      console.error("(2) Attempting to perform online sync before local data has loaded");
       return;
     }
 
@@ -2925,19 +2925,21 @@ export class SFStorageManager {
 
   async handleSignout() {
     this.loadLocalDataPromise = null;
-    this._initialDataLoaded = false;
     this.repeatOnCompletion = false;
     this.syncStatus.syncOpInProgress = false;
-    this._syncToken = null;
-    this._cursorToken = null;
     this._queuedCallbacks = [];
     this.syncStatus = {};
+    return this.clearSyncToken();
   }
 
   async clearSyncToken() {
     this._syncToken = null;
     this._cursorToken = null;
     return this.storageManager.removeItem("syncToken");
+  }
+
+  __setLocalDataNotLoaded() {
+    this._initialDataLoaded = false;
   }
 }
 ;var dateFormatter;
@@ -3125,7 +3127,6 @@ export class SFItem {
     } else {
       this.dirtyCount = 0;
     }
-
 
     // Used internally by syncManager to determine if a dirted item needs to be saved offline.
     // You want to set this in both cases, when dirty is true and false. If it's false, we still need
