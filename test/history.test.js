@@ -47,7 +47,7 @@ describe('session history', () => {
 
   const setTextAndSync = async (item, text) => {
     item.content.text = text;
-    item.setDirty(true);
+    modelManager.setItemDirty(item, true);
     return syncManager.sync();
   }
 
@@ -65,7 +65,7 @@ describe('session history', () => {
 
   it("should register and sync basic model online", async () => {
     var item = Factory.createItem();
-    item.setDirty(true);
+    modelManager.setItemDirty(item, true);
     modelManager.addItem(item);
     await syncManager.sync();
 
@@ -74,13 +74,13 @@ describe('session history', () => {
     expect(itemHistory.entries.length).to.equal(1);
 
     // sync with same contents, should not create new entry
-    item.setDirty(true);
+    modelManager.setItemDirty(item, true);
     await syncManager.sync();
     expect(itemHistory.entries.length).to.equal(1);
 
     // sync with different contents, should create new entry
     item.content.title = Math.random();
-    item.setDirty(true);
+    modelManager.setItemDirty(item, true);
     await syncManager.sync();
     expect(itemHistory.entries.length).to.equal(2);
 
@@ -88,7 +88,7 @@ describe('session history', () => {
     var itemHistory = historyManager.historyForItem(item);
     expect(itemHistory.entries.length).to.equal(0);
 
-    item.setDirty(true);
+    modelManager.setItemDirty(item, true);
     await syncManager.sync();
     expect(itemHistory.entries.length).to.equal(1);
 
@@ -98,7 +98,7 @@ describe('session history', () => {
 
   it("should optimize basic entries", async () => {
     var item = Factory.createItem();
-    item.setDirty(true);
+    modelManager.setItemDirty(item, true);
     modelManager.addItem(item);
     await syncManager.sync();
 
@@ -138,7 +138,7 @@ describe('session history', () => {
 
   it("should keep the entry right before a large deletion, regardless of its delta", async () => {
     var item = Factory.createItem();
-    item.setDirty(true);
+    modelManager.setItemDirty(item, true);
     modelManager.addItem(item);
     item.content.text = stringOfSize(100);
     await syncManager.sync();

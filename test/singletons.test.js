@@ -28,9 +28,8 @@ describe("singletons", () => {
 
     let item1 = Factory.createItem();
     let item2 = Factory.createItem();
-    item1.setDirty(true);
-    item2.setDirty(true);
     modelManager.addItems([item1, item2]);
+    modelManager.setItemsDirty([item1, item2], true);
 
     let contentTypePredicate = new SFPredicate("content_type", "=", item1.content_type);
     singletonManager.registerSingleton([contentTypePredicate]);
@@ -57,8 +56,8 @@ describe("singletons", () => {
     await syncManager.loadLocalItems();
 
     let item1 = Factory.createItem();
-    item1.setDirty(true);
     modelManager.addItem(item1);
+    modelManager.setItemDirty(item1, true);
     await syncManager.sync();
 
     // set after sync so that it syncs properly
@@ -71,8 +70,8 @@ describe("singletons", () => {
       resolvedItem = resolvedSingleton;
     }, async (valueCallback) => {
       let newItem = Factory.createItem();
-      newItem.setDirty(true);
       modelManager.addItem(newItem);
+      modelManager.setItemDirty(newItem, true);
       valueCallback(newItem);
     });
 

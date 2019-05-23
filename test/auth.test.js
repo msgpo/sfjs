@@ -57,8 +57,8 @@ describe("basic auth", () => {
     var totalItemCount = 105;
     for(var i = 0; i < totalItemCount; i++) {
       var item = Factory.createItem();
-      item.setDirty(true);
       modelManager.addItem(item);
+      modelManager.setItemDirty(item, true);
     }
 
     await syncManager.sync();
@@ -82,7 +82,7 @@ describe("basic auth", () => {
     var item = modelManager.allItems[0];
     item.content.foo = "bar";
     item.updated_at = Factory.yesterday();
-    item.setDirty(true);
+    modelManager.setItemDirty(item, true);
     totalItemCount++;
 
     // Wait so that sync conflict can be created
@@ -123,8 +123,8 @@ describe("basic auth", () => {
     var totalItemCount = 400;
     for(var i = 0; i < totalItemCount; i++) {
       var item = Factory.createItem();
-      item.setDirty(true);
       modelManager.addItem(item);
+      modelManager.setItemDirty(item, true);
     }
 
     await syncManager.sync();

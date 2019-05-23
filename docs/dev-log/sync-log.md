@@ -92,3 +92,24 @@ So, when looping through conflicts, we check the following:
 - Otherwise, we choose the default keep-server strategy. In this case, only the new duplicate item will need to be dirtied and synced.
 
 (As part of this, we'll also be modifying item.setDirty behavior so that it does not update client_updated_at by default. It must be explicitly told to do so.)
+
+### Deletion
+
+If client A deletes an item, and a client with an outdated sync token modifies this item with a change, we want to keep the local changes. This is one out of two possible approaches: we could also say that if the server says this item is deleted, then it must be deleted everywhere, no exceptions. However, one drawback to that is if the user opens the outdated client, forgets the item was deleted, and makes a change, then this change will be lost if we say the server has the final word.
+
+We're going with the delete-all approach. There should be no reason that we keep an item on any device if one of them has called for a delete.
+
+What an item is marked as deleted locally, but not on the server? In that case it must also be marked as dirty. The practical example is if a client marks the item to be deleted, and loses connection right away. Then from another client some changes are made to this item. Then back on the first client, we retrieve the server item which says the item is not deleted, but the client says it is. In this case, we want to keep the server copy, and ignore the client wanting to delete this item.
+
+### Latency
+
+What if while a user is typing on a slow connection, and old response comes in? That is:
+
+- User begins typing, and first sync request goes out. This request will take 10s to come back.
+- User types 20 more times, and we haven't synced anything yet. So this item is still dirty, and we're waiting for the original request to complete.
+
+This is handled by the fact that every time you mark an item as dirty, it's dirtyCount goes up. Before an item is officially about to be synced, we set its dirtyCount as 0. When a sync request completes, we only clear that item as dirty if its dirtyCount is still 0. If the dirty count is greater than 0, we know the item has been dirtied again since we began syncing it.
+
+### Debouncing
+
+Assume that when a user is actively typing, we debounce syncing by 10 seconds. That is, anytime a user types, we start a 10 second timer, and only sync if this timer is allowed to reach its time without interruption.

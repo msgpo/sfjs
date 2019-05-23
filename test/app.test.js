@@ -506,7 +506,7 @@ describe("model manager mapping", () => {
 
     let item = modelManager.items[0];
     item.deleted = true;
-    item.setDirty(true);
+    modelManager.setItemDirty(item, true);
     modelManager.mapResponseItemsToLocalModels([item]);
     expect(modelManager.items.length).to.equal(1);
   });
@@ -529,7 +529,7 @@ describe("model manager mapping", () => {
     var params = createItemParams();
     modelManager.mapResponseItemsToLocalModels([params]);
     let item = modelManager.items[0];
-    item.setDirty(true);
+    modelManager.setItemDirty(item, true);
     let dirtyItems = modelManager.getDirtyItems();
     expect(dirtyItems.length).to.equal(1);
   });
@@ -539,7 +539,7 @@ describe("model manager mapping", () => {
     var params = createItemParams();
     modelManager.mapResponseItemsToLocalModels([params]);
     let item = modelManager.items[0];
-    item.setDirty(true);
+    modelManager.setItemDirty(item, true);
     let dirtyItems = modelManager.getDirtyItems();
     expect(dirtyItems.length).to.equal(1);
 
@@ -596,7 +596,7 @@ describe("items", () => {
     let item = modelManager.items[0];
     var prevDate = item.client_updated_at.getTime();
     setTimeout(function () {
-      item.setDirty(true, true);
+      modelManager.setItemDirty(item, true, true);
       var newDate = item.client_updated_at.getTime();
       expect(prevDate).to.not.equal(newDate);
       done();
@@ -610,7 +610,7 @@ describe("items", () => {
     let item = modelManager.items[0];
     var prevDate = item.client_updated_at.getTime();
     setTimeout(function () {
-      item.setDirty(true, false);
+      modelManager.setItemDirty(item, true);
       var newDate = item.client_updated_at.getTime();
       expect(prevDate).to.equal(newDate);
       done();
@@ -701,8 +701,7 @@ describe("items", () => {
     // There was an issue where calling that function would modify values directly to omit keys
     // in keysToIgnoreWhenCheckingContentEquality.
 
-    item1.setDirty(true);
-    item2.setDirty(true);
+    modelManager.setItemsDirty([item1, item2], true);
 
     expect(item1.getAppDataItem("client_updated_at")).to.be.ok;
     expect(item2.getAppDataItem("client_updated_at")).to.be.ok;
