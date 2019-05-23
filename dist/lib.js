@@ -2050,42 +2050,68 @@ export class SFStorageManager {
   }
 
   initialDataLoaded() {
-    return this._initialDataLoaded;
+    return this._initialDataLoaded === true;
   }
 
-  async loadLocalItems(incrementalCallback, batchSize = 100) {
-    return this.storageManager.getAllModels().then((items) => {
+  _sortLocalItems(items) {
+    return items.sort((a,b) => {
+      let dateResult = new Date(b.updated_at) - new Date(a.updated_at);
+
+      let priorityList = this.contentTypeLoadPriority;
+      let aPriority = 0, bPriority = 0;
+      if(priorityList) {
+        aPriority = priorityList.indexOf(a.content_type);
+        bPriority = priorityList.indexOf(b.content_type);
+        if(aPriority == -1) {
+          // Not found in list, not prioritized. Set it to max value
+          aPriority = priorityList.length;
+        }
+        if(bPriority == -1) {
+          // Not found in list, not prioritized. Set it to max value
+          bPriority = priorityList.length;
+        }
+      }
+
+      if(aPriority == bPriority) {
+        return dateResult;
+      }
+
+      if(aPriority < bPriority) {
+        return -1;
+      } else {
+        return 1;
+      }
+
+      // aPriority < bPriority means a should come first
+      return aPriority < bPriority ? -1 : 1;
+    })
+  }
+
+  async loadLocalItems({incrementalCallback, batchSize, options} = {}) {
+    // Used for testing
+    if(options && options.simulateHighLatency) {
+      let latency = options.simulatedLatency || 1000;
+      await this._awaitSleep(latency);
+    }
+
+    if(this.loadLocalDataPromise) {
+      return this.loadLocalDataPromise;
+    }
+
+    if(!batchSize) { batchSize = 100;}
+
+    this.loadLocalDataPromise = this.storageManager.getAllModels().then((items) => {
       // put most recently updated at beginning, sorted by priority
-      items = items.sort((a,b) => {
-        let dateResult = new Date(b.updated_at) - new Date(a.updated_at);
+      items = this._sortLocalItems(items);
 
-        let priorityList = this.contentTypeLoadPriority;
-        let aPriority = 0, bPriority = 0;
-        if(priorityList) {
-          aPriority = priorityList.indexOf(a.content_type);
-          bPriority = priorityList.indexOf(b.content_type);
-          if(aPriority == -1) {
-            // Not found in list, not prioritized. Set it to max value
-            aPriority = priorityList.length;
-          }
-          if(bPriority == -1) {
-            // Not found in list, not prioritized. Set it to max value
-            bPriority = priorityList.length;
-          }
+      // Filter out any items that exist in the local model mapping and have a lower dirtied date than the local dirtiedDate.
+      items = items.filter((nonDecryptedItem) => {
+        let localItem = this.modelManager.findItem(nonDecryptedItem.uuid);
+        if(!localItem) {
+          return true;
         }
 
-        if(aPriority == bPriority) {
-          return dateResult;
-        }
-
-        if(aPriority < bPriority) {
-          return -1;
-        } else {
-          return 1;
-        }
-
-        // aPriority < bPriority means a should come first
-        return aPriority < bPriority ? -1 : 1;
+        return new Date(nonDecryptedItem.dirtiedDate) > localItem.dirtiedDate;
       })
 
       // break it up into chunks to make interface more responsive for large item counts
@@ -2110,13 +2136,15 @@ export class SFStorageManager {
           });
         } else {
           // Completed
-          this.notifyEvent("local-data-loaded");
           this._initialDataLoaded = true;
+          this.notifyEvent("local-data-loaded");
         }
       }
 
       return decryptNext();
     })
+
+    return this.loadLocalDataPromise;
   }
 
   async writeItemsToLocalStorage(items, offlineOnly) {
@@ -2292,40 +2320,29 @@ export class SFStorageManager {
     if(!options) options = {};
 
     let allDirtyItems = this.modelManager.getDirtyItems();
-
     let dirtyItemsNotYetSaved = allDirtyItems.filter((candidate) => {
-      if(!this.lastDirtyItemsSave) {
-        return true;
-      }
-
-      let diffInMs = this.lastDirtyItemsSave - candidate.dirtiedDate;
-      // If diffInMs is positive, it means the last save date was after this item was dirtied, which means we don't need to save it again.
-      // If diffInMs is negative, it means the last save date was before this item was dirtied, which means we need to save it.
-      // We'll include a small buffer to account for small differences.
-      if(diffInMs < -100) {
-        return true;
-      } else {
-        return false;
-      }
+      return !this.lastDirtyItemsSave || (candidate.dirtiedDate > this.lastDirtyItemsSave);
     })
 
-    // When a user hits the physical refresh button, we want to force refresh, in case
-    // the sync engine is stuck in some inProgress loop.
-    if(this.syncStatus.syncOpInProgress && !options.force) {
+    let info = await this.getActiveKeyInfo(SFSyncManager.KeyRequestLoadSaveAccount);
+
+    let isSyncInProgress = this.syncStatus.syncOpInProgress;
+
+    if(isSyncInProgress || !this.initialDataLoaded()) {
+      if(!this.initialDataLoaded()) {
+        console.warn("Attempting to perform online sync before local data has loaded");
+      } else {
+        console.warn("Attempting to sync while existing sync is in progress.");
+      }
       this.repeatOnCompletion = true;
-      await this.writeItemsToLocalStorage(dirtyItemsNotYetSaved, false);
       this.lastDirtyItemsSave = new Date();
-      console.log("Sync op in progress; returning.");
+      await this.writeItemsToLocalStorage(dirtyItemsNotYetSaved, false);
       return;
     }
 
     // Set this value immediately after checking it above, to avoid race conditions.
     this.syncStatus.syncOpInProgress = true;
 
-    let info = await this.getActiveKeyInfo(SFSyncManager.KeyRequestLoadSaveAccount);
-
-    // we want to write all dirty items to disk only if the user is offline, or if the sync op fails
-    // if the sync op succeeds, these items will be written to disk by handling the "saved_items" response from the server
     if(info.offline) {
       return this.syncOffline(allDirtyItems).then((response) => {
         this.syncStatus.syncOpInProgress = false;
@@ -2333,6 +2350,15 @@ export class SFStorageManager {
       }).catch((e) => {
         this.notifyEvent("sync-exception", e);
       })
+    }
+
+    if(!this.initialDataLoaded()) {
+      console.error("Attempting to perform online sync before local data has loaded");
+      return;
+    }
+
+    if(this.loggingEnabled) {
+      console.log("Syncing online user.");
     }
 
     let isContinuationSync = this.syncStatus.needsMoreSync;
@@ -2436,20 +2462,20 @@ export class SFStorageManager {
     });
   }
 
-  async handleSyncSuccess(syncedItems, response, options) {
-    if(options.simulateHighLatency) {
-      // Useful for testing
-      let latency = options.simulatedLatency || 1000;
-      const sleep = async () => {
-        return new Promise((resolve, reject) => {
-          setTimeout(function () {
-            resolve();
-          }, latency);
-        })
-      }
+  async _awaitSleep(durationInMs) {
+    console.warn("Simulating high latency sync request", durationInMs);
+    return new Promise((resolve, reject) => {
+      setTimeout(function () {
+        resolve();
+      }, durationInMs);
+    })
+  }
 
-      console.warn("Simulating high latency sync request", latency);
-      await sleep();
+  async handleSyncSuccess(syncedItems, response, options) {
+    // Used for testing
+    if(options.simulateHighLatency) {
+      let latency = options.simulatedLatency || 1000;
+      await this._awaitSleep(latency);
     }
 
     this.syncStatus.error = null;
@@ -2510,9 +2536,11 @@ export class SFStorageManager {
     let deprecated_unsaved = response.unsaved;
     await this.deprecated_handleUnsavedItemsResponse(deprecated_unsaved);
 
-    let conflicts = response.conflicts;
-    await this.handleConflictsResponse(conflicts);
+    let conflicts = await this.handleConflictsResponse(response.conflicts);
 
+    if(conflicts) {
+      await this.writeItemsToLocalStorage(conflicts, false);
+    }
     await this.writeItemsToLocalStorage(saved, false);
     await this.writeItemsToLocalStorage(retrieved, false);
 
@@ -2676,7 +2704,7 @@ export class SFStorageManager {
       }
     }
 
-    this.sync(null, {additionalFields: ["created_at", "updated_at"]});
+    this.sync();
   }
 
   /*
@@ -2710,6 +2738,9 @@ export class SFStorageManager {
       let frozenContent = localItem.getContentCopy();
       localValues[serverItemResponse.uuid] = {frozenContent, itemRef: localItem};
     }
+
+    // Any item that's newly created here or updated will need to be persisted
+    let itemsNeedingLocalSave = [];
 
     for(let conflict of conflicts) {
       // if sync_conflict, we receive conflict.server_item.
@@ -2783,9 +2814,10 @@ export class SFStorageManager {
       }
 
       if(duplicateLocal) {
-        await this.modelManager.duplicateItemWithCustomContentAndAddAsConflict({
+        let localDuplicate = await this.modelManager.duplicateItemWithCustomContentAndAddAsConflict({
           content: frozenContent, duplicateOf: itemRef
         });
+        itemsNeedingLocalSave.push(localDuplicate);
       }
 
       if(duplicateServer) {
@@ -2793,6 +2825,7 @@ export class SFStorageManager {
           duplicate: tempServerItem,
           duplicateOf: itemRef
         });
+        itemsNeedingLocalSave.push(tempServerItem);
       }
 
       if(keepServer) {
@@ -2803,9 +2836,14 @@ export class SFStorageManager {
         itemRef.updated_at = tempServerItem.updated_at;
         itemRef.setDirty(true);
       }
+
+      // Item ref is always added, since it's value will have changed above, either by mapping, being set to dirty,
+      // or being set undirty by the caller but the caller not saving because they're waiting on us.
+      itemsNeedingLocalSave.push(itemRef);
     }
 
     this.sync();
+    return itemsNeedingLocalSave;
   }
 
   /*
@@ -2886,6 +2924,10 @@ export class SFStorageManager {
   }
 
   async handleSignout() {
+    this.loadLocalDataPromise = null;
+    this._initialDataLoaded = false;
+    this.repeatOnCompletion = false;
+    this.syncStatus.syncOpInProgress = false;
     this._syncToken = null;
     this._cursorToken = null;
     this._queuedCallbacks = [];
@@ -2972,14 +3014,6 @@ export class SFItem {
       return;
     }
 
-    // Manually merge top level data instead of wholesale merge
-    if(json.created_at) {
-      this.created_at = json.created_at;
-    }
-    // Could be null if we're mapping from an extension bridge, where we remove this as its a private property.
-    if(json.updated_at) {
-      this.updated_at = json.updated_at;
-    }
     this.deleted = json.deleted;
     this.uuid = json.uuid;
     this.enc_item_key = json.enc_item_key;
@@ -2988,11 +3022,15 @@ export class SFItem {
 
     // When updating from server response (as opposed to local json response), these keys will be missing.
     // So we only want to update these values if they are explicitly present.
-    let clientKeys = ["errorDecrypting", "dirty", "dirtyCount", "dummy"];
+    let clientKeys = ["errorDecrypting", "dirty", "dirtyCount", "dirtiedDate", "dummy"];
     for(var key of clientKeys) {
       if(json[key] !== undefined) {
         this[key] = json[key];
       }
+    }
+
+    if(this.dirtiedDate && typeof this.dirtiedDate === 'string') {
+      this.dirtiedDate = new Date(this.dirtiedDate);
     }
 
     // Check if object has getter for content_type, and if so, skip
@@ -3014,12 +3052,21 @@ export class SFItem {
       }
     }
 
+    // Manually merge top level data instead of wholesale merge
+    if(json.created_at) {
+      this.created_at = json.created_at;
+    }
+    // Could be null if we're mapping from an extension bridge, where we remove this as its a private property.
+    if(json.updated_at) {
+      this.updated_at = json.updated_at;
+    }
+
     if(this.created_at) {
       this.created_at = new Date(this.created_at);
       this.updated_at = new Date(this.updated_at);
     } else {
       this.created_at = new Date();
-      this.updated_at = new Date();
+      this.updated_at = new Date(0); // epoch
     }
 
     // Allows the getter to be re-invoked
@@ -3079,7 +3126,10 @@ export class SFItem {
       this.dirtyCount = 0;
     }
 
+
     // Used internally by syncManager to determine if a dirted item needs to be saved offline.
+    // You want to set this in both cases, when dirty is true and false. If it's false, we still need
+    // to save it to disk as an update.
     this.dirtiedDate = new Date();
 
     if(dirty && updateClientDate) {
@@ -3403,7 +3453,7 @@ export class SFItem {
   }
 
   async paramsForLocalStorage() {
-    this.additionalFields = ["updated_at", "dirty", "errorDecrypting"];
+    this.additionalFields = ["dirty", "dirtiedDate", "errorDecrypting"];
     this.forExportFile = true;
     return this.__params();
   }

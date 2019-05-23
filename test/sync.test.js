@@ -74,9 +74,45 @@ describe('offline syncing', () => {
       })
     })
   });
+
+  it("should allow local saving before offline data has loaded, and should not overwrite present values when finished loading", async () => {
+    let localModelManager = Factory.createModelManager();
+    let localSyncManager = new SFSyncManager(localModelManager, Factory.globalStorageManager(), Factory.globalHttpManager());
+    localSyncManager.setKeyRequestHandler(syncManager.keyRequestHandler);
+
+    var item = Factory.createItem();
+    localModelManager.addItem(item);
+    localModelManager.setItemDirty(item);
+    // Beginning this sync will begin data load, and this latency will be applied to the data load.
+    // What we expect is that this local item will be saved to storage right away, then after the delay,
+    // local data will be loaded, and the value will be mapped onto our existing value.
+    // This test is to ensure that when that mapping happens, it doesn't overwrite any pending changes we may have made
+    // since the load.
+    let latency = 1000;
+    await localSyncManager.sync({
+      simulateHighLatency: true,
+      simulatedLatency: latency
+    });
+
+    // This item should be saved to disk at this point.
+    let models = await Factory.globalStorageManager().getAllModels()
+    expect(models.length).to.equal(1);
+
+    let text = `${Math.random()}`;
+    item.content.text = text;
+    localModelManager.setItemDirty(item);
+
+    // wait ~latency, then check to make sure that the local data load hasn't overwritten our dirty values.
+
+    await Factory.sleep((latency/1000) + 0.1);
+    expect(localModelManager.findItem(item.uuid).content.text).to.equal(text);
+
+    models = await Factory.globalStorageManager().getAllModels()
+    expect(models.length).to.equal(1);
+  }).timeout(5000);
 });
 
-describe('online syncing', () => {
+describe.only('online syncing', () => {
   var email = Factory.globalStandardFile().crypto.generateUUIDSync();
   var password = Factory.globalStandardFile().crypto.generateUUIDSync();
   var totalItemCount = 0;
@@ -92,6 +128,7 @@ describe('online syncing', () => {
 
   let authManager = Factory.globalAuthManager();
   let modelManager = Factory.createModelManager();
+  let storageManager = Factory.globalStorageManager();
   let syncManager = new SFSyncManager(modelManager, Factory.globalStorageManager(), Factory.globalHttpManager());
   syncManager.MaxDiscordanceBeforeOutOfSync = 1;
 
@@ -114,11 +151,16 @@ describe('online syncing', () => {
 
     totalItemCount++;
 
-    let response  = await syncManager.sync({performIntegrityCheck: true});
+    await syncManager.loadLocalItems();
+    let response = await syncManager.sync({performIntegrityCheck: true});
     expect(response).to.be.ok;
     expect(modelManager.getDirtyItems().length).to.equal(0);
     let models = await Factory.globalStorageManager().getAllModels();
     expect(models.length).to.equal(totalItemCount);
+
+    for(let model of models) {
+      expect(model.dirty).to.equal(false);
+    }
   });
 
   it("should login and retrieve synced item", async () => {
@@ -128,6 +170,7 @@ describe('online syncing', () => {
     await Factory.globalStorageManager().clearAllData();
     await Factory.globalAuthManager().login(Factory.serverURL(), email, password, true, null);
 
+    await syncManager.loadLocalItems();
     let response = await syncManager.sync({performIntegrityCheck: true});
     expect(response).to.be.ok;
     let models = await Factory.globalStorageManager().getAllModels();
@@ -164,6 +207,7 @@ describe('online syncing', () => {
     let originalTitle = item.content.title;
     modelManager.addItem(item);
     modelManager.setItemDirty(item);
+    await syncManager.loadLocalItems();
     await syncManager.sync({performIntegrityCheck: true});
     totalItemCount++;
 
@@ -181,6 +225,7 @@ describe('online syncing', () => {
   });
 
   it("should handle sync conflicts by duplicating differing data", async () => {
+    await syncManager.loadLocalItems();
     // create an item and sync it
     var item = Factory.createItem();
     modelManager.addItem(item);
@@ -211,6 +256,7 @@ describe('online syncing', () => {
   }).timeout(5000);
 
   it("should duplicate item if saving a modified item and clearing our sync token", async () => {
+    await syncManager.loadLocalItems();
     var item = Factory.createItem();
     modelManager.setItemDirty(item, true);
     modelManager.addItem(item);
@@ -246,6 +292,7 @@ describe('online syncing', () => {
 
 
   it("should handle sync conflicts by not duplicating same data", async () => {
+    await syncManager.loadLocalItems();
     // create an item and sync it
     var item = Factory.createItem();
     totalItemCount++;
@@ -280,6 +327,8 @@ describe('online syncing', () => {
     // compare updated_at of any incoming items. If the incoming item updated_at does not match what the server has,
     // it means we're trying to save an item that hasn't been updated yet. We should conflict immediately at that point.
 
+    await syncManager.loadLocalItems();
+
     var item = Factory.createItem();
     totalItemCount++;
     modelManager.setItemDirty(item, true);
@@ -297,20 +346,34 @@ describe('online syncing', () => {
 
     let models = await Factory.globalStorageManager().getAllModels();
     expect(models.length).to.equal(totalItemCount);
+    for(let model of models) {
+      if(model.dirty) {
+        console.error(model.uuid, "is still dirty.");
+      }
+      expect(model.dirty).to.equal(false);
+    }
   }).timeout(5000);
 
   it("should sync an item twice if it's marked dirty while a sync is ongoing", async () => {
     // create an item and sync it
     var item = Factory.createItem();
-    modelManager.setItemDirty(item, true);
     modelManager.addItem(item);
+    modelManager.setItemDirty(item, true);
     totalItemCount++;
-    syncManager.sync({performIntegrityCheck: true});
+
+    await syncManager.loadLocalItems();
+
+    let syncRequest = syncManager.sync({
+      performIntegrityCheck: true,
+      simulateHighLatency: true,
+      simulatedLatency: 500
+    });
+
     setTimeout(function () {
       modelManager.setItemDirty(item, true);
-    }, 50);
+    }, 100);
 
-    await Factory.sleep(0.3);
+    await syncRequest;
     expect(modelManager.getDirtyItems().length).to.equal(1);
   }).timeout(5000);
 
@@ -320,6 +383,7 @@ describe('online syncing', () => {
     modelManager.addItem(item);
     totalItemCount++;
     await syncManager.markAllItemsDirtyAndSaveOffline(false);
+    syncManager.handleSignout();
     modelManager.handleSignout();
     expect(modelManager.allItems.length).to.equal(0);
 
@@ -332,6 +396,7 @@ describe('online syncing', () => {
   }).timeout(5000);
 
   it('duplicating an item should maintian its relationships', async () => {
+    await syncManager.loadLocalItems();
     var originalItem1 = Factory.createItem();
     originalItem1.content_type = "Foo";
 
@@ -339,8 +404,9 @@ describe('online syncing', () => {
     originalItem2.content_type = "Bar";
 
     originalItem1.addItemAsRelationship(originalItem2);
-    totalItemCount += 2;
     modelManager.mapResponseItemsToLocalModels([originalItem1, originalItem2]);
+
+    totalItemCount += 2;
 
     originalItem1 = modelManager.findItem(originalItem1.uuid);
     originalItem2 = modelManager.findItem(originalItem2.uuid);
@@ -371,6 +437,9 @@ describe('online syncing', () => {
     var item1 = models[0];
     var item2 = models[1];
 
+    let storageModels = await storageManager.getAllModels();
+    expect(storageModels.length).to.equal(totalItemCount);
+
     expect(item2.content.conflict_of).to.equal(item1.uuid);
     // Two items now link to this original object
     expect(originalItem2.referencingObjects.length).to.equal(2);
@@ -383,6 +452,12 @@ describe('online syncing', () => {
     expect(item1.content.references.length).to.equal(1);
     expect(item2.content.references.length).to.equal(1);
     expect(originalItem2.content.references.length).to.equal(0);
+
+    expect(modelManager.getDirtyItems().length).to.equal(0);
+
+    for(let item of modelManager.allItems) {
+      expect(item.dirty).to.equal(false);
+    }
   }).timeout(10000);
 
   let largeItemCount = 300;
@@ -420,6 +495,50 @@ describe('online syncing', () => {
     expect(localModelManager.allItems.length).to.equal(totalItemCount);
   });
 
+  it("syncing a new item before local data has loaded should still persist the item to disk, even if sync is locked", async () => {
+    let localModelManager = modelManager;
+    let localSyncManager = syncManager;
+    localModelManager.handleSignout();
+    localSyncManager.handleSignout();
+    // localSyncManager.setKeyRequestHandler(syncManager.keyRequestHandler);
+    expect(localModelManager.allItems.length).to.equal(0);
+
+    expect(localModelManager.getDirtyItems().length).to.equal(0);
+
+    let item = Factory.createItem();
+    item.content.text = `${Math.random()}`;
+    localModelManager.addItem(item);
+    localModelManager.setItemDirty(item);
+    totalItemCount++;
+
+    expect(localModelManager.getDirtyItems().length).to.equal(1);
+
+    await localSyncManager.sync();
+
+    let storageModels = await storageManager.getAllModels();
+    expect(storageModels.length).to.equal(totalItemCount);
+    let savedModel = storageModels.find((m) => m.uuid == item.uuid);
+
+    expect(savedModel.uuid).to.equal(item.uuid);
+    expect(savedModel.dirty).to.equal(true);
+
+    localSyncManager.handleSignout();
+    localModelManager.handleSignout();
+
+    await localSyncManager.loadLocalItems();
+    expect(localModelManager.allItems.length).to.equal(totalItemCount);
+    expect(localSyncManager.initialDataLoaded()).to.equal(true);
+
+    await localSyncManager.sync();
+
+    storageModels = await storageManager.getAllModels();
+    expect(storageModels.length).to.equal(totalItemCount);
+
+    let currentItem = localModelManager.findItem(item.uuid);
+    expect(currentItem.content.text).to.equal(item.content.text);
+    expect(currentItem.dirty).to.equal(false);
+  });
+
   it("load local items should respect sort priority", async () => {
     let localModelManager = Factory.createModelManager();
     let localStorageManager = new MemoryStorageManager();
@@ -439,12 +558,14 @@ describe('online syncing', () => {
       localModelManager.addItem(item);
     }
 
+    await localSyncManager.loadLocalItems();
     await localSyncManager.sync({performIntegrityCheck: true});
     let models = await localStorageManager.getAllModels();
 
     expect(models.length).to.equal(itemCount);
 
     // reset items
+    localSyncManager.handleSignout();
     localModelManager.handleSignout();
 
     localSyncManager.contentTypeLoadPriority = ["C", "A", "B"];
@@ -460,20 +581,24 @@ describe('online syncing', () => {
   it("should sign in and retrieve large number of items", async () => {
     // logout
     await Factory.globalAuthManager().signout();
-    syncManager.clearSyncToken();
+    syncManager.handleSignout();
+    modelManager.handleSignout();
+
     await Factory.globalStorageManager().clearAllData();
     await Factory.globalAuthManager().login(Factory.serverURL(), email, password, true, null);
 
     let models = await Factory.globalStorageManager().getAllModels();
     expect(models.length).to.equal(0);
 
-    let response = await syncManager.sync({performIntegrityCheck: true});
-    expect(response).to.be.ok;
+    await syncManager.loadLocalItems();
+    await syncManager.sync({performIntegrityCheck: true});
+
     models = await Factory.globalStorageManager().getAllModels();
     expect(models.length).to.equal(totalItemCount);
   }).timeout(50000);
 
   it.skip("handles stale data in bulk", async () => {
+    await syncManager.loadLocalItems();
     let itemCount = 200;
     // syncManager.PerSyncItemUploadLimit = 1;
     // syncManager.ServerItemDownloadLimit = 2;
@@ -485,6 +610,7 @@ describe('online syncing', () => {
     }
 
     totalItemCount += itemCount;
+    await syncManager.loadLocalItems();
     await syncManager.sync({performIntegrityCheck: true});
     let items = modelManager.allItems;
     expect(items.length).to.equal(totalItemCount);
@@ -523,6 +649,7 @@ describe('online syncing', () => {
   }).timeout(45000);
 
   it('when a note is conflicted, its tags should not be duplicated.', async () => {
+    await syncManager.loadLocalItems();
     /*
       If you have a note and a tag, and the tag has 1 reference to the note,
       and you import the same two items, except modify the note value so that a duplicate is created,
@@ -564,6 +691,7 @@ describe('online syncing', () => {
   });
 
   it('creating conflict with exactly equal content should keep us in sync', async () => {
+    await syncManager.loadLocalItems();
     let note = Factory.createItem();
     modelManager.addItem(note);
     modelManager.setItemDirty(note, true);
@@ -581,6 +709,7 @@ describe('online syncing', () => {
   });
 
   it('clearing conflict_of on two clients simultaneously should keep us in sync', async () => {
+    await syncManager.loadLocalItems();
     let note = Factory.createItem();
     modelManager.addItem(note);
     modelManager.setItemDirty(note, true);
@@ -607,6 +736,7 @@ describe('online syncing', () => {
   }).timeout(60000);
 
   it('handle case where server says item is deleted but client says its not deleted', async () => {
+    await syncManager.loadLocalItems();
     let note = Factory.createItem();
     modelManager.addItem(note);
     modelManager.setItemDirty(note, true);
@@ -639,6 +769,7 @@ describe('online syncing', () => {
   }).timeout(60000);
 
   it('handle case where server says item is not deleted but client says it is deleted', async () => {
+    await syncManager.loadLocalItems();
     let note = Factory.createItem();
     modelManager.addItem(note);
     modelManager.setItemDirty(note, true);
@@ -664,6 +795,7 @@ describe('online syncing', () => {
   }).timeout(60000);
 
   it('should keep an item dirty thats been modified after low latency sync request began', async () => {
+    await syncManager.loadLocalItems();
     let note = Factory.createItem();
     note.content.text = "Initial value";
     modelManager.addItem(note);

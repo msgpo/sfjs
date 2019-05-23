@@ -110,6 +110,18 @@ What if while a user is typing on a slow connection, and old response comes in? 
 
 This is handled by the fact that every time you mark an item as dirty, it's dirtyCount goes up. Before an item is officially about to be synced, we set its dirtyCount as 0. When a sync request completes, we only clear that item as dirty if its dirtyCount is still 0. If the dirty count is greater than 0, we know the item has been dirtied again since we began syncing it.
 
+### Syncing while local data has not yet loaded
+
+Local data must be fully loaded before we accept anything from the server. This is because if we retrieve items from the server before local data has loaded, then their values will be overwritten by the local data values immediately on load. Instead, we must wait until local data has fully loaded before talking to the server.
+
+The interface allows users to create new notes while their data is loading, and also edit any notes that may have already loaded. In this case, we need to make sure that while any pending changes will not be synced to the server yet, dirty values should be saved to local disk upon someone calling syncManager.sync(). The previous behavior was that we would lock syncing, including saving dirty items to disk, until all local data has loaded. This would mean that if a user made a new note, typed a sentence, all while their 10,000 items have not yet fully loaded, and then suddenly quit the app, their changes may be unsaved.
+
+- What if a user makes a change to a note, then gets it saved locally, before local data load has even started. Then, upon local data load, this item appears 5,000 items later, by which time, you modified the in memory copy several times. This would then overwrite the changes you've made. To handle this, we'll persist dirtiedDate to local storage. Upon local data load, we check if the saved value's dirtiedDate is less than the current item (if it exists in modelManager) dirtiedDate. If it is, we'll ignore this local value.
+
+### Null updated_at value
+
+Since updated_at is such an important field, we need to handle the case when it may have no value, for whatever reason. Assume for example that you import a backup file and for some reason the updated_at fields are corrupted. In this case, we would want to default the updated_at value to 1970-01-01. This will essentially convey to the server that this item should be treated as an old change, and to conflict as necessary.  
+
 ### Debouncing
 
 Assume that when a user is actively typing, we debounce syncing by 10 seconds. That is, anytime a user types, we start a 10 second timer, and only sync if this timer is allowed to reach its time without interruption.
