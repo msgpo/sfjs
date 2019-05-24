@@ -2148,39 +2148,49 @@ export class SFStorageManager {
   }
 
   async writeItemsToLocalStorage(items, offlineOnly) {
+    if(items.length == 0) {
+      return;
+    }
+
     return new Promise(async (resolve, reject) => {
-      if(items.length == 0) {
-        resolve();
-        return;
+      let nonDeletedItems = [], deletedItems = [];
+      for(let item of items) {
+        if(item.deleted === true) {deletedItems.push(item);}
+        else {nonDeletedItems.push(item);}
+      }
+
+      if(deletedItems.length > 0) {
+        await Promise.all(deletedItems.map(async (deletedItem) => {
+          return this.storageManager.deleteModel(deletedItem);
+        }))
       }
 
       let info = await this.getActiveKeyInfo(SFSyncManager.KeyRequestSaveLocal);
 
-      Promise.all(items.map(async (item) => {
-        let itemParams = new SFItemParams(item, info.keys, info.auth_params);
-        itemParams = await itemParams.paramsForLocalStorage();
-        if(offlineOnly) {
-          delete itemParams.dirty;
-        }
-        return itemParams;
-      })).then((params) => {
-        this.storageManager.saveModels(params).then(() => {
-          // on success
-          if(this.syncStatus.localError) {
-            this.syncStatus.localError = null;
-            this.syncStatusDidChange();
+      if(nonDeletedItems.length > 0) {
+        let params = await Promise.all(nonDeletedItems.map(async (item) => {
+          let itemParams = new SFItemParams(item, info.keys, info.auth_params);
+          itemParams = await itemParams.paramsForLocalStorage();
+          if(offlineOnly) {
+            delete itemParams.dirty;
           }
-          resolve();
-        }).catch((error) => {
-          // on error
+          return itemParams;
+        })).catch((e) => reject(e));
+
+        await this.storageManager.saveModels(params).catch((error) => {
           console.error("Error writing items", error);
           this.syncStatus.localError = error;
           this.syncStatusDidChange();
           reject();
         });
-      }).catch((e) => {
-        reject(e);
-      })
+
+        // on success
+        if(this.syncStatus.localError) {
+          this.syncStatus.localError = null;
+          this.syncStatusDidChange();
+        }
+      }
+      resolve();
     })
   }
 
@@ -2193,10 +2203,11 @@ export class SFStorageManager {
         if(item.deleted) { this.modelManager.removeItemLocally(item);}
       }
 
-      this.notifyEvent("sync:completed", {savedItems: items});
+      this.modelManager.clearDirtyItems(items);
       // Required in order for modelManager to notify sync observers
       this.modelManager.didSyncModelsOffline(items);
 
+      this.notifyEvent("sync:completed", {savedItems: items});
       return {saved_items: items};
     })
   }
@@ -2317,55 +2328,61 @@ export class SFStorageManager {
       return;
     }
 
-    if(!options) options = {};
-
-    let allDirtyItems = this.modelManager.getDirtyItems();
-    let dirtyItemsNotYetSaved = allDirtyItems.filter((candidate) => {
-      return !this.lastDirtyItemsSave || (candidate.dirtiedDate > this.lastDirtyItemsSave);
-    })
-
-    let info = await this.getActiveKeyInfo(SFSyncManager.KeyRequestLoadSaveAccount);
-
-    let isSyncInProgress = this.syncStatus.syncOpInProgress;
-
-    if(isSyncInProgress || !this.initialDataLoaded()) {
-      if(!this.initialDataLoaded()) {
-        console.warn("(1) Attempting to perform online sync before local data has loaded");
-      } else {
-        console.warn("Attempting to sync while existing sync is in progress.");
-      }
-      this.repeatOnCompletion = true;
-      this.lastDirtyItemsSave = new Date();
-      await this.writeItemsToLocalStorage(dirtyItemsNotYetSaved, false);
-      return;
-    }
-
-    // Set this value immediately after checking it above, to avoid race conditions.
-    this.syncStatus.syncOpInProgress = true;
-
-    if(info.offline) {
-      return this.syncOffline(allDirtyItems).then((response) => {
-        this.syncStatus.syncOpInProgress = false;
-        this.modelManager.clearDirtyItems(allDirtyItems);
-      }).catch((e) => {
-        this.notifyEvent("sync-exception", e);
-      })
-    }
-
-    if(!this.initialDataLoaded()) {
-      console.error("(2) Attempting to perform online sync before local data has loaded");
-      return;
-    }
-
-    if(this.loggingEnabled) {
-      console.log("Syncing online user.");
-    }
-
-    let isContinuationSync = this.syncStatus.needsMoreSync;
-    this.syncStatus.syncStart = new Date();
-    this.beginCheckingIfSyncIsTakingTooLong();
-
     return new Promise(async (resolve, reject) => {
+
+      if(!options) options = {};
+
+      let allDirtyItems = this.modelManager.getDirtyItems();
+      let dirtyItemsNotYetSaved = allDirtyItems.filter((candidate) => {
+        return !this.lastDirtyItemsSave || (candidate.dirtiedDate > this.lastDirtyItemsSave);
+      })
+
+      let info = await this.getActiveKeyInfo(SFSyncManager.KeyRequestLoadSaveAccount);
+
+      let isSyncInProgress = this.syncStatus.syncOpInProgress;
+      let initialDataLoaded = this.initialDataLoaded();
+
+      if(isSyncInProgress || !initialDataLoaded) {
+        this.performSyncAgainOnCompletion = true;
+        this.lastDirtyItemsSave = new Date();
+        await this.writeItemsToLocalStorage(dirtyItemsNotYetSaved, false);
+        if(isSyncInProgress) {
+          this.queuedCallbacks.push(resolve);
+          console.warn("Attempting to sync while existing sync is in progress.");
+        }
+        if(!initialDataLoaded) {
+          console.warn("(1) Attempting to perform online sync before local data has loaded");
+          // Resolve right away, as we can't be sure when local data will be called by consumer.
+          resolve();
+        }
+        return;
+      }
+
+      // Set this value immediately after checking it above, to avoid race conditions.
+      this.syncStatus.syncOpInProgress = true;
+
+      if(info.offline) {
+        return this.syncOffline(allDirtyItems).then((response) => {
+          this.syncStatus.syncOpInProgress = false;
+          resolve(response);
+        }).catch((e) => {
+          this.notifyEvent("sync-exception", e);
+        })
+      }
+
+      if(!this.initialDataLoaded()) {
+        console.error("(2) Attempting to perform online sync before local data has loaded");
+        return;
+      }
+
+      if(this.loggingEnabled) {
+        console.log("Syncing online user.");
+      }
+
+      let isContinuationSync = this.syncStatus.needsMoreSync;
+      this.syncStatus.syncStart = new Date();
+      this.beginCheckingIfSyncIsTakingTooLong();
+
       let submitLimit = this.PerSyncItemUploadLimit;
       let subItems = allDirtyItems.slice(0, submitLimit);
       if(subItems.length < allDirtyItems.length) {
@@ -2538,11 +2555,26 @@ export class SFStorageManager {
 
     let conflicts = await this.handleConflictsResponse(response.conflicts);
 
+    let conflictsNeedSync = conflicts && conflicts.length > 0;
     if(conflicts) {
       await this.writeItemsToLocalStorage(conflicts, false);
+
     }
     await this.writeItemsToLocalStorage(saved, false);
     await this.writeItemsToLocalStorage(retrieved, false);
+
+    // if a cursor token is available, dont perform integrity calculation,
+    // as content is still on the server waiting to be downloaded
+    if(response.integrity_hash && !response.cursor_token) {
+      let matches = await this.handleServerIntegrityHash(response.integrity_hash);
+      if(!matches) {
+        // If the server hash doesn't match our local hash, we want to continue syncing until we reach
+        // the max discordance threshold
+        if(this.syncDiscordance < this.MaxDiscordanceBeforeOutOfSync) {
+          this.performSyncAgainOnCompletion = true;
+        }
+      }
+    }
 
     this.syncStatus.syncOpInProgress = false;
     this.syncStatus.current += syncedItems.length;
@@ -2555,22 +2587,6 @@ export class SFStorageManager {
 
     this.stopCheckingIfSyncIsTakingTooLong();
 
-    // if a cursor token is available, dont perform integrity calculation,
-    // as content is still on the server waiting to be downloaded
-    if(response.integrity_hash && !response.cursor_token) {
-      let matches = await this.handleServerIntegrityHash(response.integrity_hash);
-      if(!matches) {
-        // If the server hash doesn't match our local hash, we want to continue syncing until we reach
-        // the max discordance threshold
-        if(this.syncDiscordance < this.MaxDiscordanceBeforeOutOfSync) {
-          this.repeatOnCompletion = true;
-        }
-      }
-    }
-
-    // Oct 2018: Why use both this.syncStatus.needsMoreSync and this.repeatOnCompletion?
-    // They seem to do the same thing.
-
     let cursorToken = await this.getCursorToken();
     if(cursorToken || this.syncStatus.needsMoreSync) {
       return new Promise((resolve, reject) => {
@@ -2580,12 +2596,14 @@ export class SFStorageManager {
       })
     }
 
-    else if(this.repeatOnCompletion) {
-      this.repeatOnCompletion = false;
+    else if(conflictsNeedSync) {
+      // We'll use the conflict sync as the next sync, so performSyncAgainOnCompletion can be turned off.
+      this.performSyncAgainOnCompletion = false;
+      // Include as part of await/resolve chain
       return new Promise((resolve, reject) => {
-        setTimeout(function () {
+        setTimeout(() => {
           this.sync(options).then(resolve);
-        }.bind(this), 10); // wait 10ms to allow UI to update
+        }, 10); // wait 10ms to allow UI to update
       });
     }
 
@@ -2607,6 +2625,13 @@ export class SFStorageManager {
 
       this.allRetreivedItems = [];
       this.allSavedItems = [];
+
+      if(this.performSyncAgainOnCompletion) {
+        this.performSyncAgainOnCompletion = false;
+        setTimeout(() => {
+          this.sync(options);
+        }, 10); // wait 10ms to allow UI to update
+      }
 
       return response;
     }
@@ -2667,44 +2692,6 @@ export class SFStorageManager {
     if(erroredItems.length > 0) {
       return this.handleItemsResponse(erroredItems, null, SFModelManager.MappingSourceLocalRetrieved, SFSyncManager.KeyRequestLoadSaveAccount);
     }
-  }
-
-  // Legacy API
-  async deprecated_handleUnsavedItemsResponse(unsaved) {
-    if(!unsaved || unsaved.length == 0) {
-      return;
-    }
-
-    if(this.loggingEnabled) {
-      console.log("Handle Unsaved Items:", unsaved);
-    }
-
-    for(let mapping of unsaved) {
-      let itemResponse = mapping.item;
-      await SFJS.itemTransformer.decryptMultipleItems([itemResponse], (await this.getActiveKeyInfo(SFSyncManager.KeyRequestLoadSaveAccount)).keys);
-      let item = this.modelManager.findItem(itemResponse.uuid);
-
-      // Could be deleted
-      if(!item) { continue; }
-
-      let error = mapping.error;
-
-      if(error.tag === "uuid_conflict") {
-        // UUID conflicts can occur if a user attempts to
-        // import an old data archive with uuids from the old account into a new account
-        await this.modelManager.alternateUUIDForItem(item);
-      }
-
-      else if(error.tag === "sync_conflict") {
-        // Create a new item with the same contents of this item if the contents differ
-        let dup = await this.modelManager.createDuplicateItemFromResponseItem(itemResponse);
-        if(!itemResponse.deleted && !item.isItemContentEqualWith(dup)) {
-          this.modelManager.addDuplicatedItemAsConflict({duplicate: dup, duplicateOf: item});
-        }
-      }
-    }
-
-    this.sync();
   }
 
   /*
@@ -2842,8 +2829,44 @@ export class SFStorageManager {
       itemsNeedingLocalSave.push(itemRef);
     }
 
-    this.sync();
     return itemsNeedingLocalSave;
+  }
+
+
+  // Legacy API
+  async deprecated_handleUnsavedItemsResponse(unsaved) {
+    if(!unsaved || unsaved.length == 0) {
+      return;
+    }
+
+    if(this.loggingEnabled) {
+      console.log("Handle Unsaved Items:", unsaved);
+    }
+
+    for(let mapping of unsaved) {
+      let itemResponse = mapping.item;
+      await SFJS.itemTransformer.decryptMultipleItems([itemResponse], (await this.getActiveKeyInfo(SFSyncManager.KeyRequestLoadSaveAccount)).keys);
+      let item = this.modelManager.findItem(itemResponse.uuid);
+
+      // Could be deleted
+      if(!item) { continue; }
+
+      let error = mapping.error;
+
+      if(error.tag === "uuid_conflict") {
+        // UUID conflicts can occur if a user attempts to
+        // import an old data archive with uuids from the old account into a new account
+        await this.modelManager.alternateUUIDForItem(item);
+      }
+
+      else if(error.tag === "sync_conflict") {
+        // Create a new item with the same contents of this item if the contents differ
+        let dup = await this.modelManager.createDuplicateItemFromResponseItem(itemResponse);
+        if(!itemResponse.deleted && !item.isItemContentEqualWith(dup)) {
+          this.modelManager.addDuplicatedItemAsConflict({duplicate: dup, duplicateOf: item});
+        }
+      }
+    }
   }
 
   /*
@@ -2925,7 +2948,7 @@ export class SFStorageManager {
 
   async handleSignout() {
     this.loadLocalDataPromise = null;
-    this.repeatOnCompletion = false;
+    this.performSyncAgainOnCompletion = false;
     this.syncStatus.syncOpInProgress = false;
     this._queuedCallbacks = [];
     this.syncStatus = {};

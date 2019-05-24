@@ -130,6 +130,6 @@ Items coming back from the server on a fresh sign in on will be saved to disk wi
 
 Since updated_at is such an important field, we need to handle the case when it may have no value, for whatever reason. Assume for example that you import a backup file and for some reason the updated_at fields are corrupted. In this case, we would want to default the updated_at value to 1970-01-01. This will essentially convey to the server that this item should be treated as an old change, and to conflict as necessary.  
 
-### Debouncing
+### Syncing while syncing
 
-Assume that when a user is actively typing, we debounce syncing by 10 seconds. That is, anytime a user types, we start a 10 second timer, and only sync if this timer is allowed to reach its time without interruption.
+Let's say a client wants to await a sync request and do something when it completes. Let's say there's an automatic timer than syncs every 10 seconds, but each sync request takes 20 seconds to complete. In this case, if we always await when syncManager.performSyncAgainOnCompletion is true, then the client's initial await will never resolve, as it will continue looping. We can pass an option to sync called 'chainWithCurrentResolveCycle', and if true, then 

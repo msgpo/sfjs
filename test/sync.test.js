@@ -53,6 +53,10 @@ describe('offline syncing', () => {
     await Factory.globalStorageManager().clearAllData();
   });
 
+  afterEach(async () => {
+    expect(syncManager.isOutOfSync()).to.equal(false);
+  })
+
   it("should sync basic model offline", async () => {
     var item = Factory.createItem();
     modelManager.addItem(item);
@@ -103,6 +107,7 @@ describe('offline syncing', () => {
 
     models = await Factory.globalStorageManager().getAllModels()
     expect(models.length).to.equal(1);
+    expect(modelManager.allItems.length).to.equal(1);
   }).timeout(5000);
 });
 
@@ -132,6 +137,9 @@ describe('online syncing', () => {
 
   afterEach(async () => {
     expect(syncManager.isOutOfSync()).to.equal(false);
+    expect(modelManager.allItems.length).to.equal(totalItemCount);
+    let storageModels = await storageManager.getAllModels();
+    expect(storageModels.length).to.equal(totalItemCount);
   })
 
   syncManager.setKeyRequestHandler(async () => {
@@ -195,7 +203,6 @@ describe('online syncing', () => {
     })
 
     let item = Factory.createItem();
-    console.log("Item created offline", item.uuid);
     modelManager.addItem(item);
     modelManager.setItemDirty(item, true);
     totalItemCount++;
@@ -234,8 +241,6 @@ describe('online syncing', () => {
   });
 
   it("every sync request should trigger a completion event", async () => {
-    // We made some updates to this test. The new rule is if you call sync 10 times, that
-    // doesnt neccessarily mean we'll actually go out to server 10 times. You really should only see it once.
     let syncCount = 10;
     let successes = 0;
     let events = 0;
@@ -248,16 +253,19 @@ describe('online syncing', () => {
       }
     });
 
+    let promises = [];
     for(let i = 0; i < syncCount; i++) {
-      syncManager.sync(syncOptions).then(() => {
+      promises.push(syncManager.sync(syncOptions).then(() => {
         successes++;
-      })
+      }));
     }
 
-    await Factory.sleep(1);
+    await Promise.all(promises);
 
     expect(successes).to.equal(syncCount);
-    expect(events).to.equal(1);
+    // Only a fully executed sync request creates a sync:completed event.
+    // We don't know how many will execute above.
+    expect(events).to.be.at.least(1);
   }).timeout(5000);
 
   it("mapping should not mutate items with error decrypting state", async () => {
@@ -302,15 +310,15 @@ describe('online syncing', () => {
     // We expect this item to be duplicated
     totalItemCount++;
 
-    // wait about 1s, which is the value the dev server will ignore conflicting changes
+    // // wait about 1s, which is the value the dev server will ignore conflicting changes
     await Factory.sleep(1.1);
     await syncManager.sync(syncOptions)
-
-    let memModels = modelManager.allItems;
-    expect(memModels.length).to.equal(totalItemCount);
-
-    let storedModels = await Factory.globalStorageManager().getAllModels();
-    expect(storedModels.length).to.equal(totalItemCount);
+    //
+    // let memModels = modelManager.allItems;
+    // expect(memModels.length).to.equal(totalItemCount);
+    //
+    // let storedModels = await Factory.globalStorageManager().getAllModels();
+    // expect(storedModels.length).to.equal(totalItemCount);
   }).timeout(5000);
 
   it("should duplicate item if saving a modified item and clearing our sync token", async () => {
@@ -372,6 +380,117 @@ describe('online syncing', () => {
     expect(models.length).to.equal(totalItemCount);
   }).timeout(50000);
 
+
+    it('clearing conflict_of on two clients simultaneously should keep us in sync', async () => {
+      await syncManager.loadLocalItems();
+      let note = Factory.createItem();
+      modelManager.addItem(note);
+      modelManager.setItemDirty(note, true);
+      totalItemCount += 1;
+
+      // client A
+      note.content.conflict_of = "foo";
+      modelManager.setItemDirty(note, true);
+      await syncManager.sync(syncOptions);
+
+      // client B
+      await syncManager.clearSyncToken();
+      note.content.conflict_of = "bar";
+      note.updated_at = Factory.yesterday();
+      modelManager.setItemDirty(note, true);
+
+      // We expect 1 additional duplicate
+      totalItemCount += 1;
+
+      await Factory.sleep(1.1);
+      await syncManager.sync(syncOptions);
+
+      expect(syncManager.isOutOfSync()).to.equal(false);
+    }).timeout(60000);
+
+    it('removes item from storage upon deletion', async () => {
+      await syncManager.loadLocalItems();
+      let note = Factory.createItem();
+      modelManager.addItem(note);
+      modelManager.setItemDirty(note, true);
+      await syncManager.sync(syncOptions);
+
+      totalItemCount += 1;
+      expect(modelManager.allItems.length).to.equal(totalItemCount);
+
+      modelManager.setItemToBeDeleted(note);
+      totalItemCount -= 1;
+      await syncManager.sync(syncOptions);
+
+      // We expect that this item is now gone for good, and a duplicate has not been created.
+      expect(modelManager.allItems.length).to.equal(totalItemCount);
+
+      let storageModels = await storageManager.getAllModels();
+      expect(storageModels.length).to.equal(totalItemCount)
+    }).timeout(60000);
+
+    it('handle case where server says item is deleted but client says its not deleted', async () => {
+      await syncManager.loadLocalItems();
+      let note = Factory.createItem();
+      modelManager.addItem(note);
+      modelManager.setItemDirty(note, true);
+      await syncManager.sync(syncOptions);
+      totalItemCount += 1;
+      expect(modelManager.allItems.length).to.equal(totalItemCount);
+
+      // client A
+      modelManager.setItemToBeDeleted(note);
+      modelManager.setItemDirty(note, true);
+      await syncManager.sync(syncOptions);
+      // Subtract 1
+      totalItemCount -= 1;
+      expect(modelManager.allItems.length).to.equal(totalItemCount);
+
+      // client B
+      await syncManager.clearSyncToken();
+
+      // Add the item back and say it's not deleted
+      modelManager.addItem(note);
+      expect(modelManager.findItem(note.uuid).uuid).to.equal(note.uuid);
+      note.deleted = false;
+      note.updated_at = Factory.yesterday();
+      modelManager.setItemDirty(note, true);
+
+      await syncManager.sync(syncOptions);
+
+      // We expect that this item is now gone for good, and a duplicate has not been created.
+      expect(modelManager.allItems.length).to.equal(totalItemCount);
+
+      let storageModels = await storageManager.getAllModels();
+      expect(storageModels.length).to.equal(totalItemCount)
+    }).timeout(60000);
+
+    it('handle case where server says item is not deleted but client says it is deleted', async () => {
+      await syncManager.loadLocalItems();
+      let note = Factory.createItem();
+      modelManager.addItem(note);
+      modelManager.setItemDirty(note, true);
+      totalItemCount += 1;
+
+      // client A
+      await syncManager.sync(syncOptions);
+      expect(modelManager.allItems.length).to.equal(totalItemCount);
+
+      // client B
+      await syncManager.clearSyncToken();
+
+      // This client says this item is deleted, but the server is saying its not deleted.
+      // In this case, we want to keep the server copy.
+      note.deleted = false;
+      note.updated_at = Factory.yesterday();
+      modelManager.setItemDirty(note, true);
+
+      await syncManager.sync(syncOptions);
+
+      // We expect that this item is now gone for good, and a duplicate has not been created.
+      expect(modelManager.allItems.length).to.equal(totalItemCount);
+    }).timeout(60000);
+
   it("should create conflict if syncing an item that is stale", async () => {
     // Typically if the client attempted to save an item for which the server has a newer change,
     // the server will instruct the client to duplicate it. But this only works according to the syncToken
@@ -411,6 +530,64 @@ describe('online syncing', () => {
       expect(model.dirty).to.not.be.ok;
     }
   }).timeout(5000);
+
+  it('creating conflict with exactly equal content should keep us in sync', async () => {
+    await syncManager.loadLocalItems();
+    let note = Factory.createItem();
+    modelManager.addItem(note);
+    modelManager.setItemDirty(note, true);
+    totalItemCount += 1;
+
+    await syncManager.sync(syncOptions);
+
+    note.updated_at = Factory.yesterday();
+    modelManager.setItemDirty(note, true);
+
+    await Factory.sleep(1.1);
+    await syncManager.sync(syncOptions);
+
+    expect(syncManager.isOutOfSync()).to.equal(false);
+  });
+
+  it('should keep an item dirty thats been modified after low latency sync request began', async () => {
+    await syncManager.loadLocalItems();
+    let note = Factory.createItem();
+    note.content.text = "Initial value";
+    modelManager.addItem(note);
+    modelManager.setItemDirty(note, true);
+    totalItemCount += 1;
+
+    // client A. Don't await, we want to do other stuff.
+    let slowSync = syncManager.sync({
+      performIntegrityCheck: true,
+      simulateHighLatency: true,
+      simulatedLatency: 400
+    });
+
+    await Factory.sleep(0.2);
+
+    // While that sync is going on, we want to modify this item many times.
+    let text = `${Math.random()}`;
+    note.content.text = text;
+    // We want dirty count to be greater than 1.
+    note.setDirty(true);
+    note.setDirty(true);
+    note.setDirty(true);
+
+    // Now do a regular sync with no latency. As part of saving items offline presave,
+    // we used to reset its dirty count back to 0. So then when the high latency request completes,
+    // its dirty count is 0, and it will be cleared as dirty, causing the item to not sync again.
+    let midSync = syncManager.sync(syncOptions);
+
+    await Promise.all([slowSync, midSync]);
+    // client B
+    await syncManager.clearSyncToken();
+    await syncManager.sync(syncOptions);
+
+    // Expect that the server value and client value match, and no conflicts are created.
+    expect(modelManager.allItems.length).to.equal(totalItemCount);
+    expect(modelManager.findItem(note.uuid).content.text).to.equal(text);
+  }).timeout(60000);
 
   it("should sync an item twice if it's marked dirty while a sync is ongoing", async () => {
     // create an item and sync it
@@ -518,7 +695,7 @@ describe('online syncing', () => {
     }
   }).timeout(10000);
 
-  let largeItemCount = 300;
+  let largeItemCount = 160;
 
   it("should handle syncing pagination", async () => {
     for(var i = 0; i < largeItemCount; i++) {
@@ -637,28 +814,9 @@ describe('online syncing', () => {
     expect(items[4].content_type).to.equal("B");
   });
 
-  it("should sign in and retrieve large number of items", async () => {
-    // logout
-    await Factory.globalAuthManager().signout();
-    syncManager.handleSignout();
-    modelManager.handleSignout();
-
-    await Factory.globalStorageManager().clearAllData();
-    await Factory.globalAuthManager().login(Factory.serverURL(), email, password, true, null);
-
-    let models = await Factory.globalStorageManager().getAllModels();
-    expect(models.length).to.equal(0);
-
-    await syncManager.loadLocalItems();
-    await syncManager.sync(syncOptions);
-
-    models = await Factory.globalStorageManager().getAllModels();
-    expect(models.length).to.equal(totalItemCount);
-  }).timeout(50000);
-
   it("handles stale data in bulk", async () => {
     await syncManager.loadLocalItems();
-    let itemCount = 200;
+    let itemCount = 160;
     // syncManager.PerSyncItemUploadLimit = 1;
     // syncManager.ServerItemDownloadLimit = 2;
 
@@ -707,6 +865,25 @@ describe('online syncing', () => {
     expect(storage.length).to.equal(totalItemCount);
   }).timeout(45000);
 
+  it("should sign in and retrieve large number of items", async () => {
+    // logout
+    await Factory.globalAuthManager().signout();
+    syncManager.handleSignout();
+    modelManager.handleSignout();
+
+    await Factory.globalStorageManager().clearAllData();
+    await Factory.globalAuthManager().login(Factory.serverURL(), email, password, true, null);
+
+    let models = await Factory.globalStorageManager().getAllModels();
+    expect(models.length).to.equal(0);
+
+    await syncManager.loadLocalItems();
+    await syncManager.sync(syncOptions);
+
+    models = await Factory.globalStorageManager().getAllModels();
+    expect(models.length).to.equal(totalItemCount);
+  }).timeout(50000);
+
   it('when a note is conflicted, its tags should not be duplicated.', async () => {
     await syncManager.loadLocalItems();
     /*
@@ -748,150 +925,6 @@ describe('online syncing', () => {
     expect(modelManager.allItems.length).to.equal(totalItemCount);
     expect(tag.content.references.length).to.equal(2);
   });
-
-  it('creating conflict with exactly equal content should keep us in sync', async () => {
-    await syncManager.loadLocalItems();
-    let note = Factory.createItem();
-    modelManager.addItem(note);
-    modelManager.setItemDirty(note, true);
-    totalItemCount += 1;
-
-    await syncManager.sync(syncOptions);
-
-    note.updated_at = Factory.yesterday();
-    modelManager.setItemDirty(note, true);
-
-    await Factory.sleep(1.1);
-    await syncManager.sync(syncOptions);
-
-    expect(syncManager.isOutOfSync()).to.equal(false);
-  });
-
-  it('clearing conflict_of on two clients simultaneously should keep us in sync', async () => {
-    await syncManager.loadLocalItems();
-    let note = Factory.createItem();
-    modelManager.addItem(note);
-    modelManager.setItemDirty(note, true);
-    totalItemCount += 1;
-
-    // client A
-    note.content.conflict_of = "foo";
-    modelManager.setItemDirty(note, true);
-    await syncManager.sync(syncOptions);
-
-    // client B
-    await syncManager.clearSyncToken();
-    note.content.conflict_of = "bar";
-    note.updated_at = Factory.yesterday();
-    modelManager.setItemDirty(note, true);
-
-    // We expect 1 additional duplicate
-    totalItemCount += 1;
-
-    await Factory.sleep(1.1);
-    await syncManager.sync(syncOptions);
-
-    expect(syncManager.isOutOfSync()).to.equal(false);
-  }).timeout(60000);
-
-  it('handle case where server says item is deleted but client says its not deleted', async () => {
-    await syncManager.loadLocalItems();
-    let note = Factory.createItem();
-    modelManager.addItem(note);
-    modelManager.setItemDirty(note, true);
-    await syncManager.sync(syncOptions);
-    totalItemCount += 1;
-    expect(modelManager.allItems.length).to.equal(totalItemCount);
-
-    // client A
-    modelManager.setItemToBeDeleted(note);
-    modelManager.setItemDirty(note, true);
-    await syncManager.sync(syncOptions);
-    // Subtract 1
-    totalItemCount -= 1;
-    expect(modelManager.allItems.length).to.equal(totalItemCount);
-
-    // client B
-    await syncManager.clearSyncToken();
-
-    // Add the item back and say it's not deleted
-    modelManager.addItem(note);
-    expect(modelManager.findItem(note.uuid).uuid).to.equal(note.uuid);
-    note.deleted = false;
-    note.updated_at = Factory.yesterday();
-    modelManager.setItemDirty(note, true);
-
-    await syncManager.sync(syncOptions);
-
-    // We expect that this item is now gone for good, and a duplicate has not been created.
-    expect(modelManager.allItems.length).to.equal(totalItemCount);
-  }).timeout(60000);
-
-  it('handle case where server says item is not deleted but client says it is deleted', async () => {
-    await syncManager.loadLocalItems();
-    let note = Factory.createItem();
-    modelManager.addItem(note);
-    modelManager.setItemDirty(note, true);
-    totalItemCount += 1;
-
-    // client A
-    await syncManager.sync(syncOptions);
-    expect(modelManager.allItems.length).to.equal(totalItemCount);
-
-    // client B
-    await syncManager.clearSyncToken();
-
-    // This client says this item is deleted, but the server is saying its not deleted.
-    // In this case, we want to keep the server copy.
-    note.deleted = false;
-    note.updated_at = Factory.yesterday();
-    modelManager.setItemDirty(note, true);
-
-    await syncManager.sync(syncOptions);
-
-    // We expect that this item is now gone for good, and a duplicate has not been created.
-    expect(modelManager.allItems.length).to.equal(totalItemCount);
-  }).timeout(60000);
-
-  it('should keep an item dirty thats been modified after low latency sync request began', async () => {
-    await syncManager.loadLocalItems();
-    let note = Factory.createItem();
-    note.content.text = "Initial value";
-    modelManager.addItem(note);
-    modelManager.setItemDirty(note, true);
-    totalItemCount += 1;
-
-    // client A. Don't await, we want to do other stuff.
-    let slowSync = syncManager.sync({
-      performIntegrityCheck: true,
-      simulateHighLatency: true,
-      simulatedLatency: 400
-    });
-
-    await Factory.sleep(0.2);
-
-    // While that sync is going on, we want to modify this item many times.
-    let text = `${Math.random()}`;
-    note.content.text = text;
-    // We want dirty count to be greater than 1.
-    note.setDirty(true);
-    note.setDirty(true);
-    note.setDirty(true);
-
-    // Now do a regular sync with no latency. As part of saving items offline presave,
-    // we used to reset its dirty count back to 0. So then when the high latency request completes,
-    // its dirty count is 0, and it will be cleared as dirty, causing the item to not sync again.
-    let midSync = syncManager.sync(syncOptions);
-
-    await Promise.all([slowSync, midSync]);
-    // client B
-    await syncManager.clearSyncToken();
-    await syncManager.sync(syncOptions);
-
-    // Expect that the server value and client value match, and no conflicts are created.
-    expect(modelManager.allItems.length).to.equal(totalItemCount);
-    expect(modelManager.findItem(note.uuid).content.text).to.equal(text);
-  }).timeout(60000);
 
 });
 
