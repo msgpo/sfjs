@@ -431,9 +431,11 @@ export class SFHttpManager {
       }
     })
 
+    this.receivedLocalDataEvent = syncManager.initialDataLoaded();
+
     this.syncManager.addEventHandler(async (event, data) => {
-      var dataLoadedEvent = event == "local-data-loaded";
-      var syncCompleteEvent = event == "sync:completed";
+      let dataLoadedEvent = event == "local-data-loaded";
+      let syncCompleteEvent = event == "sync:completed";
 
       if(dataLoadedEvent || syncCompleteEvent) {
         if(dataLoadedEvent) {

@@ -1162,6 +1162,8 @@ var SFMigrationManager = exports.SFMigrationManager = function () {
       }
     });
 
+    this.receivedLocalDataEvent = syncManager.initialDataLoaded();
+
     this.syncManager.addEventHandler(function () {
       var _ref25 = _asyncToGenerator( /*#__PURE__*/regeneratorRuntime.mark(function _callee25(event, data) {
         var dataLoadedEvent, syncCompleteEvent, completedList, _iteratorNormalCompletion2, _didIteratorError2, _iteratorError2, _iterator2, _step2, migrationName, migration;
