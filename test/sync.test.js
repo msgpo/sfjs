@@ -111,7 +111,7 @@ describe('offline syncing', () => {
   }).timeout(5000);
 });
 
-describe('online syncing', () => {
+describe.only('online syncing', () => {
   var email = Factory.globalStandardFile().crypto.generateUUIDSync();
   var password = Factory.globalStandardFile().crypto.generateUUIDSync();
   var totalItemCount = 0;
@@ -142,13 +142,32 @@ describe('online syncing', () => {
     expect(storageModels.length).to.equal(totalItemCount);
   })
 
-  syncManager.setKeyRequestHandler(async () => {
+  let keyRequestHandler = async () => {
     return {
       keys: await authManager.keys(),
       auth_params: await authManager.getAuthParams(),
       offline: false
     };
-  })
+  };
+
+  syncManager.setKeyRequestHandler(keyRequestHandler);
+
+  const signout = async () => {
+    await Factory.globalAuthManager().signout();
+    await Factory.globalStorageManager().clearAllData();
+    await syncManager.handleSignout();
+    await modelManager.handleSignout();
+    syncManager.setKeyRequestHandler(async () => {
+      return {
+        offline: true
+      };
+    })
+  }
+
+  const signin = async () => {
+    await Factory.globalAuthManager().login(Factory.serverURL(), email, password, true, null);
+    syncManager.setKeyRequestHandler(keyRequestHandler);
+  }
 
   it("should register and sync basic model online", async () => {
     await syncManager.loadLocalItems();
@@ -168,7 +187,7 @@ describe('online syncing', () => {
     for(let model of models) {
       expect(model.dirty).to.not.be.ok;
     }
-  });
+  }).timeout(60000);
 
   it("should login and retrieve synced item", async () => {
     // logout
@@ -182,63 +201,7 @@ describe('online syncing', () => {
     expect(response).to.be.ok;
     let models = await Factory.globalStorageManager().getAllModels();
     expect(models.length).to.equal(totalItemCount);
-  });
-
-  it("allows me to save data after I've signed out", async () => {
-    let originalHandler = syncManager.keyRequestHandler;
-
-    // useful if you run this test in isolation
-    await syncManager.loadLocalItems();
-
-    // logout
-    await Factory.globalAuthManager().signout();
-    await Factory.globalStorageManager().clearAllData();
-    await syncManager.handleSignout();
-    await modelManager.handleSignout();
-
-    syncManager.setKeyRequestHandler(async () => {
-      return {
-        offline: true
-      };
-    })
-
-    let item = Factory.createItem();
-    modelManager.addItem(item);
-    modelManager.setItemDirty(item, true);
-    totalItemCount++;
-
-    await syncManager.sync(syncOptions);
-
-    let models = await storageManager.getAllModels();
-    expect(models.length).to.equal(1);
-    expect(modelManager.allItems.length).to.equal(1);
-
-    for(let model of models) {
-      // Models saved offline have their dirty param stripped.
-      expect(model.dirty).to.not.be.ok;
-    }
-
-    // set item to be merged for when sign in occurs
-    modelManager.setItemDirty(item, true);
-
-    // Sign back in for next tests
-    await Factory.globalAuthManager().login(Factory.serverURL(), email, password, true, null);
-    syncManager.setKeyRequestHandler(originalHandler);
-
-    await syncManager.sync(syncOptions);
-
-    expect(modelManager.allItems.length).to.equal(totalItemCount);
-
-    for(let item of modelManager.allItems)  {
-      expect(item.content.title).to.be.ok;
-    }
-
-    models = await storageManager.getAllModels();
-    for(let model of models) {
-      // if an item comes back from the server, it is saved to disk immediately without a dirty value.
-      expect(model.dirty).to.not.be.ok;
-    }
-  });
+  }).timeout(60000);
 
   it("every sync request should trigger a completion event", async () => {
     let syncCount = 10;
@@ -266,7 +229,63 @@ describe('online syncing', () => {
     // Only a fully executed sync request creates a sync:completed event.
     // We don't know how many will execute above.
     expect(events).to.be.at.least(1);
-  }).timeout(5000);
+
+    // Since the syncs all happen after one another, extra syncs may be queued on that we are not awaiting.
+    await Factory.sleep(0.5);
+  }).timeout(60000);
+
+  it("allows me to save data after I've signed out", async () => {
+    let originalHandler = syncManager.keyRequestHandler;
+
+    // useful if you run this test in isolation
+    await syncManager.loadLocalItems();
+
+    // logout
+    await signout();
+
+    let item = Factory.createItem();
+    modelManager.addItem(item);
+    modelManager.setItemDirty(item, true);
+    totalItemCount++;
+
+    await syncManager.sync(syncOptions);
+
+    let models = await storageManager.getAllModels();
+    expect(models.length).to.equal(1);
+    expect(modelManager.allItems.length).to.equal(1);
+
+    for(let model of models) {
+      // Models saved offline have their dirty param stripped.
+      expect(model.dirty).to.not.be.ok;
+    }
+
+    // set item to be merged for when sign in occurs
+    modelManager.setItemDirty(item, true);
+
+    expect(syncManager.isOutOfSync()).to.equal(false);
+
+    expect(modelManager.getDirtyItems().length).to.equal(1);
+
+    // Sign back in for next tests
+    await signin();
+
+    expect(modelManager.getDirtyItems().length).to.equal(1);
+
+    await syncManager.sync(syncOptions);
+    expect(syncManager.isOutOfSync()).to.equal(false);
+
+    expect(modelManager.allItems.length).to.equal(totalItemCount);
+
+    for(let item of modelManager.allItems)  {
+      expect(item.content.title).to.be.ok;
+    }
+
+    models = await storageManager.getAllModels();
+    for(let model of models) {
+      // if an item comes back from the server, it is saved to disk immediately without a dirty value.
+      expect(model.dirty).to.not.be.ok;
+    }
+  }).timeout(60000);
 
   it("mapping should not mutate items with error decrypting state", async () => {
     var item = Factory.createItem();
@@ -288,7 +307,7 @@ describe('online syncing', () => {
     mappedItem = modelManager.mapResponseItemsToLocalModels([itemParams])[0];
     expect(typeof mappedItem.content).to.equal("object");
     expect(mappedItem.content.title).to.equal(originalTitle);
-  });
+  }).timeout(60000);
 
   it("should handle sync conflicts by duplicating differing data", async () => {
     await syncManager.loadLocalItems();
@@ -313,13 +332,13 @@ describe('online syncing', () => {
     // // wait about 1s, which is the value the dev server will ignore conflicting changes
     await Factory.sleep(1.1);
     await syncManager.sync(syncOptions)
-    //
-    // let memModels = modelManager.allItems;
-    // expect(memModels.length).to.equal(totalItemCount);
-    //
-    // let storedModels = await Factory.globalStorageManager().getAllModels();
-    // expect(storedModels.length).to.equal(totalItemCount);
-  }).timeout(5000);
+
+    let memModels = modelManager.allItems;
+    expect(memModels.length).to.equal(totalItemCount);
+
+    let storedModels = await Factory.globalStorageManager().getAllModels();
+    expect(storedModels.length).to.equal(totalItemCount);
+  }).timeout(60000);
 
   it("should duplicate item if saving a modified item and clearing our sync token", async () => {
     await syncManager.loadLocalItems();
@@ -354,7 +373,7 @@ describe('online syncing', () => {
 
     let storedModels = await Factory.globalStorageManager().getAllModels();
     expect(storedModels.length).to.equal(totalItemCount);
-  }).timeout(50000);
+  }).timeout(60000);
 
 
   it("should handle sync conflicts by not duplicating same data", async () => {
@@ -378,118 +397,117 @@ describe('online syncing', () => {
     expect(response).to.be.ok;
     let models = await Factory.globalStorageManager().getAllModels();
     expect(models.length).to.equal(totalItemCount);
-  }).timeout(50000);
+  }).timeout(60000);
 
+  it('clearing conflict_of on two clients simultaneously should keep us in sync', async () => {
+    await syncManager.loadLocalItems();
+    let note = Factory.createItem();
+    modelManager.addItem(note);
+    modelManager.setItemDirty(note, true);
+    totalItemCount += 1;
 
-    it('clearing conflict_of on two clients simultaneously should keep us in sync', async () => {
-      await syncManager.loadLocalItems();
-      let note = Factory.createItem();
-      modelManager.addItem(note);
-      modelManager.setItemDirty(note, true);
-      totalItemCount += 1;
+    // client A
+    note.content.conflict_of = "foo";
+    modelManager.setItemDirty(note, true);
+    await syncManager.sync(syncOptions);
 
-      // client A
-      note.content.conflict_of = "foo";
-      modelManager.setItemDirty(note, true);
-      await syncManager.sync(syncOptions);
+    // client B
+    await syncManager.clearSyncToken();
+    note.content.conflict_of = "bar";
+    note.updated_at = Factory.yesterday();
+    modelManager.setItemDirty(note, true);
 
-      // client B
-      await syncManager.clearSyncToken();
-      note.content.conflict_of = "bar";
-      note.updated_at = Factory.yesterday();
-      modelManager.setItemDirty(note, true);
+    // We expect 1 additional duplicate
+    totalItemCount += 1;
 
-      // We expect 1 additional duplicate
-      totalItemCount += 1;
+    await Factory.sleep(1.1);
+    await syncManager.sync(syncOptions);
 
-      await Factory.sleep(1.1);
-      await syncManager.sync(syncOptions);
+    expect(syncManager.isOutOfSync()).to.equal(false);
+  }).timeout(60000);
 
-      expect(syncManager.isOutOfSync()).to.equal(false);
-    }).timeout(60000);
+  it('removes item from storage upon deletion', async () => {
+    await syncManager.loadLocalItems();
+    let note = Factory.createItem();
+    modelManager.addItem(note);
+    modelManager.setItemDirty(note, true);
+    await syncManager.sync(syncOptions);
 
-    it('removes item from storage upon deletion', async () => {
-      await syncManager.loadLocalItems();
-      let note = Factory.createItem();
-      modelManager.addItem(note);
-      modelManager.setItemDirty(note, true);
-      await syncManager.sync(syncOptions);
+    totalItemCount += 1;
+    expect(modelManager.allItems.length).to.equal(totalItemCount);
 
-      totalItemCount += 1;
-      expect(modelManager.allItems.length).to.equal(totalItemCount);
+    modelManager.setItemToBeDeleted(note);
+    totalItemCount -= 1;
+    await syncManager.sync(syncOptions);
 
-      modelManager.setItemToBeDeleted(note);
-      totalItemCount -= 1;
-      await syncManager.sync(syncOptions);
+    // We expect that this item is now gone for good, and a duplicate has not been created.
+    expect(modelManager.allItems.length).to.equal(totalItemCount);
 
-      // We expect that this item is now gone for good, and a duplicate has not been created.
-      expect(modelManager.allItems.length).to.equal(totalItemCount);
+    let storageModels = await storageManager.getAllModels();
+    expect(storageModels.length).to.equal(totalItemCount)
+  }).timeout(60000);
 
-      let storageModels = await storageManager.getAllModels();
-      expect(storageModels.length).to.equal(totalItemCount)
-    }).timeout(60000);
+  it('handle case where server says item is deleted but client says its not deleted', async () => {
+    await syncManager.loadLocalItems();
+    let note = Factory.createItem();
+    modelManager.addItem(note);
+    modelManager.setItemDirty(note, true);
+    await syncManager.sync(syncOptions);
+    totalItemCount += 1;
+    expect(modelManager.allItems.length).to.equal(totalItemCount);
 
-    it('handle case where server says item is deleted but client says its not deleted', async () => {
-      await syncManager.loadLocalItems();
-      let note = Factory.createItem();
-      modelManager.addItem(note);
-      modelManager.setItemDirty(note, true);
-      await syncManager.sync(syncOptions);
-      totalItemCount += 1;
-      expect(modelManager.allItems.length).to.equal(totalItemCount);
+    // client A
+    modelManager.setItemToBeDeleted(note);
+    modelManager.setItemDirty(note, true);
+    await syncManager.sync(syncOptions);
+    // Subtract 1
+    totalItemCount -= 1;
+    expect(modelManager.allItems.length).to.equal(totalItemCount);
 
-      // client A
-      modelManager.setItemToBeDeleted(note);
-      modelManager.setItemDirty(note, true);
-      await syncManager.sync(syncOptions);
-      // Subtract 1
-      totalItemCount -= 1;
-      expect(modelManager.allItems.length).to.equal(totalItemCount);
+    // client B
+    await syncManager.clearSyncToken();
 
-      // client B
-      await syncManager.clearSyncToken();
+    // Add the item back and say it's not deleted
+    modelManager.addItem(note);
+    expect(modelManager.findItem(note.uuid).uuid).to.equal(note.uuid);
+    note.deleted = false;
+    note.updated_at = Factory.yesterday();
+    modelManager.setItemDirty(note, true);
 
-      // Add the item back and say it's not deleted
-      modelManager.addItem(note);
-      expect(modelManager.findItem(note.uuid).uuid).to.equal(note.uuid);
-      note.deleted = false;
-      note.updated_at = Factory.yesterday();
-      modelManager.setItemDirty(note, true);
+    await syncManager.sync(syncOptions);
 
-      await syncManager.sync(syncOptions);
+    // We expect that this item is now gone for good, and a duplicate has not been created.
+    expect(modelManager.allItems.length).to.equal(totalItemCount);
 
-      // We expect that this item is now gone for good, and a duplicate has not been created.
-      expect(modelManager.allItems.length).to.equal(totalItemCount);
+    let storageModels = await storageManager.getAllModels();
+    expect(storageModels.length).to.equal(totalItemCount)
+  }).timeout(60000);
 
-      let storageModels = await storageManager.getAllModels();
-      expect(storageModels.length).to.equal(totalItemCount)
-    }).timeout(60000);
+  it('handle case where server says item is not deleted but client says it is deleted', async () => {
+    await syncManager.loadLocalItems();
+    let note = Factory.createItem();
+    modelManager.addItem(note);
+    modelManager.setItemDirty(note, true);
+    totalItemCount += 1;
 
-    it('handle case where server says item is not deleted but client says it is deleted', async () => {
-      await syncManager.loadLocalItems();
-      let note = Factory.createItem();
-      modelManager.addItem(note);
-      modelManager.setItemDirty(note, true);
-      totalItemCount += 1;
+    // client A
+    await syncManager.sync(syncOptions);
+    expect(modelManager.allItems.length).to.equal(totalItemCount);
 
-      // client A
-      await syncManager.sync(syncOptions);
-      expect(modelManager.allItems.length).to.equal(totalItemCount);
+    // client B
+    await syncManager.clearSyncToken();
 
-      // client B
-      await syncManager.clearSyncToken();
+    // This client says this item is deleted, but the server is saying its not deleted.
+    // In this case, we want to keep the server copy.
+    note.deleted = false;
+    note.updated_at = Factory.yesterday();
+    modelManager.setItemDirty(note, true);
 
-      // This client says this item is deleted, but the server is saying its not deleted.
-      // In this case, we want to keep the server copy.
-      note.deleted = false;
-      note.updated_at = Factory.yesterday();
-      modelManager.setItemDirty(note, true);
+    await syncManager.sync(syncOptions);
 
-      await syncManager.sync(syncOptions);
-
-      // We expect that this item is now gone for good, and a duplicate has not been created.
-      expect(modelManager.allItems.length).to.equal(totalItemCount);
-    }).timeout(60000);
+    // We expect that this item is now gone for good, and a duplicate has not been created.
+    expect(modelManager.allItems.length).to.equal(totalItemCount);
+  }).timeout(60000);
 
   it("should create conflict if syncing an item that is stale", async () => {
     // Typically if the client attempted to save an item for which the server has a newer change,
@@ -529,7 +547,7 @@ describe('online syncing', () => {
       }
       expect(model.dirty).to.not.be.ok;
     }
-  }).timeout(5000);
+  }).timeout(60000);
 
   it('creating conflict with exactly equal content should keep us in sync', async () => {
     await syncManager.loadLocalItems();
@@ -547,7 +565,7 @@ describe('online syncing', () => {
     await syncManager.sync(syncOptions);
 
     expect(syncManager.isOutOfSync()).to.equal(false);
-  });
+  }).timeout(60000);
 
   it('should keep an item dirty thats been modified after low latency sync request began', async () => {
     await syncManager.loadLocalItems();
@@ -610,16 +628,18 @@ describe('online syncing', () => {
 
     await syncRequest;
     expect(modelManager.getDirtyItems().length).to.equal(1);
-  }).timeout(5000);
+  }).timeout(60000);
 
-  it("marking an item dirty then saving to disk should retain that dirty state when restored", async () => {
+  it.skip("marking an item dirty then saving to disk should retain that dirty state when restored", async () => {
     // create an item and sync it
     var item = Factory.createItem();
     modelManager.addItem(item);
     totalItemCount++;
     await syncManager.markAllItemsDirtyAndSaveOffline(false);
-    syncManager.handleSignout();
+
     modelManager.handleSignout();
+    await syncManager.handleSignout();
+
     expect(modelManager.allItems.length).to.equal(0);
 
     await syncManager.loadLocalItems();
@@ -627,8 +647,10 @@ describe('online syncing', () => {
 
     item = modelManager.findItem(item.uuid);
     expect(item.dirty).to.equal(true);
-    return true;
-  }).timeout(5000);
+
+    await syncManager.sync();
+    await Factory.sleep(1.0);
+  }).timeout(60000);
 
   it('duplicating an item should maintian its relationships', async () => {
     await syncManager.loadLocalItems();
@@ -693,7 +715,7 @@ describe('online syncing', () => {
     for(let item of modelManager.allItems) {
       expect(item.dirty).to.not.be.ok;
     }
-  }).timeout(10000);
+  }).timeout(60000);
 
   let largeItemCount = 160;
 
@@ -710,15 +732,15 @@ describe('online syncing', () => {
     expect(response).to.be.ok;
     let models = await Factory.globalStorageManager().getAllModels();
     expect(models.length).to.equal(totalItemCount);
-  }).timeout(25000);
+  }).timeout(60000);
 
   it("should be able to download all items separate of sync", async () => {
     return expect(syncManager.stateless_downloadAllItems()).to.be.fulfilled.then(async (downloadedItems) => {
       expect(downloadedItems.length).to.equal(totalItemCount);
       // ensure it's decrypted
-      expect(downloadedItems[0].content.text).to.equal("world");
+      expect(downloadedItems[0].content.text.length).to.be.above(1);
     })
-  }).timeout(15000);
+  }).timeout(60000);
 
   it("load local items", async () => {
     let localModelManager = Factory.createModelManager();
@@ -728,7 +750,7 @@ describe('online syncing', () => {
 
     await localSyncManager.loadLocalItems();
     expect(localModelManager.allItems.length).to.equal(totalItemCount);
-  });
+  }).timeout(60000);
 
   it("syncing a new item before local data has loaded should still persist the item to disk, even if sync is locked", async () => {
     let localModelManager = modelManager;
@@ -812,7 +834,7 @@ describe('online syncing', () => {
     expect(items[0].content_type).to.equal("C");
     expect(items[2].content_type).to.equal("A");
     expect(items[4].content_type).to.equal("B");
-  });
+  }).timeout(60000);
 
   it("handles stale data in bulk", async () => {
     await syncManager.loadLocalItems();
@@ -863,7 +885,7 @@ describe('online syncing', () => {
 
     let storage = await Factory.globalStorageManager().getAllModels();
     expect(storage.length).to.equal(totalItemCount);
-  }).timeout(45000);
+  }).timeout(60000);
 
   it("should sign in and retrieve large number of items", async () => {
     // logout
@@ -882,7 +904,7 @@ describe('online syncing', () => {
 
     models = await Factory.globalStorageManager().getAllModels();
     expect(models.length).to.equal(totalItemCount);
-  }).timeout(50000);
+  }).timeout(60000);
 
   it('when a note is conflicted, its tags should not be duplicated.', async () => {
     await syncManager.loadLocalItems();
@@ -924,7 +946,7 @@ describe('online syncing', () => {
     totalItemCount += 1;
     expect(modelManager.allItems.length).to.equal(totalItemCount);
     expect(tag.content.references.length).to.equal(2);
-  });
+  }).timeout(60000);
 
 });
 
@@ -1087,6 +1109,9 @@ describe('sync discordance', () => {
     // wait for integrity check interval
     await localSyncManager.sync({performIntegrityCheck: true});
 
+    // repeat syncs for sync discordance are not waited for, so we have to sleep for a bit here
+    await Factory.sleep(0.2);
+
     // We expect now to be in discordance. What the client has is different from what the server has
     // The above sync will not resolve until it syncs enough time to meet discordance threshold
     expect(localSyncManager.syncDiscordance).to.equal(localSyncManager.MaxDiscordanceBeforeOutOfSync);
@@ -1125,6 +1150,8 @@ describe('sync discordance', () => {
     delete localModelManager.itemsHash[item.uuid]
 
     await localSyncManager.sync({performIntegrityCheck: true});
+    // repeat syncs for sync discordance are not waited for, so we have to sleep for a bit here
+    await Factory.sleep(0.2);
     expect(localSyncManager.isOutOfSync()).to.equal(true);
 
     // lets resolve sync where content does not differ

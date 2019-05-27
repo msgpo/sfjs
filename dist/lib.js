@@ -352,8 +352,8 @@ export class SFHttpManager {
   }
 
   async httpRequest(verb, url, params, onsuccess, onerror) {
-    if(!params["api_version"]) {
-      params["api_version"] = this.apiVersion;
+    if(!params["api"]) {
+      params["api"] = this.apiVersion;
     }
 
     return new Promise(async (resolve, reject) => {
@@ -965,7 +965,9 @@ export class SFHttpManager {
   duplicateItemWithCustomContent({content, duplicateOf}) {
     let copy = new duplicateOf.constructor({content});
     copy.created_at = duplicateOf.created_at;
-    copy.content_type = duplicateOf.content_type;
+    if(!copy.content_type) {
+      copy.content_type = duplicateOf.content_type;
+    }
     return copy;
   }
 
@@ -978,7 +980,9 @@ export class SFHttpManager {
   duplicateItemWithoutAdding(item) {
     let copy = new item.constructor({content: item.content});
     copy.created_at = item.created_at;
-    copy.content_type = item.content_type;
+    if(!copy.content_type) {
+      copy.content_type = item.content_type;
+    }
     return copy;
   }
 
@@ -2949,6 +2953,7 @@ export class SFStorageManager {
   }
 
   async handleSignout() {
+    this.outOfSync = false;
     this.loadLocalDataPromise = null;
     this.performSyncAgainOnCompletion = false;
     this.syncStatus.syncOpInProgress = false;
@@ -2964,6 +2969,7 @@ export class SFStorageManager {
   }
 
   __setLocalDataNotLoaded() {
+    this.loadLocalDataPromise = null;
     this._initialDataLoaded = false;
   }
 }

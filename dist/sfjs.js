@@ -1156,8 +1156,8 @@ var SFHttpManager = exports.SFHttpManager = function () {
           while (1) {
             switch (_context24.prev = _context24.next) {
               case 0:
-                if (!params["api_version"]) {
-                  params["api_version"] = this.apiVersion;
+                if (!params["api"]) {
+                  params["api"] = this.apiVersion;
                 }
 
                 return _context24.abrupt("return", new Promise(function () {
@@ -2851,7 +2851,9 @@ var SFModelManager = exports.SFModelManager = function () {
 
       var copy = new duplicateOf.constructor({ content: content });
       copy.created_at = duplicateOf.created_at;
-      copy.content_type = duplicateOf.content_type;
+      if (!copy.content_type) {
+        copy.content_type = duplicateOf.content_type;
+      }
       return copy;
     }
   }, {
@@ -2866,7 +2868,9 @@ var SFModelManager = exports.SFModelManager = function () {
     value: function duplicateItemWithoutAdding(item) {
       var copy = new item.constructor({ content: item.content });
       copy.created_at = item.created_at;
-      copy.content_type = item.content_type;
+      if (!copy.content_type) {
+        copy.content_type = item.content_type;
+      }
       return copy;
     }
   }, {
@@ -7783,6 +7787,7 @@ var SFSyncManager = exports.SFSyncManager = function () {
           while (1) {
             switch (_context102.prev = _context102.next) {
               case 0:
+                this.outOfSync = false;
                 this.loadLocalDataPromise = null;
                 this.performSyncAgainOnCompletion = false;
                 this.syncStatus.syncOpInProgress = false;
@@ -7790,7 +7795,7 @@ var SFSyncManager = exports.SFSyncManager = function () {
                 this.syncStatus = {};
                 return _context102.abrupt("return", this.clearSyncToken());
 
-              case 6:
+              case 7:
               case "end":
                 return _context102.stop();
             }
@@ -7833,6 +7838,7 @@ var SFSyncManager = exports.SFSyncManager = function () {
   }, {
     key: "__setLocalDataNotLoaded",
     value: function __setLocalDataNotLoaded() {
+      this.loadLocalDataPromise = null;
       this._initialDataLoaded = false;
     }
   }, {
