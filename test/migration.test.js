@@ -34,7 +34,7 @@ describe('migrations', () => {
       };
     })
 
-    var migrationManager = new SFMigrationManager(modelManager, syncManager, Factory.globalStorageManager());
+    var migrationManager = new SFMigrationManager(modelManager, syncManager, Factory.globalStorageManager(), authManager);
 
     migrationManager.registeredMigrations = () => {
       return [
@@ -62,7 +62,10 @@ describe('migrations', () => {
     expect(completed.length).to.equal(0);
 
     await syncManager.loadLocalItems();
+    await syncManager.sync();
     // should be completed now
+    // migrationManager works on event obsesrver, so will be asyncrounous. We'll wait a tiny bit here
+    await Factory.sleep(0.3);
     var pending = await migrationManager.getPendingMigrations();
     var completed = await migrationManager.getCompletedMigrations();
     expect(pending.length).to.equal(0);
@@ -86,7 +89,9 @@ describe('migrations', () => {
       };
     })
 
-    var migrationManager = new SFMigrationManager(modelManager, syncManager, Factory.globalStorageManager());
+    await syncManager.loadLocalItems();
+
+    var migrationManager = new SFMigrationManager(modelManager, syncManager, Factory.globalStorageManager(), authManager);
 
     let randValue1 = Math.random();
     let randValue2 = Math.random();
@@ -139,7 +144,7 @@ describe('migrations', () => {
     let modelManager = Factory.createModelManager();
     let syncManager = new SFSyncManager(modelManager, Factory.globalStorageManager(), Factory.globalHttpManager());
 
-    var migrationManager = new SFMigrationManager(modelManager, syncManager, Factory.globalStorageManager());
+    var migrationManager = new SFMigrationManager(modelManager, syncManager, Factory.globalStorageManager(), authManager);
 
     var params1 = Factory.createItem();
     modelManager.addItem(params1);
@@ -174,7 +179,10 @@ describe('migrations', () => {
     expect(completed.length).to.equal(0);
 
     await syncManager.loadLocalItems();
+    await syncManager.sync();
     // should be completed now
+    // migrationManager works on event obsesrver, so will be asyncrounous. We'll wait a tiny bit here
+    await Factory.sleep(0.1);
     var pending = await migrationManager.getPendingMigrations();
     var completed = await migrationManager.getCompletedMigrations();
     expect(pending.length).to.equal(0);
@@ -192,6 +200,7 @@ describe('migrations', () => {
     var email = Factory.globalStandardFile().crypto.generateUUIDSync();
     var password = Factory.globalStandardFile().crypto.generateUUIDSync();
     await Factory.newRegisteredUser(email, password);
+    authManager.notifyEvent(SFAuthManager.DidSignInEvent);
 
     syncManager.setKeyRequestHandler(async () => {
       return {

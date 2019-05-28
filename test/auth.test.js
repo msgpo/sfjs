@@ -57,9 +57,11 @@ describe("basic auth", () => {
     var totalItemCount = 105;
     for(var i = 0; i < totalItemCount; i++) {
       var item = Factory.createItem();
-      item.setDirty(true);
       modelManager.addItem(item);
+      modelManager.setItemDirty(item, true);
     }
+
+    await syncManager.loadLocalItems();
 
     await syncManager.sync();
 
@@ -78,19 +80,21 @@ describe("basic auth", () => {
     modelManager.setAllItemsDirty();
     await syncManager.sync();
 
+    expect(modelManager.allItems.length).to.equal(totalItemCount);
+
     // create conflict for an item
     var item = modelManager.allItems[0];
     item.content.foo = "bar";
-    item.setDirty(true);
+    item.updated_at = Factory.yesterday();
+    modelManager.setItemDirty(item, true);
     totalItemCount++;
 
     // Wait so that sync conflict can be created
     await Factory.sleep(1.1);
+    await syncManager.sync();
 
     // clear sync token, clear storage, download all items, and ensure none of them have error decrypting
-    await syncManager.clearSyncToken();
-    await syncManager.sync();
-    await syncManager.clearSyncToken();
+    await syncManager.handleSignout();
     await storageManager.clearAllModels();
     modelManager.handleSignout();
 
@@ -122,8 +126,8 @@ describe("basic auth", () => {
     var totalItemCount = 400;
     for(var i = 0; i < totalItemCount; i++) {
       var item = Factory.createItem();
-      item.setDirty(true);
       modelManager.addItem(item);
+      modelManager.setItemDirty(item, true);
     }
 
     await syncManager.sync();
@@ -163,6 +167,6 @@ describe("basic auth", () => {
 
       _keys = await Factory.globalAuthManager().keys();
     }
-  }).timeout(10000);
+  }).timeout(30000);
 
 })

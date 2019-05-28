@@ -314,11 +314,18 @@ export class SFAlertManager {
 }
 ;var globalScope = typeof window !== 'undefined' ? window : (typeof global !== 'undefined' ? global : null);
 
+const UseAPIVersion = "20190520";
+
 export class SFHttpManager {
 
-  constructor(timeout) {
+  static getApiVersion() {
+    return UseAPIVersion;
+  }
+
+  constructor(timeout, apiVersion) {
     // calling callbacks in a $timeout allows UI to update
     this.$timeout = timeout || setTimeout.bind(globalScope);
+    this.apiVersion = apiVersion || UseAPIVersion;
   }
 
   setJWTRequestHandler(handler) {
@@ -345,6 +352,10 @@ export class SFHttpManager {
   }
 
   async httpRequest(verb, url, params, onsuccess, onerror) {
+    if(!params["api"]) {
+      params["api"] = this.apiVersion;
+    }
+
     return new Promise(async (resolve, reject) => {
         var xmlhttp = new XMLHttpRequest();
 
@@ -420,9 +431,11 @@ export class SFHttpManager {
       }
     })
 
+    this.receivedLocalDataEvent = syncManager.initialDataLoaded();
+
     this.syncManager.addEventHandler(async (event, data) => {
-      var dataLoadedEvent = event == "local-data-loaded";
-      var syncCompleteEvent = event == "sync:completed";
+      let dataLoadedEvent = event == "local-data-loaded";
+      let syncCompleteEvent = event == "sync:completed";
 
       if(dataLoadedEvent || syncCompleteEvent) {
         if(dataLoadedEvent) {
@@ -578,6 +591,7 @@ export class SFHttpManager {
     SFModelManager.MappingSourceRemoteSaved = "MappingSourceRemoteSaved";
     SFModelManager.MappingSourceLocalSaved = "MappingSourceLocalSaved";
     SFModelManager.MappingSourceLocalRetrieved = "MappingSourceLocalRetrieved";
+    SFModelManager.MappingSourceLocalDirtied = "MappingSourceLocalDirtied";
     SFModelManager.MappingSourceComponentRetrieved = "MappingSourceComponentRetrieved";
     SFModelManager.MappingSourceDesktopInstalled = "MappingSourceDesktopInstalled"; // When a component is installed by the desktop and some of its values change
     SFModelManager.MappingSourceRemoteActionRetrieved = "MappingSourceRemoteActionRetrieved"; /* aciton-based Extensions like note history */
@@ -594,7 +608,6 @@ export class SFHttpManager {
     this.$timeout = timeout || setTimeout.bind(window);
 
     this.itemSyncObservers = [];
-    this.itemsPendingRemoval = [];
     this.items = [];
     this.itemsHash = {};
     this.missedReferences = {};
@@ -604,7 +617,6 @@ export class SFHttpManager {
   handleSignout() {
     this.items.length = 0;
     this.itemsHash = {};
-    this.itemsPendingRemoval.length = 0;
     this.missedReferences = {};
   }
 
@@ -620,7 +632,7 @@ export class SFHttpManager {
 
   async alternateUUIDForItem(item) {
     // We need to clone this item and give it a new uuid, then delete item with old uuid from db (you can't modify uuid's in our indexeddb setup)
-    let newItem = this.createItem(item, true);
+    let newItem = this.createItem(item);
     newItem.uuid = await SFJS.crypto.generateUUID();
 
     // Update uuids of relationships
@@ -631,10 +643,10 @@ export class SFHttpManager {
     for(let referencingObject of item.referencingObjects) {
       referencingObject.setIsNoLongerBeingReferencedBy(item);
       item.setIsNoLongerBeingReferencedBy(referencingObject);
-
       referencingObject.addItemAsRelationship(newItem);
-      referencingObject.setDirty(true);
     }
+
+    this.setItemsDirty(item.referencingObjects, true);
 
     // Used to set up referencingObjects for new item (so that other items can now properly reference this new item)
     this.resolveReferencesForItem(newItem);
@@ -649,12 +661,12 @@ export class SFHttpManager {
     // saves to a server, so doesn't need to be synced.
     // informModelsOfUUIDChangeForItem may set this object to dirty, but we want to undo that here, so that the item gets deleted
     // right away through the mapping function.
-    item.setDirty(false);
+    this.setItemDirty(item, false, false, SFModelManager.MappingSourceLocalSaved);
     this.mapResponseItemsToLocalModels([item], SFModelManager.MappingSourceLocalSaved);
 
     // add new item
     this.addItem(newItem);
-    newItem.setDirty(true);
+    this.setItemDirty(newItem, true, true, SFModelManager.MappingSourceLocalSaved);
 
     this.notifyObserversOfUuidChange(item, newItem);
 
@@ -717,11 +729,6 @@ export class SFHttpManager {
         item.dummy = false;
       }
 
-      if(this.itemsPendingRemoval.includes(json_obj.uuid)) {
-        _.pull(this.itemsPendingRemoval, json_obj.uuid);
-        continue;
-      }
-
       let contentType = json_obj["content_type"] || (item && item.content_type);
       let unknownContentType = this.acceptableContentTypes && !this.acceptableContentTypes.includes(contentType);
       if(unknownContentType) {
@@ -731,7 +738,7 @@ export class SFHttpManager {
       let isDirtyItemPendingDelete = false;
       if(json_obj.deleted == true) {
         if(json_obj.dirty) {
-          // Item was marked as deleted but not yet synced
+          // Item was marked as deleted but not yet synced (in offline scenario)
           // We need to create this item as usual, but just not add it to individual arrays
           // i.e add to this.items but not this.notes (so that it can be retrieved with getDirtyItems)
           isDirtyItemPendingDelete = true;
@@ -745,7 +752,7 @@ export class SFHttpManager {
       }
 
       if(!item) {
-        item = this.createItem(json_obj, true);
+        item = this.createItem(json_obj);
       }
 
       this.addItem(item, isDirtyItemPendingDelete);
@@ -827,8 +834,6 @@ export class SFHttpManager {
       return;
     }
 
-    // console.log("resolveReferencesForItem", item, "references", item.contentObject.references);
-
     let contentObject = item.contentObject;
 
     // If another client removes an item's references, this client won't pick up the removal unless
@@ -849,7 +854,7 @@ export class SFHttpManager {
       if(referencedItem) {
         item.addItemAsRelationship(referencedItem);
         if(markReferencesDirty) {
-          referencedItem.setDirty(true);
+          this.setItemDirty(referencedItem, true);
         }
       } else {
         let missingRefId = referencesIds[index];
@@ -888,6 +893,20 @@ export class SFHttpManager {
     }
   }
 
+  // When a client sets an item as dirty, it means its values has changed, and everyone should know about it.
+  // Particularly extensions. For example, if you edit the title of a note, extensions won't be notified until the save sync completes.
+  // With this, they'll be notified immediately.
+  setItemDirty(item, dirty = true, updateClientDate, source, sourceKey) {
+    this.setItemsDirty([item], dirty, updateClientDate, source, sourceKey);
+  }
+
+  setItemsDirty(items, dirty = true, updateClientDate, source, sourceKey) {
+    for(let item of items) {
+      item.setDirty(dirty, updateClientDate);
+    }
+    this.notifySyncObserversOfModels(items, source || SFModelManager.MappingSourceLocalDirtied, sourceKey);
+  }
+
   /*
     Rather than running this inline in a for loop, which causes problems and requires all variables to be declared with `let`,
     we'll do it here so it's more explicit and less confusing.
@@ -898,22 +917,13 @@ export class SFHttpManager {
     })
   }
 
-  createItem(json_obj, dontNotifyObservers) {
+  createItem(json_obj) {
     let itemClass = SFModelManager.ContentTypeClassMapping && SFModelManager.ContentTypeClassMapping[json_obj.content_type];
     if(!itemClass) {
       itemClass = SFItem;
     }
+
     let item = new itemClass(json_obj);
-
-    // Some observers would be interested to know when an an item is locally created
-    // If we don't send this out, these observers would have to wait until MappingSourceRemoteSaved
-    // to hear about it, but sometimes, RemoveSaved is explicitly ignored by the observer to avoid
-    // recursive callbacks. See componentManager's syncObserver callback.
-    // dontNotifyObservers is currently only set true by modelManagers mapResponseItemsToLocalModels
-    if(!dontNotifyObservers) {
-      this.notifySyncObserversOfModels([item], SFModelManager.MappingSourceLocalSaved);
-    }
-
     return item;
   }
 
@@ -924,42 +934,69 @@ export class SFHttpManager {
     This method creates but does not add the item to the global inventory. It's used by syncManager
     to check if this prospective duplicate item is identical to another item, including the references.
    */
-  async createConflictedItem(itemResponse) {
-    let uuid = await SFJS.crypto.generateUUID();
-    itemResponse = _.merge(itemResponse, {uuid: uuid});
-    let dup = this.createItem(itemResponse, true);
-    return dup;
+  async createDuplicateItemFromResponseItem(itemResponse) {
+    if(typeof itemResponse.setDirty === 'function') {
+      // You should never pass in objects here, as we will modify the itemResponse's uuid below (update: we now make a copy of input value).
+      console.error("Attempting to create conflicted copy of non-response item.");
+      return null;
+    }
+    // Make a copy so we don't modify input value.
+    let itemResponseCopy = JSON.parse(JSON.stringify(itemResponse));
+    itemResponseCopy.uuid = await SFJS.crypto.generateUUID();
+    let duplicate = this.createItem(itemResponseCopy);
+    return duplicate;
   }
 
-  addConflictedItem(dup, original) {
-    this.addItem(dup);
-    // the duplicate should inherit the original's relationships
-    for(let referencingObject of original.referencingObjects) {
-      referencingObject.addItemAsRelationship(dup);
-      referencingObject.setDirty(true);
-    }
-    this.resolveReferencesForItem(dup);
-    dup.content.conflict_of = original.uuid;
-    dup.setDirty(true);
+  duplicateItemAndAddAsConflict(duplicateOf) {
+    return this.duplicateItemWithCustomContentAndAddAsConflict({content: duplicateOf.content, duplicateOf});
   }
 
-  duplicateItem(item) {
-    let copy = new item.constructor({content: item.content});
-    copy.created_at = item.created_at;
-    copy.content_type = item.content_type;
-
-    this.addItem(copy);
-
-    // the duplicate should inherit the original's relationships
-    for(let referencingObject of item.referencingObjects) {
-      referencingObject.addItemAsRelationship(copy);
-      referencingObject.setDirty(true);
-    }
-    this.resolveReferencesForItem(copy);
-    copy.setDirty(true);
-
+  duplicateItemWithCustomContentAndAddAsConflict({content, duplicateOf}) {
+    let copy = this.duplicateItemWithCustomContent({content, duplicateOf});
+    this.addDuplicatedItemAsConflict({duplicate: copy, duplicateOf});
     return copy;
   }
+
+  addDuplicatedItemAsConflict({duplicate, duplicateOf}) {
+    this.addDuplicatedItem(duplicate, duplicateOf);
+    duplicate.content.conflict_of = duplicateOf.uuid;
+  }
+
+  duplicateItemWithCustomContent({content, duplicateOf}) {
+    let copy = new duplicateOf.constructor({content});
+    copy.created_at = duplicateOf.created_at;
+    if(!copy.content_type) {
+      copy.content_type = duplicateOf.content_type;
+    }
+    return copy;
+  }
+
+  duplicateItemAndAdd(item) {
+    let copy = this.duplicateItemWithoutAdding(item);
+    this.addDuplicatedItem(copy, item);
+    return copy;
+  }
+
+  duplicateItemWithoutAdding(item) {
+    let copy = new item.constructor({content: item.content});
+    copy.created_at = item.created_at;
+    if(!copy.content_type) {
+      copy.content_type = item.content_type;
+    }
+    return copy;
+  }
+
+  addDuplicatedItem(duplicate, original) {
+    this.addItem(duplicate);
+    // the duplicate should inherit the original's relationships
+    for(let referencingObject of original.referencingObjects) {
+      referencingObject.addItemAsRelationship(duplicate);
+      this.setItemDirty(referencingObject, true);
+    }
+    this.resolveReferencesForItem(duplicate);
+    this.setItemDirty(duplicate, true);
+  }
+
 
   addItem(item, globalOnly = false) {
     this.addItems([item], globalOnly);
@@ -1004,14 +1041,6 @@ export class SFHttpManager {
     }
   }
 
-  setItemToBeDeleted(item) {
-    item.deleted = true;
-
-    if(!item.dummy) { item.setDirty(true); }
-
-    this.removeAndDirtyAllRelationshipsForItem(item);
-  }
-
   removeAndDirtyAllRelationshipsForItem(item) {
     // Handle direct relationships
     // An item with errorDecrypting will not have valid content field
@@ -1022,7 +1051,7 @@ export class SFHttpManager {
           item.removeItemAsRelationship(relationship);
           if(relationship.hasRelationshipWithItem(item)) {
             relationship.removeItemAsRelationship(item);
-            relationship.setDirty(true);
+            this.setItemDirty(relationship, true);
           }
         }
       }
@@ -1031,28 +1060,34 @@ export class SFHttpManager {
     // Handle indirect relationships
     for(let object of item.referencingObjects) {
       object.removeItemAsRelationship(item);
-      object.setDirty(true);
+      this.setItemDirty(object, true);
     }
 
     item.referencingObjects = [];
   }
 
   /* Used when changing encryption key */
-  setAllItemsDirty(dontUpdateClientDates = true) {
+  setAllItemsDirty() {
     let relevantItems = this.allItems;
+    this.setItemsDirty(relevantItems, true);
+  }
 
-    for(let item of relevantItems) {
-      item.setDirty(true, dontUpdateClientDates);
+  setItemToBeDeleted(item) {
+    item.deleted = true;
+
+    if(!item.dummy) {
+      this.setItemDirty(item, true);
     }
+
+    this.removeAndDirtyAllRelationshipsForItem(item);
   }
 
   async removeItemLocally(item) {
     _.remove(this.items, {uuid: item.uuid});
+
     delete this.itemsHash[item.uuid]
 
     item.isBeingRemovedLocally();
-
-    this.itemsPendingRemoval.push(item.uuid);
   }
 
   /* Searching */
@@ -1128,29 +1163,43 @@ export class SFHttpManager {
 
   async importItems(externalItems) {
     let itemsToBeMapped = [];
+    // Get local values before doing any processing. This way, if a note change below modifies a tag,
+    // and the tag is going to be iterated on in the same loop, then we don't want this change to be compared
+    // to the local value.
+    let localValues = {};
     for(let itemData of externalItems) {
-      let existing = this.findItem(itemData.uuid);
-      if(existing && !existing.errorDecrypting) {
+      let localItem = this.findItem(itemData.uuid);
+      if(!localItem) {
+        localValues[itemData.uuid] = {};
+        continue;
+      }
+      let frozenValue = this.duplicateItemWithoutAdding(localItem);
+      localValues[itemData.uuid] = {frozenValue, itemRef: localItem};
+    }
+
+    for(let itemData of externalItems) {
+      let {frozenValue, itemRef} = localValues[itemData.uuid];
+      if(frozenValue && !itemRef.errorDecrypting) {
         // if the item already exists, check to see if it's different from the import data.
         // If it's the same, do nothing, otherwise, create a copy.
-        let dup = await this.createConflictedItem(itemData);
-        if(!itemData.deleted && !existing.isItemContentEqualWith(dup)) {
+        let duplicate = await this.createDuplicateItemFromResponseItem(itemData);
+        if(!itemData.deleted && !frozenValue.isItemContentEqualWith(duplicate)) {
           // Data differs
-          this.addConflictedItem(dup, existing);
-          itemsToBeMapped.push(dup);
+          this.addDuplicatedItemAsConflict({duplicate, duplicateOf: itemRef});
+          itemsToBeMapped.push(duplicate);
         }
       } else {
         // it doesn't exist, push it into items to be mapped
         itemsToBeMapped.push(itemData);
-        if(existing && existing.errorDecrypting) {
-          existing.errorDecrypting = false;
+        if(itemRef && itemRef.errorDecrypting) {
+          itemRef.errorDecrypting = false;
         }
       }
     }
 
     let items = this.mapResponseItemsToLocalModels(itemsToBeMapped, SFModelManager.MappingSourceFileImport);
     for(let item of items) {
-      item.setDirty(true, true);
+      this.setItemDirty(item, true, true);
       item.deleted = false;
     }
 
@@ -1307,7 +1356,7 @@ export class SFHttpManager {
           await privs.initUUID();
         }
         this.modelManager.addItem(privs);
-        privs.setDirty(true);
+        this.modelManager.setItemDirty(privs, true);
         this.syncManager.sync();
         valueCallback(privs);
         resolve(privs);
@@ -1444,7 +1493,7 @@ export class SFHttpManager {
 
   async savePrivileges() {
     let privs = await this.getPrivileges();
-    privs.setDirty(true);
+    this.modelManager.setItemDirty(privs, true);
     this.syncManager.sync();
   }
 
@@ -1651,8 +1700,15 @@ export class SFSingletonManager {
     // If we used local-data-incremental-load, and 1 item was important singleton and 99 were heavy components,
     // then given the random nature of notifiying observers, the heavy components would spend a lot of time loading first,
     // here, we priortize ours loading as most important
-    modelManager.addItemSyncObserverWithPriority({id: "sf-singleton-manager", types: "*", priority: -1,
-      callback: () => {
+    modelManager.addItemSyncObserverWithPriority({
+      id: "sf-singleton-manager",
+      types: "*",
+      priority: -1,
+      callback: (allItems, validItems, deletedItems, source, sourceKey) => {
+        // Inside resolveSingletons, we are going to set items as dirty. If we don't stop here it will be infinite recursion.
+        if(source === SFModelManager.MappingSourceLocalDirtied) {
+          return;
+        }
         this.resolveSingletons(modelManager.allNondummyItems, null, true);
       }
     })
@@ -1876,7 +1932,10 @@ export class SFStorageManager {
     this.syncStatusObservers = [];
     this.eventHandlers = [];
 
-    this.PerSyncItemUploadLimit = 100;
+    // this.loggingEnabled = true;
+
+    this.PerSyncItemUploadLimit = 150;
+    this.ServerItemDownloadLimit = 150;
 
     // The number of changed items that constitute a major change
     // This is used by the desktop app to create backups
@@ -1997,42 +2056,68 @@ export class SFStorageManager {
   }
 
   initialDataLoaded() {
-    return this._initialDataLoaded;
+    return this._initialDataLoaded === true;
   }
 
-  async loadLocalItems(incrementalCallback, batchSize = 100) {
-    return this.storageManager.getAllModels().then((items) => {
+  _sortLocalItems(items) {
+    return items.sort((a,b) => {
+      let dateResult = new Date(b.updated_at) - new Date(a.updated_at);
+
+      let priorityList = this.contentTypeLoadPriority;
+      let aPriority = 0, bPriority = 0;
+      if(priorityList) {
+        aPriority = priorityList.indexOf(a.content_type);
+        bPriority = priorityList.indexOf(b.content_type);
+        if(aPriority == -1) {
+          // Not found in list, not prioritized. Set it to max value
+          aPriority = priorityList.length;
+        }
+        if(bPriority == -1) {
+          // Not found in list, not prioritized. Set it to max value
+          bPriority = priorityList.length;
+        }
+      }
+
+      if(aPriority == bPriority) {
+        return dateResult;
+      }
+
+      if(aPriority < bPriority) {
+        return -1;
+      } else {
+        return 1;
+      }
+
+      // aPriority < bPriority means a should come first
+      return aPriority < bPriority ? -1 : 1;
+    })
+  }
+
+  async loadLocalItems({incrementalCallback, batchSize, options} = {}) {
+    // Used for testing
+    if(options && options.simulateHighLatency) {
+      let latency = options.simulatedLatency || 1000;
+      await this._awaitSleep(latency);
+    }
+
+    if(this.loadLocalDataPromise) {
+      return this.loadLocalDataPromise;
+    }
+
+    if(!batchSize) { batchSize = 100;}
+
+    this.loadLocalDataPromise = this.storageManager.getAllModels().then((items) => {
       // put most recently updated at beginning, sorted by priority
-      items = items.sort((a,b) => {
-        let dateResult = new Date(b.updated_at) - new Date(a.updated_at);
+      items = this._sortLocalItems(items);
 
-        let priorityList = this.contentTypeLoadPriority;
-        let aPriority = 0, bPriority = 0;
-        if(priorityList) {
-          aPriority = priorityList.indexOf(a.content_type);
-          bPriority = priorityList.indexOf(b.content_type);
-          if(aPriority == -1) {
-            // Not found in list, not prioritized. Set it to max value
-            aPriority = priorityList.length;
-          }
-          if(bPriority == -1) {
-            // Not found in list, not prioritized. Set it to max value
-            bPriority = priorityList.length;
-          }
+      // Filter out any items that exist in the local model mapping and have a lower dirtied date than the local dirtiedDate.
+      items = items.filter((nonDecryptedItem) => {
+        let localItem = this.modelManager.findItem(nonDecryptedItem.uuid);
+        if(!localItem) {
+          return true;
         }
 
-        if(aPriority == bPriority) {
-          return dateResult;
-        }
-
-        if(aPriority < bPriority) {
-          return -1;
-        } else {
-          return 1;
-        }
-
-        // aPriority < bPriority means a should come first
-        return aPriority < bPriority ? -1 : 1;
+        return new Date(nonDecryptedItem.dirtiedDate) > localItem.dirtiedDate;
       })
 
       // break it up into chunks to make interface more responsive for large item counts
@@ -2057,49 +2142,61 @@ export class SFStorageManager {
           });
         } else {
           // Completed
-          this.notifyEvent("local-data-loaded");
           this._initialDataLoaded = true;
+          this.notifyEvent("local-data-loaded");
         }
       }
 
       return decryptNext();
     })
+
+    return this.loadLocalDataPromise;
   }
 
   async writeItemsToLocalStorage(items, offlineOnly) {
+    if(items.length == 0) {
+      return;
+    }
+
     return new Promise(async (resolve, reject) => {
-      if(items.length == 0) {
-        resolve();
-        return;
+      let nonDeletedItems = [], deletedItems = [];
+      for(let item of items) {
+        if(item.deleted === true) {deletedItems.push(item);}
+        else {nonDeletedItems.push(item);}
+      }
+
+      if(deletedItems.length > 0) {
+        await Promise.all(deletedItems.map(async (deletedItem) => {
+          return this.storageManager.deleteModel(deletedItem);
+        }))
       }
 
       let info = await this.getActiveKeyInfo(SFSyncManager.KeyRequestSaveLocal);
 
-      Promise.all(items.map(async (item) => {
-        let itemParams = new SFItemParams(item, info.keys, info.auth_params);
-        itemParams = await itemParams.paramsForLocalStorage();
-        if(offlineOnly) {
-          delete itemParams.dirty;
-        }
-        return itemParams;
-      })).then((params) => {
-        this.storageManager.saveModels(params).then(() => {
-          // on success
-          if(this.syncStatus.localError) {
-            this.syncStatus.localError = null;
-            this.syncStatusDidChange();
+      if(nonDeletedItems.length > 0) {
+        let params = await Promise.all(nonDeletedItems.map(async (item) => {
+          let itemParams = new SFItemParams(item, info.keys, info.auth_params);
+          itemParams = await itemParams.paramsForLocalStorage();
+          if(offlineOnly) {
+            delete itemParams.dirty;
           }
-          resolve();
-        }).catch((error) => {
-          // on error
+          return itemParams;
+        })).catch((e) => reject(e));
+
+        await this.storageManager.saveModels(params).catch((error) => {
           console.error("Error writing items", error);
           this.syncStatus.localError = error;
           this.syncStatusDidChange();
           reject();
         });
-      }).catch((e) => {
-        reject(e);
-      })
+
+        // on success
+        if(this.syncStatus.localError) {
+          this.syncStatus.localError = null;
+          this.syncStatusDidChange();
+        }
+      }
+      resolve();
     })
   }
 
@@ -2112,10 +2209,11 @@ export class SFStorageManager {
         if(item.deleted) { this.modelManager.removeItemLocally(item);}
       }
 
-      this.notifyEvent("sync:completed", {savedItems: items});
+      this.modelManager.clearDirtyItems(items);
       // Required in order for modelManager to notify sync observers
       this.modelManager.didSyncModelsOffline(items);
 
+      this.notifyEvent("sync:completed", {savedItems: items});
       return {saved_items: items};
     })
   }
@@ -2231,63 +2329,67 @@ export class SFStorageManager {
   }
 
   async sync(options = {}) {
-    return new Promise(async (resolve, reject) => {
+    if(this.syncLocked) {
+      console.log("Sync Locked, Returning;");
+      return;
+    }
 
-      if(this.syncLocked) {
-        console.log("Sync Locked, Returning;");
-        resolve();
-        return;
-      }
+    return new Promise(async (resolve, reject) => {
 
       if(!options) options = {};
 
       let allDirtyItems = this.modelManager.getDirtyItems();
-
-      /*
-        When it comes to saving to disk before the sync request (both in syncOpInProgress and preSyncSave),
-        you only want to save items that have a dirty count > 0. That's because, if for example, you're syncing
-        2000 items, and every sync request handles only 150 items at a time, then every sync request will
-        be writing the same thousand items to storage every time. Writing a thousand items to storage can take 10s.
-        So, save to local storage only items with dirtyCount > 0, then, after saving, set dirtyCount to 0.
-        This way, if an item changes again, it will be saved next sync.
-      */
-
       let dirtyItemsNotYetSaved = allDirtyItems.filter((candidate) => {
-        if(candidate.dirtyCount > 0) {
-          candidate.dirtyCount = 0;
-          return true;
-        } else {
-          return false;
-        }
+        return !this.lastDirtyItemsSave || (candidate.dirtiedDate > this.lastDirtyItemsSave);
       })
-
-      // When a user hits the physical refresh button, we want to force refresh, in case
-      // the sync engine is stuck in some inProgress loop.
-      if(this.syncStatus.syncOpInProgress && !options.force) {
-        this.repeatOnCompletion = true;
-        this.queuedCallbacks.push(resolve);
-        await this.writeItemsToLocalStorage(dirtyItemsNotYetSaved, false);
-        console.log("Sync op in progress; returning.");
-        return;
-      }
 
       let info = await this.getActiveKeyInfo(SFSyncManager.KeyRequestLoadSaveAccount);
 
-      // we want to write all dirty items to disk only if the user is offline, or if the sync op fails
-      // if the sync op succeeds, these items will be written to disk by handling the "saved_items" response from the server
+      let isSyncInProgress = this.syncStatus.syncOpInProgress;
+      let initialDataLoaded = this.initialDataLoaded();
+
+      if(isSyncInProgress || !initialDataLoaded) {
+        this.performSyncAgainOnCompletion = true;
+        this.lastDirtyItemsSave = new Date();
+        await this.writeItemsToLocalStorage(dirtyItemsNotYetSaved, false);
+        if(isSyncInProgress) {
+          this.queuedCallbacks.push(resolve);
+          if(this.loggingEnabled) {
+            console.warn("Attempting to sync while existing sync is in progress.");
+          }
+        }
+        if(!initialDataLoaded) {
+          if(this.loggingEnabled) {
+            console.warn("(1) Attempting to perform online sync before local data has loaded");
+          }
+          // Resolve right away, as we can't be sure when local data will be called by consumer.
+          resolve();
+        }
+        return;
+      }
+
+      // Set this value immediately after checking it above, to avoid race conditions.
+      this.syncStatus.syncOpInProgress = true;
+
       if(info.offline) {
-        this.syncOffline(allDirtyItems).then((response) => {
-          this.modelManager.clearDirtyItems(allDirtyItems);
+        return this.syncOffline(allDirtyItems).then((response) => {
+          this.syncStatus.syncOpInProgress = false;
           resolve(response);
         }).catch((e) => {
           this.notifyEvent("sync-exception", e);
         })
+      }
+
+      if(!this.initialDataLoaded()) {
+        console.error("Attempting to perform online sync before local data has loaded");
         return;
       }
 
-      let isContinuationSync = this.syncStatus.needsMoreSync;
+      if(this.loggingEnabled) {
+        console.log("Syncing online user.");
+      }
 
-      this.syncStatus.syncOpInProgress = true;
+      let isContinuationSync = this.syncStatus.needsMoreSync;
       this.syncStatus.syncStart = new Date();
       this.beginCheckingIfSyncIsTakingTooLong();
 
@@ -2317,6 +2419,8 @@ export class SFStorageManager {
       // Write to local storage before beginning sync.
       // This way, if they close the browser before the sync request completes, local changes will not be lost
       await this.writeItemsToLocalStorage(dirtyItemsNotYetSaved, false);
+      this.lastDirtyItemsSave = new Date();
+
       if(options.onPreSyncSave) {
         options.onPreSyncSave();
       }
@@ -2336,7 +2440,7 @@ export class SFStorageManager {
       }
 
       let params = {};
-      params.limit = 150;
+      params.limit = this.ServerItemDownloadLimit;
 
       if(options.performIntegrityCheck) {
         params.compute_integrity = true;
@@ -2385,7 +2489,46 @@ export class SFStorageManager {
     });
   }
 
+  async _awaitSleep(durationInMs) {
+    console.warn("Simulating high latency sync request", durationInMs);
+    return new Promise((resolve, reject) => {
+      setTimeout(function () {
+        resolve();
+      }, durationInMs);
+    })
+  }
+
   async handleSyncSuccess(syncedItems, response, options) {
+    // Used for testing
+    if(options.simulateHighLatency) {
+      let latency = options.simulatedLatency || 1000;
+      await this._awaitSleep(latency);
+    }
+
+    this.syncStatus.error = null;
+
+    if(this.loggingEnabled) {
+      console.log("Sync response", response);
+    }
+
+    let allSavedUUIDs = this.allSavedItems.map((item) => item.uuid);
+    let currentRequestSavedUUIDs = response.saved_items.map((savedResponse) => savedResponse.uuid);
+
+    response.retrieved_items = response.retrieved_items.filter((retrievedItem) => {
+      let isInPreviousSaved = allSavedUUIDs.includes(retrievedItem.uuid);
+      let isInCurrentSaved = currentRequestSavedUUIDs.includes(retrievedItem.uuid);
+      if(isInPreviousSaved || isInCurrentSaved) {
+        return false;
+      }
+
+      let localItem = this.modelManager.findItem(retrievedItem.uuid);
+      if(localItem && localItem.dirty) {
+        return false;
+      }
+      return true;
+    });
+
+    // Clear dirty items after we've finish filtering retrieved_items above, since that depends on dirty items.
     // Check to make sure any subItem hasn't been marked as dirty again while a sync was ongoing
     let itemsToClearAsDirty = [];
     for(let item of syncedItems) {
@@ -2394,18 +2537,8 @@ export class SFStorageManager {
         itemsToClearAsDirty.push(item);
       }
     }
+
     this.modelManager.clearDirtyItems(itemsToClearAsDirty);
-    this.syncStatus.error = null;
-
-    // Filter retrieved_items to remove any items that may be in saved_items for this complete sync operation
-    // When signing in, and a user requires many round trips to complete entire retrieval of data, an item may be saved
-    // on the first trip, then on subsequent trips using cursor_token, this same item may be returned, since it's date is
-    // greater than cursor_token. We keep track of all saved items in whole sync operation with this.allSavedItems
-    // We need this because singletonManager looks at retrievedItems as higher precendence than savedItems, but if it comes in both
-    // then that's problematic.
-
-    let allSavedUUIDs = this.allSavedItems.map((item) => {return item.uuid});
-    response.retrieved_items = response.retrieved_items.filter((candidate) => {return !allSavedUUIDs.includes(candidate.uuid)});
 
     // Map retrieved items to local data
     // Note that deleted items will not be returned
@@ -2426,16 +2559,32 @@ export class SFStorageManager {
     // Append items to master list of saved items for this ongoing sync operation
     this.allSavedItems = this.allSavedItems.concat(saved);
 
-    // Create copies of items or alternate their uuids if neccessary
-    let unsaved = response.unsaved;
-    // don't `await`. This function calls sync, so if you wait, it will call sync without having completed the sync we're in.
-    // On second thought, calling await will only await the local conflict resolution and not await the sync call.
-    // We do need to wait here for sync duplication to finish. If we don't, there seems to be an issue where if you import a large
-    // backup with uuid-conflcits (from another account), you'll see very confused duplication.
-    await this.handleUnsavedItemsResponse(unsaved);
+    // 'unsaved' is deprecated and replaced with 'conflicts' in newer version.
+    let deprecated_unsaved = response.unsaved;
+    await this.deprecated_handleUnsavedItemsResponse(deprecated_unsaved);
 
+    let conflicts = await this.handleConflictsResponse(response.conflicts);
+
+    let conflictsNeedSync = conflicts && conflicts.length > 0;
+    if(conflicts) {
+      await this.writeItemsToLocalStorage(conflicts, false);
+
+    }
     await this.writeItemsToLocalStorage(saved, false);
     await this.writeItemsToLocalStorage(retrieved, false);
+
+    // if a cursor token is available, dont perform integrity calculation,
+    // as content is still on the server waiting to be downloaded
+    if(response.integrity_hash && !response.cursor_token) {
+      let matches = await this.handleServerIntegrityHash(response.integrity_hash);
+      if(!matches) {
+        // If the server hash doesn't match our local hash, we want to continue syncing until we reach
+        // the max discordance threshold
+        if(this.syncDiscordance < this.MaxDiscordanceBeforeOutOfSync) {
+          this.performSyncAgainOnCompletion = true;
+        }
+      }
+    }
 
     this.syncStatus.syncOpInProgress = false;
     this.syncStatus.current += syncedItems.length;
@@ -2448,22 +2597,6 @@ export class SFStorageManager {
 
     this.stopCheckingIfSyncIsTakingTooLong();
 
-    // if a cursor token is available, dont perform integrity calculation,
-    // as content is still on the server waiting to be downloaded
-    if(response.integrity_hash && !response.cursor_token) {
-      let matches = await this.handleServerIntegrityHash(response.integrity_hash);
-      if(!matches) {
-        // If the server hash doesn't match our local hash, we want to continue syncing until we reach
-        // the max discordance threshold
-        if(this.syncDiscordance < this.MaxDiscordanceBeforeOutOfSync) {
-          this.repeatOnCompletion = true;
-        }
-      }
-    }
-
-    // Oct 2018: Why use both this.syncStatus.needsMoreSync and this.repeatOnCompletion?
-    // They seem to do the same thing.
-
     let cursorToken = await this.getCursorToken();
     if(cursorToken || this.syncStatus.needsMoreSync) {
       return new Promise((resolve, reject) => {
@@ -2473,40 +2606,42 @@ export class SFStorageManager {
       })
     }
 
-    else if(this.repeatOnCompletion) {
-      this.repeatOnCompletion = false;
+    else if(conflictsNeedSync) {
+      // We'll use the conflict sync as the next sync, so performSyncAgainOnCompletion can be turned off.
+      this.performSyncAgainOnCompletion = false;
+      // Include as part of await/resolve chain
       return new Promise((resolve, reject) => {
-        setTimeout(function () {
+        setTimeout(() => {
           this.sync(options).then(resolve);
-        }.bind(this), 10); // wait 10ms to allow UI to update
+        }, 10); // wait 10ms to allow UI to update
       });
     }
 
     else {
-      /*
-      // await this.writeItemsToLocalStorage(this.allRetreivedItems, false);
-        We used to do this, but the problem is, if you're saving 2000 items at the end of a sign in,
-        then refresh or close the page, the items will not be saved, and the sync token will be the lastest.
-        So the data won't be downloaded again. Instead, we'll save retrieved as they come.
-      */
-
-
       this.syncStatus.retrievedCount = 0;
       this.syncStatusDidChange();
 
       if(
         this.allRetreivedItems.length >= this.majorDataChangeThreshold ||
         saved.length >= this.majorDataChangeThreshold ||
-        unsaved.length >= this.majorDataChangeThreshold
+        (deprecated_unsaved && deprecated_unsaved.length >= this.majorDataChangeThreshold) ||
+        (conflicts && conflicts.length >= this.majorDataChangeThreshold)
       ) {
         this.notifyEvent("major-data-change");
       }
 
       this.callQueuedCallbacks(response);
-      this.notifyEvent("sync:completed", {retrievedItems: this.allRetreivedItems, savedItems: this.allSavedItems, unsavedItems: unsaved});
+      this.notifyEvent("sync:completed", {retrievedItems: this.allRetreivedItems, savedItems: this.allSavedItems});
 
       this.allRetreivedItems = [];
       this.allSavedItems = [];
+
+      if(this.performSyncAgainOnCompletion) {
+        this.performSyncAgainOnCompletion = false;
+        setTimeout(() => {
+          this.sync(options);
+        }, 10); // wait 10ms to allow UI to update
+      }
 
       return response;
     }
@@ -2569,12 +2704,152 @@ export class SFStorageManager {
     }
   }
 
-  async handleUnsavedItemsResponse(unsaved) {
-    if(unsaved.length == 0) {
+  /*
+  The difference between 'unsaved' (deprecated_handleUnsavedItemsResponse) and 'conflicts' (handleConflictsResponse) is that
+  with unsaved items, the local copy is triumphant on the server, and we check the server copy to see if we should
+  create it as a duplicate. This is for the legacy API where it would save what you sent the server no matter its value,
+  and the client would decide what to do with the previous server value.
+
+  handleConflictsResponse on the other hand handles where the local copy save was not triumphant on the server.
+  Instead the conflict includes the server item. Here we immediately map the server value onto our local value,
+  but before that, we give our local value a chance to duplicate itself if it differs from the server value.
+  */
+  async handleConflictsResponse(conflicts) {
+    if(!conflicts || conflicts.length == 0) { return; }
+
+    if(this.loggingEnabled) {
+      console.log("Handle Conflicted Items:", conflicts);
+    }
+
+    // Get local values before doing any processing. This way, if a note change below modifies a tag,
+    // and the tag is going to be iterated on in the same loop, then we don't want this change to be compared
+    // to the local value.
+    let localValues = {};
+    for(let conflict of conflicts) {
+      let serverItemResponse = conflict.server_item || conflict.unsaved_item;
+      let localItem = this.modelManager.findItem(serverItemResponse.uuid);
+      if(!localItem) {
+        localValues[serverItemResponse.uuid] = {};
+        continue;
+      }
+      let frozenContent = localItem.getContentCopy();
+      localValues[serverItemResponse.uuid] = {frozenContent, itemRef: localItem};
+    }
+
+    // Any item that's newly created here or updated will need to be persisted
+    let itemsNeedingLocalSave = [];
+
+    for(let conflict of conflicts) {
+      // if sync_conflict, we receive conflict.server_item.
+      // If uuid_conflict, we receive the value we attempted to save.
+      let serverItemResponse = conflict.server_item || conflict.unsaved_item;
+      await SFJS.itemTransformer.decryptMultipleItems([serverItemResponse], (await this.getActiveKeyInfo(SFSyncManager.KeyRequestLoadSaveAccount)).keys);
+      let {frozenContent, itemRef} = localValues[serverItemResponse.uuid];
+
+      // Could be deleted
+      if(!itemRef) { continue; }
+
+      // Item ref is always added, since it's value will have changed below, either by mapping, being set to dirty,
+      // or being set undirty by the caller but the caller not saving because they're waiting on us.
+      itemsNeedingLocalSave.push(itemRef);
+
+      if(conflict.type === "uuid_conflict") {
+        // UUID conflicts can occur if a user attempts to
+        // import an old data archive with uuids from the old account into a new account
+        let newItem = await this.modelManager.alternateUUIDForItem(itemRef);
+        itemsNeedingLocalSave.push(newItem);
+      } else if(conflict.type === "sync_conflict") {
+        let tempServerItem = await this.modelManager.createDuplicateItemFromResponseItem(serverItemResponse);
+        // Convert to an object simply so we can have access to the `isItemContentEqualWith` function.
+        let _tempItemWithFrozenValues = this.modelManager.duplicateItemWithCustomContent({
+          content: frozenContent, duplicateOf: itemRef
+        });
+        // if !frozenContentDiffers && currentContentDiffers, it means values have changed as we were looping through conflicts here.
+        let frozenContentDiffers = !_tempItemWithFrozenValues.isItemContentEqualWith(tempServerItem);
+        let currentContentDiffers = !itemRef.isItemContentEqualWith(tempServerItem);
+
+        let duplicateLocal = false;
+        let duplicateServer = false;
+        let keepLocal = false;
+        let keepServer = false;
+
+        if(serverItemResponse.deleted || itemRef.deleted) {
+          keepServer = true;
+        }
+        else if(frozenContentDiffers) {
+          const IsActiveItemSecondsThreshold = 20;
+          let isActivelyBeingEdited = (new Date() - itemRef.client_updated_at) / 1000 < IsActiveItemSecondsThreshold;
+          if(isActivelyBeingEdited) {
+            keepLocal = true;
+            duplicateServer = true;
+          } else {
+            duplicateLocal = true;
+            keepServer = true;
+          }
+        }
+        else if(currentContentDiffers) {
+          let contentExcludingReferencesDiffers = !SFItem.AreItemContentsEqual({
+            leftContent: itemRef.content,
+            rightContent: tempServerItem.content,
+            keysToIgnore: itemRef.keysToIgnoreWhenCheckingContentEquality().concat(["references"]),
+            appDataKeysToIgnore: itemRef.appDataKeysToIgnoreWhenCheckingContentEquality()
+          })
+          let isOnlyReferenceChange = !contentExcludingReferencesDiffers;
+          if(isOnlyReferenceChange) {
+            keepServer = false;
+            keepLocal = true;
+          } else {
+            duplicateLocal = true;
+            keepServer = true;
+          }
+        } else {
+          // items are exactly equal
+          keepServer = true;
+        }
+
+        if(duplicateLocal) {
+          let localDuplicate = await this.modelManager.duplicateItemWithCustomContentAndAddAsConflict({
+            content: frozenContent,
+            duplicateOf: itemRef
+          });
+          itemsNeedingLocalSave.push(localDuplicate);
+        }
+
+        if(duplicateServer) {
+          this.modelManager.addDuplicatedItemAsConflict({
+            duplicate: tempServerItem,
+            duplicateOf: itemRef
+          });
+          itemsNeedingLocalSave.push(tempServerItem);
+        }
+
+        if(keepServer) {
+          this.modelManager.mapResponseItemsToLocalModelsOmittingFields([serverItemResponse], null, SFModelManager.MappingSourceRemoteRetrieved);
+        }
+
+        if(keepLocal) {
+          itemRef.updated_at = tempServerItem.updated_at;
+          itemRef.setDirty(true);
+        }
+      } else {
+        console.error("Unsupported conflict type", conflict.type);
+        continue;
+      }
+    }
+
+    return itemsNeedingLocalSave;
+  }
+
+
+  // Legacy API
+  async deprecated_handleUnsavedItemsResponse(unsaved) {
+    if(!unsaved || unsaved.length == 0) {
       return;
     }
 
-    console.log("Handle Conflicted Items:", unsaved);
+    if(this.loggingEnabled) {
+      console.log("Handle Unsaved Items:", unsaved);
+    }
 
     for(let mapping of unsaved) {
       let itemResponse = mapping.item;
@@ -2594,20 +2869,12 @@ export class SFStorageManager {
 
       else if(error.tag === "sync_conflict") {
         // Create a new item with the same contents of this item if the contents differ
-        let dup = await this.modelManager.createConflictedItem(itemResponse);
+        let dup = await this.modelManager.createDuplicateItemFromResponseItem(itemResponse);
         if(!itemResponse.deleted && !item.isItemContentEqualWith(dup)) {
-          this.modelManager.addConflictedItem(dup, item);
+          this.modelManager.addDuplicatedItemAsConflict({duplicate: dup, duplicateOf: item});
         }
       }
     }
-
-    // This will immediately result in "Sync op in progress" and sync will be queued.
-    // That's ok. You actually want a sync op in progress so that the new items are saved to disk right away.
-    // If you add a timeout here of 100ms, you'll avoid sync op in progress, but it will be a few ms before the items
-    // are saved to disk, meaning that the user may see All changes saved a few ms before changes are saved to disk.
-    // You could also just write to disk manually here, but syncing here is 100% sure to trigger sync op in progress as that's
-    // where it's being called from.
-    this.sync(null, {additionalFields: ["created_at", "updated_at"]});
   }
 
   /*
@@ -2639,7 +2906,7 @@ export class SFStorageManager {
 
           options.retrievedItems = options.retrievedItems.concat(incomingItems.map((incomingItem) => {
             // Create model classes
-            return this.modelManager.createItem(incomingItem, true /* dontNotifyObservers */);
+            return this.modelManager.createItem(incomingItem);
           }));
           options.syncToken = response.sync_token;
           options.cursorToken = response.cursor_token;
@@ -2671,8 +2938,7 @@ export class SFStorageManager {
           let contentDoesntMatch = !downloadedItem.isItemContentEqualWith(existingItem);
           if(contentDoesntMatch) {
             // We create a copy of the local existing item and sync that up. It will be a "conflict" of itself
-            let duplicate = await this.modelManager.createConflictedItem(existingItem, existingItem);
-            this.modelManager.addConflictedItem(duplicate, existingItem);
+            await this.modelManager.duplicateItemAndAddAsConflict(existingItem);
           }
         }
 
@@ -2689,16 +2955,25 @@ export class SFStorageManager {
   }
 
   async handleSignout() {
-    this._syncToken = null;
-    this._cursorToken = null;
+    this.outOfSync = false;
+    this.loadLocalDataPromise = null;
+    this.performSyncAgainOnCompletion = false;
+    this.syncStatus.syncOpInProgress = false;
     this._queuedCallbacks = [];
     this.syncStatus = {};
+    return this.clearSyncToken();
   }
 
   async clearSyncToken() {
     this._syncToken = null;
     this._cursorToken = null;
     return this.storageManager.removeItem("syncToken");
+  }
+
+  // Only used by unit test
+  __setLocalDataNotLoaded() {
+    this.loadLocalDataPromise = null;
+    this._initialDataLoaded = false;
   }
 }
 ;var dateFormatter;
@@ -2775,9 +3050,6 @@ export class SFItem {
       return;
     }
 
-    // Manually merge top level data instead of wholesale merge
-    this.created_at = json.created_at;
-    this.updated_at = json.updated_at;
     this.deleted = json.deleted;
     this.uuid = json.uuid;
     this.enc_item_key = json.enc_item_key;
@@ -2786,11 +3058,15 @@ export class SFItem {
 
     // When updating from server response (as opposed to local json response), these keys will be missing.
     // So we only want to update these values if they are explicitly present.
-    let clientKeys = ["errorDecrypting", "dirty", "dirtyCount", "dummy"];
+    let clientKeys = ["errorDecrypting", "dirty", "dirtyCount", "dirtiedDate", "dummy"];
     for(var key of clientKeys) {
       if(json[key] !== undefined) {
         this[key] = json[key];
       }
+    }
+
+    if(this.dirtiedDate && typeof this.dirtiedDate === 'string') {
+      this.dirtiedDate = new Date(this.dirtiedDate);
     }
 
     // Check if object has getter for content_type, and if so, skip
@@ -2812,13 +3088,20 @@ export class SFItem {
       }
     }
 
-    if(this.created_at) {
-      this.created_at = new Date(this.created_at);
-      this.updated_at = new Date(this.updated_at);
-    } else {
-      this.created_at = new Date();
-      this.updated_at = new Date();
+    // Manually merge top level data instead of wholesale merge
+    if(json.created_at) {
+      this.created_at = json.created_at;
     }
+    // Could be null if we're mapping from an extension bridge, where we remove this as its a private property.
+    if(json.updated_at) {
+      this.updated_at = json.updated_at;
+    }
+
+    if(this.created_at) { this.created_at = new Date(this.created_at);}
+    else { this.created_at = new Date();}
+
+    if(this.updated_at) { this.updated_at = new Date(this.updated_at);}
+    else { this.updated_at = new Date(0);} // Epoch
 
     // Allows the getter to be re-invoked
     this._client_updated_at = null;
@@ -2864,7 +3147,7 @@ export class SFItem {
     // Subclasses can override
   }
 
-  setDirty(dirty, dontUpdateClientDate) {
+  setDirty(dirty, updateClientDate) {
     this.dirty = dirty;
 
     // Allows the syncManager to check if an item has been marked dirty after a sync has been started
@@ -2877,11 +3160,16 @@ export class SFItem {
       this.dirtyCount = 0;
     }
 
-    if(dirty && !dontUpdateClientDate) {
+    // Used internally by syncManager to determine if a dirted item needs to be saved offline.
+    // You want to set this in both cases, when dirty is true and false. If it's false, we still need
+    // to save it to disk as an update.
+    this.dirtiedDate = new Date();
+
+    if(dirty && updateClientDate) {
       // Set the client modified date to now if marking the item as dirty
       this.client_updated_at = new Date();
     } else if(!this.hasRawClientUpdatedAtValue()) {
-      // copy updated_at
+      // if we don't have an explcit raw value, we initialize client_updated_at.
       this.client_updated_at = new Date(this.updated_at);
     }
   }
@@ -3082,6 +3370,15 @@ export class SFItem {
   }
 
   isItemContentEqualWith(otherItem) {
+    return SFItem.AreItemContentsEqual({
+      leftContent: this.content,
+      rightContent: otherItem.content,
+      keysToIgnore: this.keysToIgnoreWhenCheckingContentEquality(),
+      appDataKeysToIgnore: this.appDataKeysToIgnoreWhenCheckingContentEquality()
+    })
+  }
+
+  static AreItemContentsEqual({leftContent, rightContent, keysToIgnore, appDataKeysToIgnore}) {
     const omit = (obj, keys) => {
       if(!obj) { return obj; }
       for(let key of keys) {
@@ -3091,18 +3388,17 @@ export class SFItem {
     }
 
     // Create copies of objects before running omit as not to modify source values directly.
-
-    let leftContent = this.getContentCopy();
+    leftContent = JSON.parse(JSON.stringify(leftContent));
     if(leftContent.appData) {
-      omit(leftContent.appData[SFItem.AppDomain], this.appDataKeysToIgnoreWhenCheckingContentEquality());
+      omit(leftContent.appData[SFItem.AppDomain], appDataKeysToIgnore);
     }
-    leftContent = omit(leftContent, this.keysToIgnoreWhenCheckingContentEquality());
+    leftContent = omit(leftContent, keysToIgnore);
 
-    var rightContent = otherItem.getContentCopy();
+    rightContent = JSON.parse(JSON.stringify(rightContent));
     if(rightContent.appData) {
-      omit(rightContent.appData[SFItem.AppDomain], otherItem.appDataKeysToIgnoreWhenCheckingContentEquality());
+      omit(rightContent.appData[SFItem.AppDomain], appDataKeysToIgnore);
     }
-    rightContent = omit(rightContent, otherItem.keysToIgnoreWhenCheckingContentEquality());
+    rightContent = omit(rightContent, keysToIgnore);
 
     return JSON.stringify(leftContent) === JSON.stringify(rightContent);
   }
@@ -3175,7 +3471,6 @@ export class SFItem {
   }
 
   async paramsForExportFile(includeDeleted) {
-    this.additionalFields = ["updated_at"];
     this.forExportFile = true;
     if(includeDeleted) {
       return this.__params();
@@ -3190,7 +3485,7 @@ export class SFItem {
   }
 
   async paramsForLocalStorage() {
-    this.additionalFields = ["updated_at", "dirty", "errorDecrypting"];
+    this.additionalFields = ["dirty", "dirtiedDate", "errorDecrypting"];
     this.forExportFile = true;
     return this.__params();
   }
@@ -3201,7 +3496,7 @@ export class SFItem {
 
   async __params() {
 
-    var params = {uuid: this.item.uuid, content_type: this.item.content_type, deleted: this.item.deleted, created_at: this.item.created_at};
+    var params = { uuid: this.item.uuid, content_type: this.item.content_type, deleted: this.item.deleted, created_at: this.item.created_at, updated_at: this.item.updated_at};
     if(!this.item.errorDecrypting) {
       // Items should always be encrypted for export files. Only respect item.doNotEncrypt for remote sync params.
       var doNotEncrypt = this.item.doNotEncrypt() && !this.forExportFile;
@@ -4075,7 +4370,7 @@ export class SFCryptoWeb extends SFAbstractCrypto {
       return hash;
     })
     .catch(function(err){
-      console.error("Error computing hmac");
+      console.error("Error computing hmac", err);
     });
   }
 
