@@ -2354,10 +2354,14 @@ export class SFStorageManager {
         await this.writeItemsToLocalStorage(dirtyItemsNotYetSaved, false);
         if(isSyncInProgress) {
           this.queuedCallbacks.push(resolve);
-          console.warn("Attempting to sync while existing sync is in progress.");
+          if(this.loggingEnabled) {
+            console.warn("Attempting to sync while existing sync is in progress.");
+          }
         }
         if(!initialDataLoaded) {
-          console.warn("(1) Attempting to perform online sync before local data has loaded");
+          if(this.loggingEnabled) {
+            console.warn("(1) Attempting to perform online sync before local data has loaded");
+          }
           // Resolve right away, as we can't be sure when local data will be called by consumer.
           resolve();
         }
@@ -2377,7 +2381,7 @@ export class SFStorageManager {
       }
 
       if(!this.initialDataLoaded()) {
-        console.error("(2) Attempting to perform online sync before local data has loaded");
+        console.error("Attempting to perform online sync before local data has loaded");
         return;
       }
 
@@ -2745,94 +2749,92 @@ export class SFStorageManager {
       // Could be deleted
       if(!itemRef) { continue; }
 
+      // Item ref is always added, since it's value will have changed below, either by mapping, being set to dirty,
+      // or being set undirty by the caller but the caller not saving because they're waiting on us.
+      itemsNeedingLocalSave.push(itemRef);
+
       if(conflict.type === "uuid_conflict") {
         // UUID conflicts can occur if a user attempts to
         // import an old data archive with uuids from the old account into a new account
-        await this.modelManager.alternateUUIDForItem(itemRef);
-        continue;
-      }
+        let newItem = await this.modelManager.alternateUUIDForItem(itemRef);
+        itemsNeedingLocalSave.push(newItem);
+      } else if(conflict.type === "sync_conflict") {
+        let tempServerItem = await this.modelManager.createDuplicateItemFromResponseItem(serverItemResponse);
+        // Convert to an object simply so we can have access to the `isItemContentEqualWith` function.
+        let _tempItemWithFrozenValues = this.modelManager.duplicateItemWithCustomContent({
+          content: frozenContent, duplicateOf: itemRef
+        });
+        // if !frozenContentDiffers && currentContentDiffers, it means values have changed as we were looping through conflicts here.
+        let frozenContentDiffers = !_tempItemWithFrozenValues.isItemContentEqualWith(tempServerItem);
+        let currentContentDiffers = !itemRef.isItemContentEqualWith(tempServerItem);
 
-      if(conflict.type !== "sync_conflict") {
+        let duplicateLocal = false;
+        let duplicateServer = false;
+        let keepLocal = false;
+        let keepServer = false;
+
+        if(serverItemResponse.deleted || itemRef.deleted) {
+          keepServer = true;
+        }
+        else if(frozenContentDiffers) {
+          const IsActiveItemSecondsThreshold = 20;
+          let isActivelyBeingEdited = (new Date() - itemRef.client_updated_at) / 1000 < IsActiveItemSecondsThreshold;
+          if(isActivelyBeingEdited) {
+            keepLocal = true;
+            duplicateServer = true;
+          } else {
+            duplicateLocal = true;
+            keepServer = true;
+          }
+        }
+        else if(currentContentDiffers) {
+          let contentExcludingReferencesDiffers = !SFItem.AreItemContentsEqual({
+            leftContent: itemRef.content,
+            rightContent: tempServerItem.content,
+            keysToIgnore: itemRef.keysToIgnoreWhenCheckingContentEquality().concat(["references"]),
+            appDataKeysToIgnore: itemRef.appDataKeysToIgnoreWhenCheckingContentEquality()
+          })
+          let isOnlyReferenceChange = !contentExcludingReferencesDiffers;
+          if(isOnlyReferenceChange) {
+            keepServer = false;
+            keepLocal = true;
+          } else {
+            duplicateLocal = true;
+            keepServer = true;
+          }
+        } else {
+          // items are exactly equal
+          keepServer = true;
+        }
+
+        if(duplicateLocal) {
+          let localDuplicate = await this.modelManager.duplicateItemWithCustomContentAndAddAsConflict({
+            content: frozenContent,
+            duplicateOf: itemRef
+          });
+          itemsNeedingLocalSave.push(localDuplicate);
+        }
+
+        if(duplicateServer) {
+          this.modelManager.addDuplicatedItemAsConflict({
+            duplicate: tempServerItem,
+            duplicateOf: itemRef
+          });
+          itemsNeedingLocalSave.push(tempServerItem);
+        }
+
+        if(keepServer) {
+          this.modelManager.mapResponseItemsToLocalModelsOmittingFields([serverItemResponse], null, SFModelManager.MappingSourceRemoteRetrieved);
+        }
+
+        if(keepLocal) {
+          itemRef.updated_at = tempServerItem.updated_at;
+          itemRef.setDirty(true);
+        }
+      } else {
         console.error("Unsupported conflict type", conflict.type);
         continue;
       }
-
-      let tempServerItem = await this.modelManager.createDuplicateItemFromResponseItem(serverItemResponse);
-      // Convert to an object simply so we can have access to the `isItemContentEqualWith` function.
-      let _tempItemWithFrozenValues = this.modelManager.duplicateItemWithCustomContent({
-        content: frozenContent, duplicateOf: itemRef
-      });
-
-      // if !frozenContentDiffers && currentContentDiffers, it means values have changed as we were looping through conflicts here.
-      let frozenContentDiffers = !_tempItemWithFrozenValues.isItemContentEqualWith(tempServerItem);
-      let currentContentDiffers = !itemRef.isItemContentEqualWith(tempServerItem);
-
-      let duplicateLocal = false;
-      let duplicateServer = false;
-      let keepLocal = false;
-      let keepServer = false;
-
-      if(serverItemResponse.deleted || itemRef.deleted) {
-        keepServer = true;
-      }
-      else if(frozenContentDiffers) {
-        const IsActiveItemSecondsThreshold = 20;
-        let isActivelyBeingEdited = (new Date() - itemRef.client_updated_at) / 1000 < IsActiveItemSecondsThreshold;
-        if(isActivelyBeingEdited) {
-          keepLocal = true;
-          duplicateServer = true;
-        } else {
-          duplicateLocal = true;
-          keepServer = true;
-        }
-      }
-      else if(currentContentDiffers) {
-        let contentExcludingReferencesDiffers = !SFItem.AreItemContentsEqual({
-          leftContent: itemRef.content,
-          rightContent: tempServerItem.content,
-          keysToIgnore: itemRef.keysToIgnoreWhenCheckingContentEquality().concat(["references"]),
-          appDataKeysToIgnore: itemRef.appDataKeysToIgnoreWhenCheckingContentEquality()
-        })
-        let isOnlyReferenceChange = !contentExcludingReferencesDiffers;
-        if(isOnlyReferenceChange) {
-          keepServer = false;
-          keepLocal = true;
-        } else {
-          duplicateLocal = true;
-          keepServer = true;
-        }
-      } else {
-        // items are exactly equal
-        keepServer = true;
-      }
-
-      if(duplicateLocal) {
-        let localDuplicate = await this.modelManager.duplicateItemWithCustomContentAndAddAsConflict({
-          content: frozenContent, duplicateOf: itemRef
-        });
-        itemsNeedingLocalSave.push(localDuplicate);
-      }
-
-      if(duplicateServer) {
-        this.modelManager.addDuplicatedItemAsConflict({
-          duplicate: tempServerItem,
-          duplicateOf: itemRef
-        });
-        itemsNeedingLocalSave.push(tempServerItem);
-      }
-
-      if(keepServer) {
-        this.modelManager.mapResponseItemsToLocalModelsOmittingFields([serverItemResponse], null, SFModelManager.MappingSourceRemoteRetrieved);
-      }
-
-      if(keepLocal) {
-        itemRef.updated_at = tempServerItem.updated_at;
-        itemRef.setDirty(true);
-      }
-
-      // Item ref is always added, since it's value will have changed above, either by mapping, being set to dirty,
-      // or being set undirty by the caller but the caller not saving because they're waiting on us.
-      itemsNeedingLocalSave.push(itemRef);
     }
 
     return itemsNeedingLocalSave;
@@ -2968,6 +2970,7 @@ export class SFStorageManager {
     return this.storageManager.removeItem("syncToken");
   }
 
+  // Only used by unit test
   __setLocalDataNotLoaded() {
     this.loadLocalDataPromise = null;
     this._initialDataLoaded = false;
@@ -3094,13 +3097,11 @@ export class SFItem {
       this.updated_at = json.updated_at;
     }
 
-    if(this.created_at) {
-      this.created_at = new Date(this.created_at);
-      this.updated_at = new Date(this.updated_at);
-    } else {
-      this.created_at = new Date();
-      this.updated_at = new Date(0); // epoch
-    }
+    if(this.created_at) { this.created_at = new Date(this.created_at);}
+    else { this.created_at = new Date();}
+
+    if(this.updated_at) { this.updated_at = new Date(this.updated_at);}
+    else { this.updated_at = new Date(0);} // Epoch
 
     // Allows the getter to be re-invoked
     this._client_updated_at = null;
@@ -3470,7 +3471,6 @@ export class SFItem {
   }
 
   async paramsForExportFile(includeDeleted) {
-    this.additionalFields = ["updated_at"];
     this.forExportFile = true;
     if(includeDeleted) {
       return this.__params();

@@ -6274,10 +6274,14 @@ var SFSyncManager = exports.SFSyncManager = function () {
                           case 13:
                             if (isSyncInProgress) {
                               _this23.queuedCallbacks.push(resolve);
-                              console.warn("Attempting to sync while existing sync is in progress.");
+                              if (_this23.loggingEnabled) {
+                                console.warn("Attempting to sync while existing sync is in progress.");
+                              }
                             }
                             if (!initialDataLoaded) {
-                              console.warn("(1) Attempting to perform online sync before local data has loaded");
+                              if (_this23.loggingEnabled) {
+                                console.warn("(1) Attempting to perform online sync before local data has loaded");
+                              }
                               // Resolve right away, as we can't be sure when local data will be called by consumer.
                               resolve();
                             }
@@ -6306,7 +6310,7 @@ var SFSyncManager = exports.SFSyncManager = function () {
                               break;
                             }
 
-                            console.error("(2) Attempting to perform online sync before local data has loaded");
+                            console.error("Attempting to perform online sync before local data has loaded");
                             return _context89.abrupt("return");
 
                           case 22:
@@ -6964,7 +6968,7 @@ var SFSyncManager = exports.SFSyncManager = function () {
     key: "handleConflictsResponse",
     value: function () {
       var _ref106 = _asyncToGenerator( /*#__PURE__*/regeneratorRuntime.mark(function _callee96(conflicts) {
-        var localValues, _iteratorNormalCompletion46, _didIteratorError46, _iteratorError46, _iterator46, _step46, conflict, serverItemResponse, localItem, frozenContent, itemsNeedingLocalSave, _iteratorNormalCompletion47, _didIteratorError47, _iteratorError47, _iterator47, _step47, _conflict, _localValues$serverIt, itemRef, tempServerItem, _tempItemWithFrozenValues, frozenContentDiffers, currentContentDiffers, duplicateLocal, duplicateServer, keepLocal, keepServer, IsActiveItemSecondsThreshold, isActivelyBeingEdited, contentExcludingReferencesDiffers, isOnlyReferenceChange, localDuplicate;
+        var localValues, _iteratorNormalCompletion46, _didIteratorError46, _iteratorError46, _iterator46, _step46, conflict, serverItemResponse, localItem, frozenContent, itemsNeedingLocalSave, _iteratorNormalCompletion47, _didIteratorError47, _iteratorError47, _iterator47, _step47, _conflict, _localValues$serverIt, itemRef, newItem, tempServerItem, _tempItemWithFrozenValues, frozenContentDiffers, currentContentDiffers, duplicateLocal, duplicateServer, keepLocal, keepServer, IsActiveItemSecondsThreshold, isActivelyBeingEdited, contentExcludingReferencesDiffers, isOnlyReferenceChange, localDuplicate;
 
         return regeneratorRuntime.wrap(function _callee96$(_context96) {
           while (1) {
@@ -7067,7 +7071,7 @@ var SFSyncManager = exports.SFSyncManager = function () {
 
               case 41:
                 if (_iteratorNormalCompletion47 = (_step47 = _iterator47.next()).done) {
-                  _context96.next = 84;
+                  _context96.next = 89;
                   break;
                 }
 
@@ -7096,41 +7100,45 @@ var SFSyncManager = exports.SFSyncManager = function () {
                   break;
                 }
 
-                return _context96.abrupt("continue", 81);
+                return _context96.abrupt("continue", 86);
 
               case 54:
+
+                // Item ref is always added, since it's value will have changed below, either by mapping, being set to dirty,
+                // or being set undirty by the caller but the caller not saving because they're waiting on us.
+                itemsNeedingLocalSave.push(itemRef);
+
                 if (!(_conflict.type === "uuid_conflict")) {
-                  _context96.next = 58;
+                  _context96.next = 62;
                   break;
                 }
 
-                _context96.next = 57;
+                _context96.next = 58;
                 return this.modelManager.alternateUUIDForItem(itemRef);
 
-              case 57:
-                return _context96.abrupt("continue", 81);
-
               case 58:
-                if (!(_conflict.type !== "sync_conflict")) {
-                  _context96.next = 61;
+                newItem = _context96.sent;
+
+                itemsNeedingLocalSave.push(newItem);
+                _context96.next = 86;
+                break;
+
+              case 62:
+                if (!(_conflict.type === "sync_conflict")) {
+                  _context96.next = 84;
                   break;
                 }
 
-                console.error("Unsupported conflict type", _conflict.type);
-                return _context96.abrupt("continue", 81);
-
-              case 61:
-                _context96.next = 63;
+                _context96.next = 65;
                 return this.modelManager.createDuplicateItemFromResponseItem(serverItemResponse);
 
-              case 63:
+              case 65:
                 tempServerItem = _context96.sent;
 
                 // Convert to an object simply so we can have access to the `isItemContentEqualWith` function.
                 _tempItemWithFrozenValues = this.modelManager.duplicateItemWithCustomContent({
                   content: frozenContent, duplicateOf: itemRef
                 });
-
                 // if !frozenContentDiffers && currentContentDiffers, it means values have changed as we were looping through conflicts here.
 
                 frozenContentDiffers = !_tempItemWithFrozenValues.isItemContentEqualWith(tempServerItem);
@@ -7176,21 +7184,22 @@ var SFSyncManager = exports.SFSyncManager = function () {
                 }
 
                 if (!duplicateLocal) {
-                  _context96.next = 77;
+                  _context96.next = 79;
                   break;
                 }
 
-                _context96.next = 75;
+                _context96.next = 77;
                 return this.modelManager.duplicateItemWithCustomContentAndAddAsConflict({
-                  content: frozenContent, duplicateOf: itemRef
+                  content: frozenContent,
+                  duplicateOf: itemRef
                 });
 
-              case 75:
+              case 77:
                 localDuplicate = _context96.sent;
 
                 itemsNeedingLocalSave.push(localDuplicate);
 
-              case 77:
+              case 79:
 
                 if (duplicateServer) {
                   this.modelManager.addDuplicatedItemAsConflict({
@@ -7208,59 +7217,61 @@ var SFSyncManager = exports.SFSyncManager = function () {
                   itemRef.updated_at = tempServerItem.updated_at;
                   itemRef.setDirty(true);
                 }
+                _context96.next = 86;
+                break;
 
-                // Item ref is always added, since it's value will have changed above, either by mapping, being set to dirty,
-                // or being set undirty by the caller but the caller not saving because they're waiting on us.
-                itemsNeedingLocalSave.push(itemRef);
+              case 84:
+                console.error("Unsupported conflict type", _conflict.type);
+                return _context96.abrupt("continue", 86);
 
-              case 81:
+              case 86:
                 _iteratorNormalCompletion47 = true;
                 _context96.next = 41;
                 break;
 
-              case 84:
-                _context96.next = 90;
+              case 89:
+                _context96.next = 95;
                 break;
 
-              case 86:
-                _context96.prev = 86;
+              case 91:
+                _context96.prev = 91;
                 _context96.t4 = _context96["catch"](39);
                 _didIteratorError47 = true;
                 _iteratorError47 = _context96.t4;
 
-              case 90:
-                _context96.prev = 90;
-                _context96.prev = 91;
+              case 95:
+                _context96.prev = 95;
+                _context96.prev = 96;
 
                 if (!_iteratorNormalCompletion47 && _iterator47.return) {
                   _iterator47.return();
                 }
 
-              case 93:
-                _context96.prev = 93;
+              case 98:
+                _context96.prev = 98;
 
                 if (!_didIteratorError47) {
-                  _context96.next = 96;
+                  _context96.next = 101;
                   break;
                 }
 
                 throw _iteratorError47;
 
-              case 96:
-                return _context96.finish(93);
+              case 101:
+                return _context96.finish(98);
 
-              case 97:
-                return _context96.finish(90);
+              case 102:
+                return _context96.finish(95);
 
-              case 98:
+              case 103:
                 return _context96.abrupt("return", itemsNeedingLocalSave);
 
-              case 99:
+              case 104:
               case "end":
                 return _context96.stop();
             }
           }
-        }, _callee96, this, [[7, 23, 27, 35], [28,, 30, 34], [39, 86, 90, 98], [91,, 93, 97]]);
+        }, _callee96, this, [[7, 23, 27, 35], [28,, 30, 34], [39, 91, 95, 103], [96,, 98, 102]]);
       }));
 
       function handleConflictsResponse(_x123) {
@@ -7721,6 +7732,9 @@ var SFSyncManager = exports.SFSyncManager = function () {
 
       return clearSyncToken;
     }()
+
+    // Only used by unit test
+
   }, {
     key: "__setLocalDataNotLoaded",
     value: function __setLocalDataNotLoaded() {
@@ -7879,11 +7893,15 @@ var SFItem = exports.SFItem = function () {
 
       if (this.created_at) {
         this.created_at = new Date(this.created_at);
-        this.updated_at = new Date(this.updated_at);
       } else {
         this.created_at = new Date();
-        this.updated_at = new Date(0); // epoch
       }
+
+      if (this.updated_at) {
+        this.updated_at = new Date(this.updated_at);
+      } else {
+        this.updated_at = new Date(0);
+      } // Epoch
 
       // Allows the getter to be re-invoked
       this._client_updated_at = null;
@@ -8400,25 +8418,24 @@ var SFItemParams = exports.SFItemParams = function () {
           while (1) {
             switch (_context105.prev = _context105.next) {
               case 0:
-                this.additionalFields = ["updated_at"];
                 this.forExportFile = true;
 
                 if (!includeDeleted) {
-                  _context105.next = 6;
+                  _context105.next = 5;
                   break;
                 }
 
                 return _context105.abrupt("return", this.__params());
 
-              case 6:
-                _context105.next = 8;
+              case 5:
+                _context105.next = 7;
                 return this.__params();
 
-              case 8:
+              case 7:
                 result = _context105.sent;
                 return _context105.abrupt("return", _.omit(result, ["deleted"]));
 
-              case 10:
+              case 9:
               case "end":
                 return _context105.stop();
             }

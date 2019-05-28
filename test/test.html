@@ -14,13 +14,8 @@
   <div id="mocha"></div>
   <script src="../node_modules/mocha/mocha.js"></script>
   <script>
-
     const SHUFFLE = false;
     let SEED = (Math.random() * 100) / 100;
-
-    // SEED = 0.896185659329704;
-    // SEED = 0.09190346929436188;
-
     if(SHUFFLE) {
       console.warn("Shuffling tests with seed:", SEED);
     }

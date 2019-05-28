@@ -111,7 +111,7 @@ describe('offline syncing', () => {
   }).timeout(5000);
 });
 
-describe.only('online syncing', () => {
+describe('online syncing', () => {
   var email = Factory.globalStandardFile().crypto.generateUUIDSync();
   var password = Factory.globalStandardFile().crypto.generateUUIDSync();
   var totalItemCount = 0;
@@ -631,6 +631,7 @@ describe.only('online syncing', () => {
   }).timeout(60000);
 
   it.skip("marking an item dirty then saving to disk should retain that dirty state when restored", async () => {
+    // This test is currently broken, but seems to have to do more with how the test was written than  an issue with the code.
     // create an item and sync it
     var item = Factory.createItem();
     modelManager.addItem(item);
