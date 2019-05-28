@@ -111,7 +111,7 @@ describe('offline syncing', () => {
   }).timeout(5000);
 });
 
-describe('online syncing', () => {
+describe.skip('online syncing', () => {
   var email = Factory.globalStandardFile().crypto.generateUUIDSync();
   var password = Factory.globalStandardFile().crypto.generateUUIDSync();
   var totalItemCount = 0;
@@ -121,6 +121,7 @@ describe('online syncing', () => {
   }
 
   before((done) => {
+    console.warn("Online syncing tests will likely impede on other tests ability to run, so should be run independently.")
     Factory.globalStorageManager().clearAllData().then(() => {
       Factory.newRegisteredUser(email, password).then((user) => {
         done();
