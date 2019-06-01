@@ -651,7 +651,9 @@ export class SFHttpManager {
     // Used to set up referencingObjects for new item (so that other items can now properly reference this new item)
     this.resolveReferencesForItem(newItem);
 
-    console.log(item.uuid, "-->", newItem.uuid);
+    if(this.loggingEnabled) {
+      console.log(item.uuid, "-->", newItem.uuid);
+    }
 
     // Set to deleted, then run through mapping function so that observers can be notified
     item.deleted = true;
@@ -687,15 +689,15 @@ export class SFHttpManager {
     this.notifySyncObserversOfModels(items, SFModelManager.MappingSourceLocalSaved);
   }
 
-  mapResponseItemsToLocalModels(items, source, sourceKey) {
+  async mapResponseItemsToLocalModels(items, source, sourceKey) {
     return this.mapResponseItemsToLocalModelsWithOptions({items, source, sourceKey});
   }
 
-  mapResponseItemsToLocalModelsOmittingFields(items, omitFields, source, sourceKey) {
+  async mapResponseItemsToLocalModelsOmittingFields(items, omitFields, source, sourceKey) {
     return this.mapResponseItemsToLocalModelsWithOptions({items, omitFields, source, sourceKey});
   }
 
-  mapResponseItemsToLocalModelsWithOptions({items, omitFields, source, sourceKey, options}) {
+  async mapResponseItemsToLocalModelsWithOptions({items, omitFields, source, sourceKey, options}) {
     let models = [], processedObjects = [], modelsToNotifyObserversOf = [];
 
     // first loop should add and process items
@@ -786,7 +788,7 @@ export class SFHttpManager {
       }
     }
 
-    this.notifySyncObserversOfModels(modelsToNotifyObserversOf, source, sourceKey);
+    await this.notifySyncObserversOfModels(modelsToNotifyObserversOf, source, sourceKey);
 
     return models;
   }
@@ -870,7 +872,7 @@ export class SFHttpManager {
   }
 
   /* Note that this function is public, and can also be called manually (desktopManager uses it) */
-  notifySyncObserversOfModels(models, source, sourceKey) {
+  async notifySyncObserversOfModels(models, source, sourceKey) {
     // Make sure `let` is used in the for loops instead of `var`, as we will be using a timeout below.
     let observers = this.itemSyncObservers.sort((a, b) => {
       // sort by priority
@@ -888,9 +890,22 @@ export class SFHttpManager {
       }
 
       if(allRelevantItems.length > 0) {
-        this._callSyncObserverCallbackWithTimeout(observer, allRelevantItems, validItems, deletedItems, source, sourceKey);
+        await this._callSyncObserverCallbackWithTimeout(observer, allRelevantItems, validItems, deletedItems, source, sourceKey);
       }
     }
+  }
+
+  /*
+    Rather than running this inline in a for loop, which causes problems and requires all variables to be declared with `let`,
+    we'll do it here so it's more explicit and less confusing.
+   */
+  async _callSyncObserverCallbackWithTimeout(observer, allRelevantItems, validItems, deletedItems, source, sourceKey) {
+    return new Promise((resolve, reject) => {
+      this.$timeout(() => {
+        observer.callback(allRelevantItems, validItems, deletedItems, source, sourceKey);
+        resolve();
+      })
+    })
   }
 
   // When a client sets an item as dirty, it means its values has changed, and everyone should know about it.
@@ -905,16 +920,6 @@ export class SFHttpManager {
       item.setDirty(dirty, updateClientDate);
     }
     this.notifySyncObserversOfModels(items, source || SFModelManager.MappingSourceLocalDirtied, sourceKey);
-  }
-
-  /*
-    Rather than running this inline in a for loop, which causes problems and requires all variables to be declared with `let`,
-    we'll do it here so it's more explicit and less confusing.
-   */
-  _callSyncObserverCallbackWithTimeout(observer, allRelevantItems, validItems, deletedItems, source, sourceKey) {
-    this.$timeout(() => {
-      observer.callback(allRelevantItems, validItems, deletedItems, source, sourceKey);
-    })
   }
 
   createItem(json_obj) {
@@ -1550,6 +1555,9 @@ export class SFSessionHistoryManager {
 
     this.loadFromDisk().then(() => {
       this.modelManager.addItemSyncObserver("session-history", contentTypes, (allItems, validItems, deletedItems, source, sourceKey) => {
+        if(source === SFModelManager.MappingSourceLocalDirtied) {
+          return;
+        }
         for(let item of allItems) {
           try {
             this.addHistoryEntryForItem(item);
@@ -1567,11 +1575,11 @@ export class SFSessionHistoryManager {
   }
 
   addHistoryEntryForItem(item) {
-    var persistableItemParams = {
+    let persistableItemParams = {
       uuid: item.uuid,
       content_type: item.content_type,
       updated_at: item.updated_at,
-      content: item.content
+      content: item.getContentCopy()
     }
 
     let entry = this.historySession.addEntryForItem(persistableItemParams);
@@ -2619,6 +2627,11 @@ export class SFStorageManager {
 
     else {
       this.syncStatus.retrievedCount = 0;
+
+      // current and total represent what's going up, not what's come down or saved.
+      this.syncStatus.current = 0
+      this.syncStatus.total = 0
+
       this.syncStatusDidChange();
 
       if(
@@ -2679,7 +2692,7 @@ export class SFStorageManager {
   async handleItemsResponse(responseItems, omitFields, source, keyRequest) {
     let keys = (await this.getActiveKeyInfo(keyRequest)).keys;
     await SFJS.itemTransformer.decryptMultipleItems(responseItems, keys);
-    let items = this.modelManager.mapResponseItemsToLocalModelsOmittingFields(responseItems, omitFields, source);
+    let items = await this.modelManager.mapResponseItemsToLocalModelsOmittingFields(responseItems, omitFields, source);
 
     // During the decryption process, items may be marked as "errorDecrypting". If so, we want to be sure
     // to persist this new state by writing these items back to local storage. When an item's "errorDecrypting"
@@ -2824,7 +2837,7 @@ export class SFStorageManager {
         }
 
         if(keepServer) {
-          this.modelManager.mapResponseItemsToLocalModelsOmittingFields([serverItemResponse], null, SFModelManager.MappingSourceRemoteRetrieved);
+          await this.modelManager.mapResponseItemsToLocalModelsOmittingFields([serverItemResponse], null, SFModelManager.MappingSourceRemoteRetrieved);
         }
 
         if(keepLocal) {
@@ -2947,7 +2960,7 @@ export class SFStorageManager {
         itemsToMap.push(downloadedItem);
       }
 
-      this.modelManager.mapResponseItemsToLocalModelsWithOptions({items: itemsToMap, source: SFModelManager.MappingSourceRemoteRetrieved});
+      await this.modelManager.mapResponseItemsToLocalModelsWithOptions({items: itemsToMap, source: SFModelManager.MappingSourceRemoteRetrieved});
       // Save all items locally. Usually sync() would save downloaded items locally, but we're using stateless_sync here, so we have to do it manually
       await this.writeItemsToLocalStorage(this.modelManager.allNondummyItems);
       return this.sync({performIntegrityCheck: true});
