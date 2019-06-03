@@ -401,13 +401,17 @@ var SFAuthManager = exports.SFAuthManager = function () {
       var _ref9 = _asyncToGenerator( /*#__PURE__*/regeneratorRuntime.mark(function _callee9(url, email, extraParams) {
         var _this2 = this;
 
+        var params;
         return regeneratorRuntime.wrap(function _callee9$(_context9) {
           while (1) {
             switch (_context9.prev = _context9.next) {
               case 0:
+                params = _.merge({ email: email }, extraParams);
+
+                params['api'] = SFHttpManager.getApiVersion();
                 return _context9.abrupt("return", new Promise(function (resolve, reject) {
                   var requestUrl = url + "/auth/params";
-                  _this2.httpManager.getAbsolute(requestUrl, _.merge({ email: email }, extraParams), function (response) {
+                  _this2.httpManager.getAbsolute(requestUrl, params, function (response) {
                     resolve(response);
                   }, function (response) {
                     console.error("Error getting auth params", response);
@@ -418,7 +422,7 @@ var SFAuthManager = exports.SFAuthManager = function () {
                   });
                 }));
 
-              case 1:
+              case 3:
               case "end":
                 return _context9.stop();
             }
@@ -622,6 +626,8 @@ var SFAuthManager = exports.SFAuthManager = function () {
                             params = _.merge({ password: keys.pw, email: email }, extraParams);
 
 
+                            params['api'] = SFHttpManager.getApiVersion();
+
                             _this3.httpManager.postAbsolute(requestUrl, params, function () {
                               var _ref12 = _asyncToGenerator( /*#__PURE__*/regeneratorRuntime.mark(function _callee10(response) {
                                 return regeneratorRuntime.wrap(function _callee10$(_context10) {
@@ -658,7 +664,7 @@ var SFAuthManager = exports.SFAuthManager = function () {
                               });
                             });
 
-                          case 53:
+                          case 54:
                           case "end":
                             return _context11.stop();
                         }
@@ -719,6 +725,7 @@ var SFAuthManager = exports.SFAuthManager = function () {
                   requestUrl = url + "/auth";
                   params = _.merge({ password: keys.pw, email: email }, authParams);
 
+                  params['api'] = SFHttpManager.getApiVersion();
 
                   _this4.httpManager.postAbsolute(requestUrl, params, function () {
                     var _ref14 = _asyncToGenerator( /*#__PURE__*/regeneratorRuntime.mark(function _callee13(response) {
@@ -751,7 +758,7 @@ var SFAuthManager = exports.SFAuthManager = function () {
                     _this4.unlockAndResolve(resolve, response);
                   });
 
-                case 12:
+                case 13:
                 case "end":
                   return _context14.stop();
               }
@@ -797,6 +804,7 @@ var SFAuthManager = exports.SFAuthManager = function () {
                             requestUrl = url + "/auth/change_pw";
                             params = _.merge({ new_password: newServerPw, current_password: current_server_pw }, newAuthParams);
 
+                            params['api'] = SFHttpManager.getApiVersion();
 
                             _this5.httpManager.postAbsolute(requestUrl, params, function () {
                               var _ref17 = _asyncToGenerator( /*#__PURE__*/regeneratorRuntime.mark(function _callee15(response) {
@@ -828,7 +836,7 @@ var SFAuthManager = exports.SFAuthManager = function () {
                               _this5.unlockAndResolve(resolve, response);
                             });
 
-                          case 8:
+                          case 9:
                           case "end":
                             return _context16.stop();
                         }
@@ -904,13 +912,13 @@ var SFAuthManager = exports.SFAuthManager = function () {
 
 ;var globalScope = typeof window !== 'undefined' ? window : typeof global !== 'undefined' ? global : null;
 
-var UseAPIVersion = "20190520";
-
 var SFHttpManager = exports.SFHttpManager = function () {
   _createClass(SFHttpManager, null, [{
     key: "getApiVersion",
     value: function getApiVersion() {
-      return UseAPIVersion;
+      // Applicable only to Standard File requests. Requests to external acitons should not use this.
+      // syncManager and authManager must include this API version as part of its request params.
+      return "20190520";
     }
   }]);
 
@@ -919,7 +927,6 @@ var SFHttpManager = exports.SFHttpManager = function () {
 
     // calling callbacks in a $timeout allows UI to update
     this.$timeout = timeout || setTimeout.bind(globalScope);
-    this.apiVersion = apiVersion || UseAPIVersion;
   }
 
   _createClass(SFHttpManager, [{
@@ -1042,10 +1049,6 @@ var SFHttpManager = exports.SFHttpManager = function () {
           while (1) {
             switch (_context24.prev = _context24.next) {
               case 0:
-                if (!params["api"]) {
-                  params["api"] = this.apiVersion;
-                }
-
                 return _context24.abrupt("return", new Promise(function () {
                   var _ref24 = _asyncToGenerator( /*#__PURE__*/regeneratorRuntime.mark(function _callee23(resolve, reject) {
                     var xmlhttp;
@@ -1110,7 +1113,7 @@ var SFHttpManager = exports.SFHttpManager = function () {
                   };
                 }()));
 
-              case 2:
+              case 1:
               case "end":
                 return _context24.stop();
             }
@@ -6761,12 +6764,16 @@ var SFSyncManager = exports.SFSyncManager = function () {
 
                           case 73:
                             params.cursor_token = _context95.sent;
-                            _context95.prev = 74;
+
+
+                            params['api'] = SFHttpManager.getApiVersion();
+
+                            _context95.prev = 75;
                             _context95.t2 = _this24.httpManager;
-                            _context95.next = 78;
+                            _context95.next = 79;
                             return _this24.getSyncURL();
 
-                          case 78:
+                          case 79:
                             _context95.t3 = _context95.sent;
                             _context95.t4 = params;
 
@@ -6789,21 +6796,21 @@ var SFSyncManager = exports.SFSyncManager = function () {
 
                             _context95.t2.postAbsolute.call(_context95.t2, _context95.t3, _context95.t4, _context95.t5, _context95.t6);
 
-                            _context95.next = 88;
+                            _context95.next = 89;
                             break;
 
-                          case 85:
-                            _context95.prev = 85;
-                            _context95.t7 = _context95["catch"](74);
+                          case 86:
+                            _context95.prev = 86;
+                            _context95.t7 = _context95["catch"](75);
 
                             console.log("Sync exception caught:", _context95.t7);
 
-                          case 88:
+                          case 89:
                           case "end":
                             return _context95.stop();
                         }
                       }
-                    }, _callee94, _this24, [[41, 46], [52, 56, 60, 68], [61,, 63, 67], [74, 85]]);
+                    }, _callee94, _this24, [[41, 46], [52, 56, 60, 68], [61,, 63, 67], [75, 86]]);
                   }));
 
                   return function (_x127, _x128) {
@@ -7768,7 +7775,8 @@ var SFSyncManager = exports.SFSyncManager = function () {
                     sync_token: options.syncToken,
                     cursor_token: options.cursorToken,
                     content_type: options.contentType,
-                    event: options.event
+                    event: options.event,
+                    api: SFHttpManager.getApiVersion()
                   };
                   _context105.prev = 1;
                   _context105.t0 = _this26.httpManager;

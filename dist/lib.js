@@ -110,9 +110,11 @@ export class SFAlertManager {
   }
 
   async getAuthParamsForEmail(url, email, extraParams) {
+    let params =  _.merge({email: email}, extraParams);
+    params['api'] = SFHttpManager.getApiVersion();
     return new Promise((resolve, reject) => {
       var requestUrl = url + "/auth/params";
-      this.httpManager.getAbsolute(requestUrl, _.merge({email: email}, extraParams), (response) => {
+      this.httpManager.getAbsolute(requestUrl, params, (response) => {
         resolve(response);
       }, (response) => {
         console.error("Error getting auth params", response);
@@ -233,6 +235,8 @@ export class SFAlertManager {
       var requestUrl = url + "/auth/sign_in";
       var params = _.merge({password: keys.pw, email: email}, extraParams);
 
+      params['api'] = SFHttpManager.getApiVersion();
+
       this.httpManager.postAbsolute(requestUrl, params, async (response) => {
         await this.handleAuthResponse(response, email, url, authParams, keys);
         this.notifyEvent(SFAuthManager.DidSignInEvent);
@@ -263,6 +267,7 @@ export class SFAlertManager {
 
       var requestUrl = url + "/auth";
       var params = _.merge({password: keys.pw, email: email}, authParams);
+      params['api'] = SFHttpManager.getApiVersion();
 
       this.httpManager.postAbsolute(requestUrl, params, async (response) => {
         await this.handleAuthResponse(response, email, url, authParams, keys);
@@ -291,6 +296,7 @@ export class SFAlertManager {
 
       var requestUrl = url + "/auth/change_pw";
       var params = _.merge({new_password: newServerPw, current_password: current_server_pw}, newAuthParams);
+      params['api'] = SFHttpManager.getApiVersion();
 
       this.httpManager.postAbsolute(requestUrl, params, async (response) => {
         await this.handleAuthResponse(response, email, null, newAuthParams, newKeys);
@@ -314,18 +320,17 @@ export class SFAlertManager {
 }
 ;var globalScope = typeof window !== 'undefined' ? window : (typeof global !== 'undefined' ? global : null);
 
-const UseAPIVersion = "20190520";
-
 export class SFHttpManager {
 
   static getApiVersion() {
-    return UseAPIVersion;
+    // Applicable only to Standard File requests. Requests to external acitons should not use this.
+    // syncManager and authManager must include this API version as part of its request params.
+    return "20190520";
   }
 
   constructor(timeout, apiVersion) {
     // calling callbacks in a $timeout allows UI to update
     this.$timeout = timeout || setTimeout.bind(globalScope);
-    this.apiVersion = apiVersion || UseAPIVersion;
   }
 
   setJWTRequestHandler(handler) {
@@ -352,10 +357,6 @@ export class SFHttpManager {
   }
 
   async httpRequest(verb, url, params, onsuccess, onerror) {
-    if(!params["api"]) {
-      params["api"] = this.apiVersion;
-    }
-
     return new Promise(async (resolve, reject) => {
         var xmlhttp = new XMLHttpRequest();
 
@@ -2479,6 +2480,8 @@ export class SFStorageManager {
       params.sync_token = await this.getSyncToken();
       params.cursor_token = await this.getCursorToken();
 
+      params['api'] = SFHttpManager.getApiVersion();
+
       try {
         this.httpManager.postAbsolute(await this.getSyncURL(), params, (response) => {
           this.handleSyncSuccess(subItems, response, options).then(() => {
@@ -2906,7 +2909,8 @@ export class SFStorageManager {
         sync_token: options.syncToken,
         cursor_token: options.cursorToken,
         content_type: options.contentType,
-        event: options.event
+        event: options.event,
+        api: SFHttpManager.getApiVersion()
       };
 
       try {
