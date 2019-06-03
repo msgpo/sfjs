@@ -99,7 +99,7 @@ describe('app models', () => {
     expect(globalModelManager.items.length).to.equal(0);
   });
 
-  it('handles delayed mapping', () => {
+  it('handles delayed mapping', async () => {
     let modelManager = createModelManager();
     var params1 = createItem();
     var params2 = createItem();
@@ -109,8 +109,8 @@ describe('app models', () => {
     expect(params1.content.references.length).to.equal(1);
     expect(params2.content.references.length).to.equal(0);
 
-    modelManager.mapResponseItemsToLocalModels([params1]);
-    modelManager.mapResponseItemsToLocalModels([params2]);
+    await modelManager.mapResponseItemsToLocalModels([params1]);
+    await modelManager.mapResponseItemsToLocalModels([params2]);
 
     var item1 = modelManager.findItem(params1.uuid);
     var item2 = modelManager.findItem(params2.uuid);
@@ -119,31 +119,31 @@ describe('app models', () => {
     expect(item2.referencingObjects.length).to.equal(1);
   });
 
-  it('mapping item without uuid should not map it', () => {
+  it('mapping item without uuid should not map it', async () => {
     let modelManager = createModelManager();
     var params1 = createItem();
     params1.uuid = null;
 
-    modelManager.mapResponseItemsToLocalModels([params1]);
+    await modelManager.mapResponseItemsToLocalModels([params1]);
     expect(modelManager.allItems.length).to.equal(0);
   });
 
-  it('mapping an item twice shouldnt cause problems', () => {
+  it('mapping an item twice shouldnt cause problems', async () => {
     let modelManager = createModelManager();
     var params1 = createItem();
     params1.content.foo = "bar";
 
-    let items = modelManager.mapResponseItemsToLocalModels([params1]);
+    let items = await modelManager.mapResponseItemsToLocalModels([params1]);
     let item = items[0];
     expect(item).to.not.be.null;
 
-    items = modelManager.mapResponseItemsToLocalModels([item]);
+    items = await modelManager.mapResponseItemsToLocalModels([item]);
     item = items[0];
 
     expect(item.content.foo).to.equal("bar");
   });
 
-  it('fixes relationship integrity', () => {
+  it('fixes relationship integrity', async () => {
     let modelManager = createModelManager();
     var item1 = createItem();
     var item2 = createItem();
@@ -156,7 +156,7 @@ describe('app models', () => {
 
     // damage references of one object
     item1.content.references = [];
-    modelManager.mapResponseItemsToLocalModels([item1]);
+    await modelManager.mapResponseItemsToLocalModels([item1]);
 
     expect(item1.content.references.length).to.equal(0);
     expect(item2.content.references.length).to.equal(1);
@@ -338,7 +338,7 @@ describe('app models', () => {
 
 describe("mapping performance", () => {
 
-  it("shouldn't take a long time", () => {
+  it("shouldn't take a long time", async () => {
     /*
       There was an issue with mapping where we were using arrays for everything instead of hashes (like items, missedReferences),
       which caused searching to be really expensive and caused a huge slowdown.
@@ -391,7 +391,7 @@ describe("mapping performance", () => {
     var batchSize = 100;
     for(var i = 0; i < items.length; i += batchSize) {
       var subArray = items.slice(currentIndex, currentIndex + batchSize);
-      modelManager.mapResponseItemsToLocalModels(subArray);
+      await modelManager.mapResponseItemsToLocalModels(subArray);
       currentIndex += batchSize;
     }
 
@@ -405,7 +405,7 @@ describe("mapping performance", () => {
     }
   }).timeout(20000);
 
-  it("mapping a tag with thousands of notes should be quick", () => {
+  it("mapping a tag with thousands of notes should be quick", async () => {
     /*
       There was an issue where if you have a tag with thousands of notes, it will take minutes to resolve.
       Fixed now. The issue was that we were looping around too much. I've consolidated some of the loops
@@ -451,7 +451,7 @@ describe("mapping performance", () => {
     var batchSize = 100;
     for(var i = 0; i < items.length; i += batchSize) {
       var subArray = items.slice(currentIndex, currentIndex + batchSize);
-      modelManager.mapResponseItemsToLocalModels(subArray);
+      await modelManager.mapResponseItemsToLocalModels(subArray);
       currentIndex += batchSize;
     }
 
@@ -470,83 +470,83 @@ describe("mapping performance", () => {
 })
 
 describe("model manager mapping", () => {
-  it('mapping nonexistent item creates it', () => {
+  it('mapping nonexistent item creates it', async () => {
     let modelManager = createModelManager();
     var params = createItemParams();
-    modelManager.mapResponseItemsToLocalModels([params]);
+    await modelManager.mapResponseItemsToLocalModels([params]);
     expect(modelManager.items.length).to.equal(1);
   });
 
-  it('mapping string content correctly parses it', () => {
+  it('mapping string content correctly parses it', async () => {
     let modelManager = createModelManager();
     var params = createItemParams();
     let originalTitle = params.content.title;
     params.content = JSON.stringify(params.content);
-    modelManager.mapResponseItemsToLocalModels([params]);
+    await modelManager.mapResponseItemsToLocalModels([params]);
     var item = modelManager.items[0];
     expect(params.content.title).to.not.be.a('string');
     expect(item.content.title).to.be.a('string');
     expect(item.content.title).to.equal(originalTitle);
   });
 
-  it('mapping nonexistent deleted item doesnt create it', () => {
+  it('mapping nonexistent deleted item doesnt create it', async () => {
     let modelManager = createModelManager();
     var params = createItemParams();
     params.deleted = true;
-    modelManager.mapResponseItemsToLocalModels([params]);
+    await modelManager.mapResponseItemsToLocalModels([params]);
     expect(modelManager.items.length).to.equal(0);
   });
 
-  it('mapping and deleting nonexistent item creates and deletes it', () => {
+  it('mapping and deleting nonexistent item creates and deletes it', async () => {
     let modelManager = createModelManager();
     var params = createItemParams();
-    modelManager.mapResponseItemsToLocalModels([params]);
+    await modelManager.mapResponseItemsToLocalModels([params]);
     expect(modelManager.items.length).to.equal(1);
 
     params.deleted = true;
-    modelManager.mapResponseItemsToLocalModels([params]);
+    await modelManager.mapResponseItemsToLocalModels([params]);
     expect(modelManager.items.length).to.equal(0);
   });
 
-  it('mapping deleted but dirty item should not delete it', () => {
+  it('mapping deleted but dirty item should not delete it', async () => {
     let modelManager = createModelManager();
     var params = createItemParams();
-    modelManager.mapResponseItemsToLocalModels([params]);
+    await modelManager.mapResponseItemsToLocalModels([params]);
 
     let item = modelManager.items[0];
     item.deleted = true;
     modelManager.setItemDirty(item, true);
-    modelManager.mapResponseItemsToLocalModels([item]);
+    await modelManager.mapResponseItemsToLocalModels([item]);
     expect(modelManager.items.length).to.equal(1);
   });
 
-  it('mapping existing item updates its properties', () => {
+  it('mapping existing item updates its properties', async () => {
     let modelManager = createModelManager();
     var params = createItemParams();
-    modelManager.mapResponseItemsToLocalModels([params]);
+    await modelManager.mapResponseItemsToLocalModels([params]);
 
     var newTitle = "updated title";
     params.content.title = newTitle;
-    modelManager.mapResponseItemsToLocalModels([params]);
+    await modelManager.mapResponseItemsToLocalModels([params]);
     let item = modelManager.items[0];
 
     expect(item.content.title).to.equal(newTitle);
   });
 
-  it('setting an item dirty should retrieve it in dirty items', () => {
+  it('setting an item dirty should retrieve it in dirty items', async () => {
     let modelManager = createModelManager();
     var params = createItemParams();
-    modelManager.mapResponseItemsToLocalModels([params]);
+    await modelManager.mapResponseItemsToLocalModels([params]);
     let item = modelManager.items[0];
     modelManager.setItemDirty(item, true);
     let dirtyItems = modelManager.getDirtyItems();
     expect(dirtyItems.length).to.equal(1);
   });
 
-  it('clearing dirty items should return no items', () => {
+  it('clearing dirty items should return no items', async () => {
     let modelManager = createModelManager();
     var params = createItemParams();
-    modelManager.mapResponseItemsToLocalModels([params]);
+    await modelManager.mapResponseItemsToLocalModels([params]);
     let item = modelManager.items[0];
     modelManager.setItemDirty(item, true);
     let dirtyItems = modelManager.getDirtyItems();
@@ -556,14 +556,14 @@ describe("model manager mapping", () => {
     expect(modelManager.getDirtyItems().length).to.equal(0);
   });
 
-  it('set all items dirty', () => {
+  it('set all items dirty', async () => {
     let modelManager = createModelManager();
     let count = 10;
     var items = [];
     for(var i = 0; i < count; i++) {
       items.push(createItemParams());
     }
-    modelManager.mapResponseItemsToLocalModels(items);
+    await modelManager.mapResponseItemsToLocalModels(items);
     modelManager.setAllItemsDirty();
 
     let dirtyItems = modelManager.getDirtyItems();
@@ -598,38 +598,34 @@ describe("items", () => {
     expect(item1.content).to.equal(item1.contentObject);
   });
 
-  it('setting an item as dirty should update its client updated at', (done) => {
+  it('setting an item as dirty should update its client updated at', async () => {
     let modelManager = createModelManager();
     var params = createItemParams();
-    modelManager.mapResponseItemsToLocalModels([params]);
+    await modelManager.mapResponseItemsToLocalModels([params]);
     let item = modelManager.items[0];
     var prevDate = item.client_updated_at.getTime();
-    setTimeout(function () {
-      modelManager.setItemDirty(item, true, true);
-      var newDate = item.client_updated_at.getTime();
-      expect(prevDate).to.not.equal(newDate);
-      done();
-    }, 100);
+    await Factory.sleep(0.1);
+    modelManager.setItemDirty(item, true, true);
+    var newDate = item.client_updated_at.getTime();
+    expect(prevDate).to.not.equal(newDate);
   });
 
-  it('setting an item as dirty with option to skip client updated at', (done) => {
+  it('setting an item as dirty with option to skip client updated at', async () => {
     let modelManager = createModelManager();
     var params = createItemParams();
-    modelManager.mapResponseItemsToLocalModels([params]);
+    await modelManager.mapResponseItemsToLocalModels([params]);
     let item = modelManager.items[0];
     var prevDate = item.client_updated_at.getTime();
-    setTimeout(function () {
-      modelManager.setItemDirty(item, true);
-      var newDate = item.client_updated_at.getTime();
-      expect(prevDate).to.equal(newDate);
-      done();
-    }, 100);
+    await Factory.sleep(0.1);
+    modelManager.setItemDirty(item, true);
+    var newDate = item.client_updated_at.getTime();
+    expect(prevDate).to.equal(newDate);
   });
 
-  it('properly pins, archives, and locks', () => {
+  it('properly pins, archives, and locks', async () => {
     let modelManager = createModelManager();
     var params = createItemParams();
-    modelManager.mapResponseItemsToLocalModels([params]);
+    await modelManager.mapResponseItemsToLocalModels([params]);
 
     let item = modelManager.items[0];
     expect(item.pinned).to.not.be.ok;
@@ -644,11 +640,11 @@ describe("items", () => {
     expect(item.locked).to.equal(true);
   });
 
-  it('properly compares item equality', () => {
+  it('properly compares item equality', async () => {
     let modelManager = createModelManager();
     var params1 = createItemParams();
     var params2 = createItemParams();
-    modelManager.mapResponseItemsToLocalModels([params1, params2]);
+    await modelManager.mapResponseItemsToLocalModels([params1, params2]);
 
     let item1 = modelManager.items[0];
     let item2 = modelManager.items[1];
@@ -686,11 +682,11 @@ describe("items", () => {
     expect(item2.content.references.length).to.equal(0);
   });
 
-  it('content equality should not have side effects', () => {
+  it('content equality should not have side effects', async () => {
     let modelManager = createModelManager();
     var params1 = createItemParams();
     var params2 = createItemParams();
-    modelManager.mapResponseItemsToLocalModels([params1, params2]);
+    await modelManager.mapResponseItemsToLocalModels([params1, params2]);
 
     let item1 = modelManager.items[0];
     let item2 = modelManager.items[1];

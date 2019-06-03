@@ -2189,7 +2189,10 @@ var SFModelManager = exports.SFModelManager = function () {
                 // informModelsOfUUIDChangeForItem may set this object to dirty, but we want to undo that here, so that the item gets deleted
                 // right away through the mapping function.
                 this.setItemDirty(item, false, false, SFModelManager.MappingSourceLocalSaved);
-                this.mapResponseItemsToLocalModels([item], SFModelManager.MappingSourceLocalSaved);
+                _context34.next = 33;
+                return this.mapResponseItemsToLocalModels([item], SFModelManager.MappingSourceLocalSaved);
+
+              case 33:
 
                 // add new item
                 this.addItem(newItem);
@@ -2199,7 +2202,7 @@ var SFModelManager = exports.SFModelManager = function () {
 
                 return _context34.abrupt("return", newItem);
 
-              case 36:
+              case 37:
               case "end":
                 return _context34.stop();
             }
@@ -2445,6 +2448,9 @@ var SFModelManager = exports.SFModelManager = function () {
 
               case 47:
                 if (item) {
+                  // We still want to return this item to the caller so they know it was handled.
+                  models.push(item);
+
                   modelsToNotifyObserversOf.push(item);
                   this.removeItemLocally(item);
                 }
@@ -3674,11 +3680,15 @@ var SFModelManager = exports.SFModelManager = function () {
                 return _context43.finish(58);
 
               case 66:
-                items = this.mapResponseItemsToLocalModels(itemsToBeMapped, SFModelManager.MappingSourceFileImport);
+                _context43.next = 68;
+                return this.mapResponseItemsToLocalModels(itemsToBeMapped, SFModelManager.MappingSourceFileImport);
+
+              case 68:
+                items = _context43.sent;
                 _iteratorNormalCompletion30 = true;
                 _didIteratorError30 = false;
                 _iteratorError30 = undefined;
-                _context43.prev = 70;
+                _context43.prev = 72;
 
                 for (_iterator30 = items[Symbol.iterator](); !(_iteratorNormalCompletion30 = (_step30 = _iterator30.next()).done); _iteratorNormalCompletion30 = true) {
                   item = _step30.value;
@@ -3687,48 +3697,48 @@ var SFModelManager = exports.SFModelManager = function () {
                   item.deleted = false;
                 }
 
-                _context43.next = 78;
+                _context43.next = 80;
                 break;
 
-              case 74:
-                _context43.prev = 74;
-                _context43.t2 = _context43["catch"](70);
+              case 76:
+                _context43.prev = 76;
+                _context43.t2 = _context43["catch"](72);
                 _didIteratorError30 = true;
                 _iteratorError30 = _context43.t2;
 
-              case 78:
-                _context43.prev = 78;
-                _context43.prev = 79;
+              case 80:
+                _context43.prev = 80;
+                _context43.prev = 81;
 
                 if (!_iteratorNormalCompletion30 && _iterator30.return) {
                   _iterator30.return();
                 }
 
-              case 81:
-                _context43.prev = 81;
+              case 83:
+                _context43.prev = 83;
 
                 if (!_didIteratorError30) {
-                  _context43.next = 84;
+                  _context43.next = 86;
                   break;
                 }
 
                 throw _iteratorError30;
 
-              case 84:
-                return _context43.finish(81);
-
-              case 85:
-                return _context43.finish(78);
-
               case 86:
-                return _context43.abrupt("return", items);
+                return _context43.finish(83);
 
               case 87:
+                return _context43.finish(80);
+
+              case 88:
+                return _context43.abrupt("return", items);
+
+              case 89:
               case "end":
                 return _context43.stop();
             }
           }
-        }, _callee42, this, [[5, 20, 24, 32], [25,, 27, 31], [35, 54, 58, 66], [59,, 61, 65], [70, 74, 78, 86], [79,, 81, 85]]);
+        }, _callee42, this, [[5, 20, 24, 32], [25,, 27, 31], [35, 54, 58, 66], [59,, 61, 65], [72, 76, 80, 88], [81,, 83, 87]]);
       }));
 
       function importItems(_x86) {
@@ -5524,7 +5534,7 @@ var SFSyncManager = exports.SFSyncManager = function () {
     this.modelManager = modelManager;
     this.storageManager = storageManager;
 
-    // Allows you to et your own interval/timeout function (i.e if you're using angular and want to use $timeout)
+    // Allows you to set your own interval/timeout function (i.e if you're using angular and want to use $timeout)
     this.$interval = interval || setInterval.bind(window);
     this.$timeout = timeout || setTimeout.bind(window);
 
@@ -5996,7 +6006,8 @@ var SFSyncManager = exports.SFSyncManager = function () {
                             for (_iterator38 = items[Symbol.iterator](); !(_iteratorNormalCompletion38 = (_step38 = _iterator38.next()).done); _iteratorNormalCompletion38 = true) {
                               item = _step38.value;
 
-                              if (item.deleted === true) {
+                              // if the item is deleted and dirty it means we still need to sync it.
+                              if (item.deleted === true && !item.dirty) {
                                 deletedItems.push(item);
                               } else {
                                 nonDeletedItems.push(item);
@@ -7584,7 +7595,6 @@ var SFSyncManager = exports.SFSyncManager = function () {
                   isOnlyReferenceChange = !contentExcludingReferencesDiffers;
 
                   if (isOnlyReferenceChange) {
-                    keepServer = false;
                     keepLocal = true;
                   } else {
                     duplicateLocal = true;

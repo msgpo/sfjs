@@ -664,7 +664,7 @@ export class SFHttpManager {
     // informModelsOfUUIDChangeForItem may set this object to dirty, but we want to undo that here, so that the item gets deleted
     // right away through the mapping function.
     this.setItemDirty(item, false, false, SFModelManager.MappingSourceLocalSaved);
-    this.mapResponseItemsToLocalModels([item], SFModelManager.MappingSourceLocalSaved);
+    await this.mapResponseItemsToLocalModels([item], SFModelManager.MappingSourceLocalSaved);
 
     // add new item
     this.addItem(newItem);
@@ -746,6 +746,9 @@ export class SFHttpManager {
           isDirtyItemPendingDelete = true;
         } else {
           if(item) {
+            // We still want to return this item to the caller so they know it was handled.
+            models.push(item);
+
             modelsToNotifyObserversOf.push(item);
             this.removeItemLocally(item);
           }
@@ -1202,7 +1205,7 @@ export class SFHttpManager {
       }
     }
 
-    let items = this.mapResponseItemsToLocalModels(itemsToBeMapped, SFModelManager.MappingSourceFileImport);
+    let items = await this.mapResponseItemsToLocalModels(itemsToBeMapped, SFModelManager.MappingSourceFileImport);
     for(let item of items) {
       this.setItemDirty(item, true, true);
       item.deleted = false;
@@ -1932,7 +1935,7 @@ export class SFStorageManager {
     this.modelManager = modelManager;
     this.storageManager = storageManager;
 
-    // Allows you to et your own interval/timeout function (i.e if you're using angular and want to use $timeout)
+    // Allows you to set your own interval/timeout function (i.e if you're using angular and want to use $timeout)
     this.$interval = interval || setInterval.bind(window);
     this.$timeout = timeout || setTimeout.bind(window);
 
@@ -2169,7 +2172,8 @@ export class SFStorageManager {
     return new Promise(async (resolve, reject) => {
       let nonDeletedItems = [], deletedItems = [];
       for(let item of items) {
-        if(item.deleted === true) {deletedItems.push(item);}
+        // if the item is deleted and dirty it means we still need to sync it.
+        if(item.deleted === true && !item.dirty) {deletedItems.push(item);}
         else {nonDeletedItems.push(item);}
       }
 
@@ -2576,7 +2580,6 @@ export class SFStorageManager {
     let conflictsNeedSync = conflicts && conflicts.length > 0;
     if(conflicts) {
       await this.writeItemsToLocalStorage(conflicts, false);
-
     }
     await this.writeItemsToLocalStorage(saved, false);
     await this.writeItemsToLocalStorage(retrieved, false);
@@ -2809,7 +2812,6 @@ export class SFStorageManager {
           })
           let isOnlyReferenceChange = !contentExcludingReferencesDiffers;
           if(isOnlyReferenceChange) {
-            keepServer = false;
             keepLocal = true;
           } else {
             duplicateLocal = true;

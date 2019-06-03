@@ -111,7 +111,7 @@ describe('offline syncing', () => {
   }).timeout(5000);
 });
 
-describe.skip('online syncing', () => {
+describe.only('online syncing', () => {
   var email = Factory.globalStandardFile().crypto.generateUUIDSync();
   var password = Factory.globalStandardFile().crypto.generateUUIDSync();
   var totalItemCount = 0;
@@ -301,11 +301,13 @@ describe.skip('online syncing', () => {
     let authParams = await authManager.getAuthParams();
     var itemParams = await new SFItemParams(item, keys, authParams).paramsForSync();
     itemParams.errorDecrypting = true;
-    let mappedItem = modelManager.mapResponseItemsToLocalModels([itemParams])[0];
+    let items = await modelManager.mapResponseItemsToLocalModels([itemParams]);
+    let mappedItem = items[0];
     expect(typeof mappedItem.content).to.equal("string");
 
     await SFJS.itemTransformer.decryptItem(itemParams, keys);
-    mappedItem = modelManager.mapResponseItemsToLocalModels([itemParams])[0];
+    items = await modelManager.mapResponseItemsToLocalModels([itemParams]);
+    mappedItem = items[0];
     expect(typeof mappedItem.content).to.equal("object");
     expect(mappedItem.content.title).to.equal(originalTitle);
   }).timeout(60000);
@@ -663,7 +665,7 @@ describe.skip('online syncing', () => {
     originalItem2.content_type = "Bar";
 
     originalItem1.addItemAsRelationship(originalItem2);
-    modelManager.mapResponseItemsToLocalModels([originalItem1, originalItem2]);
+    await modelManager.mapResponseItemsToLocalModels([originalItem1, originalItem2]);
 
     totalItemCount += 2;
 
