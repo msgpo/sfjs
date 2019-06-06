@@ -121,7 +121,6 @@ describe.only('online syncing', () => {
   }
 
   before((done) => {
-    console.warn("Online syncing tests will likely impede on other tests ability to run, so should be run independently.")
     Factory.globalStorageManager().clearAllData().then(() => {
       Factory.newRegisteredUser(email, password).then((user) => {
         done();
@@ -633,7 +632,7 @@ describe.only('online syncing', () => {
     expect(modelManager.getDirtyItems().length).to.equal(1);
   }).timeout(60000);
 
-  it.skip("marking an item dirty then saving to disk should retain that dirty state when restored", async () => {
+  it("marking an item dirty then saving to disk should retain that dirty state when restored", async () => {
     // This test is currently broken, but seems to have to do more with how the test was written than  an issue with the code.
     // create an item and sync it
     var item = Factory.createItem();
@@ -653,7 +652,6 @@ describe.only('online syncing', () => {
     expect(item.dirty).to.equal(true);
 
     await syncManager.sync();
-    await Factory.sleep(1.0);
   }).timeout(60000);
 
   it('duplicating an item should maintian its relationships', async () => {

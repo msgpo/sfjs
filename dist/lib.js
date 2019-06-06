@@ -627,7 +627,11 @@ export class SFHttpManager {
 
   notifyObserversOfUuidChange(oldItem, newItem) {
     for(let observer of this.uuidChangeObservers) {
-      observer.callback(oldItem, newItem);
+      try {
+        observer.callback(oldItem, newItem);
+      } catch (e) {
+        console.error("Notify observers of uuid change exception:", e);
+      }
     }
   }
 
@@ -906,8 +910,13 @@ export class SFHttpManager {
   async _callSyncObserverCallbackWithTimeout(observer, allRelevantItems, validItems, deletedItems, source, sourceKey) {
     return new Promise((resolve, reject) => {
       this.$timeout(() => {
-        observer.callback(allRelevantItems, validItems, deletedItems, source, sourceKey);
-        resolve();
+        try {
+          observer.callback(allRelevantItems, validItems, deletedItems, source, sourceKey);
+        } catch (e) {
+          console.error("Sync observer exception", e);
+        } finally {
+          resolve();
+        }
       })
     })
   }
@@ -2238,10 +2247,9 @@ export class SFStorageManager {
    */
   async markAllItemsDirtyAndSaveOffline(alternateUUIDs) {
 
-    // use a copy, as alternating uuid will affect array
-    let originalItems = this.modelManager.allNondummyItems.filter((item) => {return !item.errorDecrypting}).slice();
-
     if(alternateUUIDs) {
+      // use a copy, as alternating uuid will affect array
+      let originalItems = this.modelManager.allNondummyItems.filter((item) => {return !item.errorDecrypting}).slice();
       for(let item of originalItems) {
         // Update: the last params has been removed. Defaults to true.
         // Old: alternateUUIDForItem last param is a boolean that controls whether the original item

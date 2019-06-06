@@ -2087,7 +2087,11 @@ var SFModelManager = exports.SFModelManager = function () {
         for (var _iterator9 = this.uuidChangeObservers[Symbol.iterator](), _step9; !(_iteratorNormalCompletion9 = (_step9 = _iterator9.next()).done); _iteratorNormalCompletion9 = true) {
           var observer = _step9.value;
 
-          observer.callback(oldItem, newItem);
+          try {
+            observer.callback(oldItem, newItem);
+          } catch (e) {
+            console.error("Notify observers of uuid change exception:", e);
+          }
         }
       } catch (err) {
         _didIteratorError9 = true;
@@ -2983,8 +2987,13 @@ var SFModelManager = exports.SFModelManager = function () {
               case 0:
                 return _context40.abrupt("return", new Promise(function (resolve, reject) {
                   _this10.$timeout(function () {
-                    observer.callback(allRelevantItems, validItems, deletedItems, source, sourceKey);
-                    resolve();
+                    try {
+                      observer.callback(allRelevantItems, validItems, deletedItems, source, sourceKey);
+                    } catch (e) {
+                      console.error("Sync observer exception", e);
+                    } finally {
+                      resolve();
+                    }
                   });
                 }));
 
@@ -6296,17 +6305,15 @@ var SFSyncManager = exports.SFSyncManager = function () {
           while (1) {
             switch (_context90.prev = _context90.next) {
               case 0:
-
-                // use a copy, as alternating uuid will affect array
-                originalItems = this.modelManager.allNondummyItems.filter(function (item) {
-                  return !item.errorDecrypting;
-                }).slice();
-
                 if (!alternateUUIDs) {
                   _context90.next = 28;
                   break;
                 }
 
+                // use a copy, as alternating uuid will affect array
+                originalItems = this.modelManager.allNondummyItems.filter(function (item) {
+                  return !item.errorDecrypting;
+                }).slice();
                 _iteratorNormalCompletion41 = true;
                 _didIteratorError41 = false;
                 _iteratorError41 = undefined;
