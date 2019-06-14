@@ -111,7 +111,7 @@ describe('offline syncing', () => {
   }).timeout(5000);
 });
 
-describe.only('online syncing', () => {
+describe('online syncing', () => {
   var email = Factory.globalStandardFile().crypto.generateUUIDSync();
   var password = Factory.globalStandardFile().crypto.generateUUIDSync();
   var totalItemCount = 0;
@@ -1184,4 +1184,26 @@ describe('sync discordance', () => {
     expect(localSyncManager.isOutOfSync()).to.equal(false);
     expect(localModelManager.allItems.length).to.equal(itemCount + 1);
   });
+});
+
+describe.only('http manager', () => {
+
+  const httpManager = Factory.globalHttpManager();
+
+  it("formats urls properly 1", async () => {
+    let url = "http://example.org";
+    let params = {foo: "bar"};
+    let result = url + "?foo=bar";
+
+    expect(httpManager.urlForUrlAndParams(url, params)).to.equal(result);
+  });
+
+  it("formats urls properly 2", async () => {
+    let url = "http://example.org?name=java";
+    let params = {foo: "bar"};
+    let result = url + "&foo=bar";
+
+    expect(httpManager.urlForUrlAndParams(url, params)).to.equal(result);
+  });
+
 });

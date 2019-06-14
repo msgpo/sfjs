@@ -298,7 +298,7 @@ export class SFAlertManager {
       var params = _.merge({new_password: newServerPw, current_password: current_server_pw}, newAuthParams);
       params['api'] = SFHttpManager.getApiVersion();
 
-      this.httpManager.postAbsolute(requestUrl, params, async (response) => {
+      this.httpManager.postAuthenticatedAbsolute(requestUrl, params, async (response) => {
         await this.handleAuthResponse(response, email, null, newAuthParams, newKeys);
         this.unlockAndResolve(resolve, response);
       }, (response) => {
@@ -348,6 +348,10 @@ export class SFHttpManager {
     return this.httpRequest("post", url, params, onsuccess, onerror);
   }
 
+  async postAuthenticatedAbsolute(url, params, onsuccess, onerror) {
+    return this.httpRequest("post", url, params, onsuccess, onerror, true);
+  }
+
   async patchAbsolute(url, params, onsuccess, onerror) {
     return this.httpRequest("patch", url, params, onsuccess, onerror);
   }
@@ -356,7 +360,7 @@ export class SFHttpManager {
     return this.httpRequest("get", url, params, onsuccess, onerror);
   }
 
-  async httpRequest(verb, url, params, onsuccess, onerror) {
+  async httpRequest(verb, url, params, onsuccess, onerror, authenticated = false) {
     return new Promise(async (resolve, reject) => {
         var xmlhttp = new XMLHttpRequest();
 
@@ -385,12 +389,15 @@ export class SFHttpManager {
         }
 
         if(verb == "get" && Object.keys(params).length > 0) {
-          url = url + this.formatParams(params);
+          url = this.urlForUrlAndParams(url, params);
         }
 
         xmlhttp.open(verb, url, true);
-        await this.setAuthHeadersForRequest(xmlhttp);
         xmlhttp.setRequestHeader('Content-type', 'application/json');
+
+        if(authenticated) {
+          await this.setAuthHeadersForRequest(xmlhttp);
+        }
 
         if(verb == "post" || verb == "patch") {
           xmlhttp.send(JSON.stringify(params));
@@ -400,13 +407,16 @@ export class SFHttpManager {
     })
   }
 
-  formatParams(params) {
-    return "?" + Object
-          .keys(params)
-          .map(function(key){
-            return key+"="+encodeURIComponent(params[key])
-          })
-          .join("&")
+  urlForUrlAndParams(url, params) {
+    let keyValueString = Object.keys(params).map((key) => {
+      return key + "=" + encodeURIComponent(params[key])
+    }).join("&");
+
+    if(url.includes("?")) {
+      return url + "&" + keyValueString;
+    } else {
+      return url + "?" + keyValueString;
+    }
   }
 
 }
@@ -2491,7 +2501,7 @@ export class SFStorageManager {
       params['api'] = SFHttpManager.getApiVersion();
 
       try {
-        this.httpManager.postAbsolute(await this.getSyncURL(), params, (response) => {
+        this.httpManager.postAuthenticatedAbsolute(await this.getSyncURL(), params, (response) => {
           this.handleSyncSuccess(subItems, response, options).then(() => {
             resolve(response);
           }).catch((e) => {
@@ -2922,7 +2932,7 @@ export class SFStorageManager {
       };
 
       try {
-        this.httpManager.postAbsolute(await this.getSyncURL(), params, async (response) => {
+        this.httpManager.postAuthenticatedAbsolute(await this.getSyncURL(), params, async (response) => {
           if(!options.retrievedItems) {
             options.retrievedItems = [];
           }
