@@ -4020,7 +4020,11 @@ SFItemHistory.LargeEntryDeltaThreshold = 15;
   }
 
 }
-;/* Abstract class. Instantiate an instance of either SFCryptoJS (uses cryptojs) or SFCryptoWeb (uses web crypto) */
+;/*
+  Abstract class with default implementations of some crypto functions.
+  Instantiate an instance of either SFCryptoJS (uses cryptojs) or SFCryptoWeb (uses web crypto)
+  These subclasses may override some of the functions in this abstract class.
+*/
 
 var globalScope = typeof window !== 'undefined' ? window : (typeof global !== 'undefined' ? global : null);
 
@@ -4029,11 +4033,6 @@ export class SFAbstractCrypto {
   constructor() {
     this.DefaultPBKDF2Length = 768;
   }
-
-  /*
-  Our WebCrypto implementation only offers PBKDf2, so any other encryption
-  and key generation functions must use CryptoJS in this abstract implementation.
-  */
 
   generateUUIDSync() {
     var crypto = globalScope.crypto || globalScope.msCrypto;
@@ -4078,7 +4077,7 @@ export class SFAbstractCrypto {
         return null;
       }
     }
-    
+
     var keyData = CryptoJS.enc.Hex.parse(encryptionKey);
     var ivData  = CryptoJS.enc.Hex.parse(iv || "");
     var decrypted = CryptoJS.AES.decrypt(contentCiphertext, keyData, { iv: ivData,  mode: CryptoJS.mode.CBC, padding: CryptoJS.pad.Pkcs7 });
@@ -4248,8 +4247,6 @@ export class SFCryptoWeb extends SFAbstractCrypto {
     });
   }
 
-  /* This is a functioning implementation of WebCrypto's encrypt, however, in basic testing, CrpytoJS performs about 30-40% faster, surprisingly. */
-
   async encryptText(text, key, iv) {
     // in 001, iv can be null, so we'll initialize to an empty array buffer instead
     var ivData = iv ? await this.hexStringToArrayBuffer(iv) : new ArrayBuffer(16);
@@ -4295,6 +4292,20 @@ export class SFCryptoWeb extends SFAbstractCrypto {
     })
   }
 
+  async hmac256(message, key) {
+    var keyHexData = await this.hexStringToArrayBuffer(key);
+    var keyData = await this.webCryptoImportKey(keyHexData, "HMAC", ["sign"], {name: "SHA-256"});
+    var messageData = await this.stringToArrayBuffer(message);
+    return crypto.subtle.sign({name: "HMAC"}, keyData, messageData)
+    .then(async (signature) => {
+      var hash = await this.arrayBufferToHexString(signature);
+      return hash;
+    })
+    .catch(function(err){
+      console.error("Error computing hmac", err);
+    });
+  }
+
   /**
   Internal
   */
@@ -4310,7 +4321,7 @@ export class SFCryptoWeb extends SFAbstractCrypto {
       return null;
     });
   }
-  //
+
   async webCryptoDeriveBits(key, pw_salt, pw_cost, length) {
     var params = {
       "name": "PBKDF2",
@@ -4395,20 +4406,6 @@ export class SFCryptoWeb extends SFAbstractCrypto {
       };
       reader.readAsDataURL(blob);
     })
-  }
-
-  async hmac256(message, key) {
-    var keyHexData = await this.hexStringToArrayBuffer(key);
-    var keyData = await this.webCryptoImportKey(keyHexData, "HMAC", ["sign"], {name: "SHA-256"});
-    var messageData = await this.stringToArrayBuffer(message);
-    return crypto.subtle.sign({name: "HMAC"}, keyData, messageData)
-    .then(async (signature) => {
-      var hash = await this.arrayBufferToHexString(signature);
-      return hash;
-    })
-    .catch(function(err){
-      console.error("Error computing hmac", err);
-    });
   }
 
 }

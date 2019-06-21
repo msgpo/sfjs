@@ -9622,7 +9622,11 @@ var SFItemHistoryEntry = exports.SFItemHistoryEntry = function () {
   return SFItemHistoryEntry;
 }();
 
-; /* Abstract class. Instantiate an instance of either SFCryptoJS (uses cryptojs) or SFCryptoWeb (uses web crypto) */
+; /*
+   Abstract class with default implementations of some crypto functions.
+   Instantiate an instance of either SFCryptoJS (uses cryptojs) or SFCryptoWeb (uses web crypto)
+   These subclasses may override some of the functions in this abstract class.
+  */
 
 var globalScope = typeof window !== 'undefined' ? window : typeof global !== 'undefined' ? global : null;
 
@@ -9632,11 +9636,6 @@ var SFAbstractCrypto = exports.SFAbstractCrypto = function () {
 
     this.DefaultPBKDF2Length = 768;
   }
-
-  /*
-  Our WebCrypto implementation only offers PBKDf2, so any other encryption
-  and key generation functions must use CryptoJS in this abstract implementation.
-  */
 
   _createClass(SFAbstractCrypto, [{
     key: "generateUUIDSync",
@@ -10364,9 +10363,6 @@ var SFCryptoWeb = exports.SFCryptoWeb = function (_SFAbstractCrypto2) {
 
       return generateItemEncryptionKey;
     }()
-
-    /* This is a functioning implementation of WebCrypto's encrypt, however, in basic testing, CrpytoJS performs about 30-40% faster, surprisingly. */
-
   }, {
     key: "encryptText",
     value: function () {
@@ -10579,6 +10575,75 @@ var SFCryptoWeb = exports.SFCryptoWeb = function (_SFAbstractCrypto2) {
 
       return decryptText;
     }()
+  }, {
+    key: "hmac256",
+    value: function () {
+      var _ref154 = _asyncToGenerator( /*#__PURE__*/regeneratorRuntime.mark(function _callee141(message, key) {
+        var _this36 = this;
+
+        var keyHexData, keyData, messageData;
+        return regeneratorRuntime.wrap(function _callee141$(_context142) {
+          while (1) {
+            switch (_context142.prev = _context142.next) {
+              case 0:
+                _context142.next = 2;
+                return this.hexStringToArrayBuffer(key);
+
+              case 2:
+                keyHexData = _context142.sent;
+                _context142.next = 5;
+                return this.webCryptoImportKey(keyHexData, "HMAC", ["sign"], { name: "SHA-256" });
+
+              case 5:
+                keyData = _context142.sent;
+                _context142.next = 8;
+                return this.stringToArrayBuffer(message);
+
+              case 8:
+                messageData = _context142.sent;
+                return _context142.abrupt("return", crypto.subtle.sign({ name: "HMAC" }, keyData, messageData).then(function () {
+                  var _ref155 = _asyncToGenerator( /*#__PURE__*/regeneratorRuntime.mark(function _callee140(signature) {
+                    var hash;
+                    return regeneratorRuntime.wrap(function _callee140$(_context141) {
+                      while (1) {
+                        switch (_context141.prev = _context141.next) {
+                          case 0:
+                            _context141.next = 2;
+                            return _this36.arrayBufferToHexString(signature);
+
+                          case 2:
+                            hash = _context141.sent;
+                            return _context141.abrupt("return", hash);
+
+                          case 4:
+                          case "end":
+                            return _context141.stop();
+                        }
+                      }
+                    }, _callee140, _this36);
+                  }));
+
+                  return function (_x194) {
+                    return _ref155.apply(this, arguments);
+                  };
+                }()).catch(function (err) {
+                  console.error("Error computing hmac", err);
+                }));
+
+              case 10:
+              case "end":
+                return _context142.stop();
+            }
+          }
+        }, _callee141, this);
+      }));
+
+      function hmac256(_x192, _x193) {
+        return _ref154.apply(this, arguments);
+      }
+
+      return hmac256;
+    }()
 
     /**
     Internal
@@ -10587,31 +10652,31 @@ var SFCryptoWeb = exports.SFCryptoWeb = function (_SFAbstractCrypto2) {
   }, {
     key: "webCryptoImportKey",
     value: function () {
-      var _ref154 = _asyncToGenerator( /*#__PURE__*/regeneratorRuntime.mark(function _callee140(input, alg, actions, hash) {
+      var _ref156 = _asyncToGenerator( /*#__PURE__*/regeneratorRuntime.mark(function _callee142(input, alg, actions, hash) {
         var text;
-        return regeneratorRuntime.wrap(function _callee140$(_context141) {
+        return regeneratorRuntime.wrap(function _callee142$(_context143) {
           while (1) {
-            switch (_context141.prev = _context141.next) {
+            switch (_context143.prev = _context143.next) {
               case 0:
                 if (!(typeof input === "string")) {
-                  _context141.next = 6;
+                  _context143.next = 6;
                   break;
                 }
 
-                _context141.next = 3;
+                _context143.next = 3;
                 return this.stringToArrayBuffer(input);
 
               case 3:
-                _context141.t0 = _context141.sent;
-                _context141.next = 7;
+                _context143.t0 = _context143.sent;
+                _context143.next = 7;
                 break;
 
               case 6:
-                _context141.t0 = input;
+                _context143.t0 = input;
 
               case 7:
-                text = _context141.t0;
-                return _context141.abrupt("return", subtleCrypto.importKey("raw", text, { name: alg, hash: hash }, false, actions).then(function (key) {
+                text = _context143.t0;
+                return _context143.abrupt("return", subtleCrypto.importKey("raw", text, { name: alg, hash: hash }, false, actions).then(function (key) {
                   return key;
                 }).catch(function (err) {
                   console.error(err);
@@ -10620,68 +10685,66 @@ var SFCryptoWeb = exports.SFCryptoWeb = function (_SFAbstractCrypto2) {
 
               case 9:
               case "end":
-                return _context141.stop();
+                return _context143.stop();
             }
           }
-        }, _callee140, this);
+        }, _callee142, this);
       }));
 
-      function webCryptoImportKey(_x192, _x193, _x194, _x195) {
-        return _ref154.apply(this, arguments);
+      function webCryptoImportKey(_x195, _x196, _x197, _x198) {
+        return _ref156.apply(this, arguments);
       }
 
       return webCryptoImportKey;
     }()
-    //
-
   }, {
     key: "webCryptoDeriveBits",
     value: function () {
-      var _ref155 = _asyncToGenerator( /*#__PURE__*/regeneratorRuntime.mark(function _callee142(key, pw_salt, pw_cost, length) {
-        var _this36 = this;
+      var _ref157 = _asyncToGenerator( /*#__PURE__*/regeneratorRuntime.mark(function _callee144(key, pw_salt, pw_cost, length) {
+        var _this37 = this;
 
         var params;
-        return regeneratorRuntime.wrap(function _callee142$(_context143) {
+        return regeneratorRuntime.wrap(function _callee144$(_context145) {
           while (1) {
-            switch (_context143.prev = _context143.next) {
+            switch (_context145.prev = _context145.next) {
               case 0:
-                _context143.next = 2;
+                _context145.next = 2;
                 return this.stringToArrayBuffer(pw_salt);
 
               case 2:
-                _context143.t0 = _context143.sent;
-                _context143.t1 = pw_cost;
-                _context143.t2 = { name: "SHA-512" };
+                _context145.t0 = _context145.sent;
+                _context145.t1 = pw_cost;
+                _context145.t2 = { name: "SHA-512" };
                 params = {
                   "name": "PBKDF2",
-                  salt: _context143.t0,
-                  iterations: _context143.t1,
-                  hash: _context143.t2
+                  salt: _context145.t0,
+                  iterations: _context145.t1,
+                  hash: _context145.t2
                 };
-                return _context143.abrupt("return", subtleCrypto.deriveBits(params, key, length).then(function () {
-                  var _ref156 = _asyncToGenerator( /*#__PURE__*/regeneratorRuntime.mark(function _callee141(bits) {
+                return _context145.abrupt("return", subtleCrypto.deriveBits(params, key, length).then(function () {
+                  var _ref158 = _asyncToGenerator( /*#__PURE__*/regeneratorRuntime.mark(function _callee143(bits) {
                     var key;
-                    return regeneratorRuntime.wrap(function _callee141$(_context142) {
+                    return regeneratorRuntime.wrap(function _callee143$(_context144) {
                       while (1) {
-                        switch (_context142.prev = _context142.next) {
+                        switch (_context144.prev = _context144.next) {
                           case 0:
-                            _context142.next = 2;
-                            return _this36.arrayBufferToHexString(new Uint8Array(bits));
+                            _context144.next = 2;
+                            return _this37.arrayBufferToHexString(new Uint8Array(bits));
 
                           case 2:
-                            key = _context142.sent;
-                            return _context142.abrupt("return", key);
+                            key = _context144.sent;
+                            return _context144.abrupt("return", key);
 
                           case 4:
                           case "end":
-                            return _context142.stop();
+                            return _context144.stop();
                         }
                       }
-                    }, _callee141, _this36);
+                    }, _callee143, _this37);
                   }));
 
-                  return function (_x200) {
-                    return _ref156.apply(this, arguments);
+                  return function (_x203) {
+                    return _ref158.apply(this, arguments);
                   };
                 }()).catch(function (err) {
                   console.error(err);
@@ -10690,14 +10753,14 @@ var SFCryptoWeb = exports.SFCryptoWeb = function (_SFAbstractCrypto2) {
 
               case 7:
               case "end":
-                return _context143.stop();
+                return _context145.stop();
             }
           }
-        }, _callee142, this);
+        }, _callee144, this);
       }));
 
-      function webCryptoDeriveBits(_x196, _x197, _x198, _x199) {
-        return _ref155.apply(this, arguments);
+      function webCryptoDeriveBits(_x199, _x200, _x201, _x202) {
+        return _ref157.apply(this, arguments);
       }
 
       return webCryptoDeriveBits;
@@ -10705,12 +10768,12 @@ var SFCryptoWeb = exports.SFCryptoWeb = function (_SFAbstractCrypto2) {
   }, {
     key: "stringToArrayBuffer",
     value: function () {
-      var _ref157 = _asyncToGenerator( /*#__PURE__*/regeneratorRuntime.mark(function _callee143(string) {
-        return regeneratorRuntime.wrap(function _callee143$(_context144) {
+      var _ref159 = _asyncToGenerator( /*#__PURE__*/regeneratorRuntime.mark(function _callee145(string) {
+        return regeneratorRuntime.wrap(function _callee145$(_context146) {
           while (1) {
-            switch (_context144.prev = _context144.next) {
+            switch (_context146.prev = _context146.next) {
               case 0:
-                return _context144.abrupt("return", new Promise(function (resolve, reject) {
+                return _context146.abrupt("return", new Promise(function (resolve, reject) {
                   var blob = new Blob([string]);
                   var f = new FileReader();
                   f.onload = function (e) {
@@ -10721,14 +10784,14 @@ var SFCryptoWeb = exports.SFCryptoWeb = function (_SFAbstractCrypto2) {
 
               case 1:
               case "end":
-                return _context144.stop();
+                return _context146.stop();
             }
           }
-        }, _callee143, this);
+        }, _callee145, this);
       }));
 
-      function stringToArrayBuffer(_x201) {
-        return _ref157.apply(this, arguments);
+      function stringToArrayBuffer(_x204) {
+        return _ref159.apply(this, arguments);
       }
 
       return stringToArrayBuffer;
@@ -10736,12 +10799,12 @@ var SFCryptoWeb = exports.SFCryptoWeb = function (_SFAbstractCrypto2) {
   }, {
     key: "arrayBufferToString",
     value: function () {
-      var _ref158 = _asyncToGenerator( /*#__PURE__*/regeneratorRuntime.mark(function _callee144(arrayBuffer) {
-        return regeneratorRuntime.wrap(function _callee144$(_context145) {
+      var _ref160 = _asyncToGenerator( /*#__PURE__*/regeneratorRuntime.mark(function _callee146(arrayBuffer) {
+        return regeneratorRuntime.wrap(function _callee146$(_context147) {
           while (1) {
-            switch (_context145.prev = _context145.next) {
+            switch (_context147.prev = _context147.next) {
               case 0:
-                return _context145.abrupt("return", new Promise(function (resolve, reject) {
+                return _context147.abrupt("return", new Promise(function (resolve, reject) {
                   var blob = new Blob([arrayBuffer]);
                   var f = new FileReader();
                   f.onload = function (e) {
@@ -10752,14 +10815,14 @@ var SFCryptoWeb = exports.SFCryptoWeb = function (_SFAbstractCrypto2) {
 
               case 1:
               case "end":
-                return _context145.stop();
+                return _context147.stop();
             }
           }
-        }, _callee144, this);
+        }, _callee146, this);
       }));
 
-      function arrayBufferToString(_x202) {
-        return _ref158.apply(this, arguments);
+      function arrayBufferToString(_x205) {
+        return _ref160.apply(this, arguments);
       }
 
       return arrayBufferToString;
@@ -10767,11 +10830,11 @@ var SFCryptoWeb = exports.SFCryptoWeb = function (_SFAbstractCrypto2) {
   }, {
     key: "arrayBufferToHexString",
     value: function () {
-      var _ref159 = _asyncToGenerator( /*#__PURE__*/regeneratorRuntime.mark(function _callee145(arrayBuffer) {
+      var _ref161 = _asyncToGenerator( /*#__PURE__*/regeneratorRuntime.mark(function _callee147(arrayBuffer) {
         var byteArray, hexString, nextHexByte, i;
-        return regeneratorRuntime.wrap(function _callee145$(_context146) {
+        return regeneratorRuntime.wrap(function _callee147$(_context148) {
           while (1) {
-            switch (_context146.prev = _context146.next) {
+            switch (_context148.prev = _context148.next) {
               case 0:
                 byteArray = new Uint8Array(arrayBuffer);
                 hexString = "";
@@ -10784,72 +10847,9 @@ var SFCryptoWeb = exports.SFCryptoWeb = function (_SFAbstractCrypto2) {
                   }
                   hexString += nextHexByte;
                 }
-                return _context146.abrupt("return", hexString);
+                return _context148.abrupt("return", hexString);
 
               case 4:
-              case "end":
-                return _context146.stop();
-            }
-          }
-        }, _callee145, this);
-      }));
-
-      function arrayBufferToHexString(_x203) {
-        return _ref159.apply(this, arguments);
-      }
-
-      return arrayBufferToHexString;
-    }()
-  }, {
-    key: "hexStringToArrayBuffer",
-    value: function () {
-      var _ref160 = _asyncToGenerator( /*#__PURE__*/regeneratorRuntime.mark(function _callee146(hex) {
-        var bytes, c;
-        return regeneratorRuntime.wrap(function _callee146$(_context147) {
-          while (1) {
-            switch (_context147.prev = _context147.next) {
-              case 0:
-                for (bytes = [], c = 0; c < hex.length; c += 2) {
-                  bytes.push(parseInt(hex.substr(c, 2), 16));
-                }return _context147.abrupt("return", new Uint8Array(bytes));
-
-              case 2:
-              case "end":
-                return _context147.stop();
-            }
-          }
-        }, _callee146, this);
-      }));
-
-      function hexStringToArrayBuffer(_x204) {
-        return _ref160.apply(this, arguments);
-      }
-
-      return hexStringToArrayBuffer;
-    }()
-  }, {
-    key: "base64ToArrayBuffer",
-    value: function () {
-      var _ref161 = _asyncToGenerator( /*#__PURE__*/regeneratorRuntime.mark(function _callee147(base64) {
-        var binary_string, len, bytes, i;
-        return regeneratorRuntime.wrap(function _callee147$(_context148) {
-          while (1) {
-            switch (_context148.prev = _context148.next) {
-              case 0:
-                _context148.next = 2;
-                return this.base64Decode(base64);
-
-              case 2:
-                binary_string = _context148.sent;
-                len = binary_string.length;
-                bytes = new Uint8Array(len);
-
-                for (i = 0; i < len; i++) {
-                  bytes[i] = binary_string.charCodeAt(i);
-                }
-                return _context148.abrupt("return", bytes.buffer);
-
-              case 7:
               case "end":
                 return _context148.stop();
             }
@@ -10857,8 +10857,71 @@ var SFCryptoWeb = exports.SFCryptoWeb = function (_SFAbstractCrypto2) {
         }, _callee147, this);
       }));
 
-      function base64ToArrayBuffer(_x205) {
+      function arrayBufferToHexString(_x206) {
         return _ref161.apply(this, arguments);
+      }
+
+      return arrayBufferToHexString;
+    }()
+  }, {
+    key: "hexStringToArrayBuffer",
+    value: function () {
+      var _ref162 = _asyncToGenerator( /*#__PURE__*/regeneratorRuntime.mark(function _callee148(hex) {
+        var bytes, c;
+        return regeneratorRuntime.wrap(function _callee148$(_context149) {
+          while (1) {
+            switch (_context149.prev = _context149.next) {
+              case 0:
+                for (bytes = [], c = 0; c < hex.length; c += 2) {
+                  bytes.push(parseInt(hex.substr(c, 2), 16));
+                }return _context149.abrupt("return", new Uint8Array(bytes));
+
+              case 2:
+              case "end":
+                return _context149.stop();
+            }
+          }
+        }, _callee148, this);
+      }));
+
+      function hexStringToArrayBuffer(_x207) {
+        return _ref162.apply(this, arguments);
+      }
+
+      return hexStringToArrayBuffer;
+    }()
+  }, {
+    key: "base64ToArrayBuffer",
+    value: function () {
+      var _ref163 = _asyncToGenerator( /*#__PURE__*/regeneratorRuntime.mark(function _callee149(base64) {
+        var binary_string, len, bytes, i;
+        return regeneratorRuntime.wrap(function _callee149$(_context150) {
+          while (1) {
+            switch (_context150.prev = _context150.next) {
+              case 0:
+                _context150.next = 2;
+                return this.base64Decode(base64);
+
+              case 2:
+                binary_string = _context150.sent;
+                len = binary_string.length;
+                bytes = new Uint8Array(len);
+
+                for (i = 0; i < len; i++) {
+                  bytes[i] = binary_string.charCodeAt(i);
+                }
+                return _context150.abrupt("return", bytes.buffer);
+
+              case 7:
+              case "end":
+                return _context150.stop();
+            }
+          }
+        }, _callee149, this);
+      }));
+
+      function base64ToArrayBuffer(_x208) {
+        return _ref163.apply(this, arguments);
       }
 
       return base64ToArrayBuffer;
@@ -10866,12 +10929,12 @@ var SFCryptoWeb = exports.SFCryptoWeb = function (_SFAbstractCrypto2) {
   }, {
     key: "arrayBufferToBase64",
     value: function () {
-      var _ref162 = _asyncToGenerator( /*#__PURE__*/regeneratorRuntime.mark(function _callee148(buffer) {
-        return regeneratorRuntime.wrap(function _callee148$(_context149) {
+      var _ref164 = _asyncToGenerator( /*#__PURE__*/regeneratorRuntime.mark(function _callee150(buffer) {
+        return regeneratorRuntime.wrap(function _callee150$(_context151) {
           while (1) {
-            switch (_context149.prev = _context149.next) {
+            switch (_context151.prev = _context151.next) {
               case 0:
-                return _context149.abrupt("return", new Promise(function (resolve, reject) {
+                return _context151.abrupt("return", new Promise(function (resolve, reject) {
                   var blob = new Blob([buffer], { type: 'application/octet-binary' });
                   var reader = new FileReader();
                   reader.onload = function (evt) {
@@ -10883,86 +10946,17 @@ var SFCryptoWeb = exports.SFCryptoWeb = function (_SFAbstractCrypto2) {
 
               case 1:
               case "end":
-                return _context149.stop();
-            }
-          }
-        }, _callee148, this);
-      }));
-
-      function arrayBufferToBase64(_x206) {
-        return _ref162.apply(this, arguments);
-      }
-
-      return arrayBufferToBase64;
-    }()
-  }, {
-    key: "hmac256",
-    value: function () {
-      var _ref163 = _asyncToGenerator( /*#__PURE__*/regeneratorRuntime.mark(function _callee150(message, key) {
-        var _this37 = this;
-
-        var keyHexData, keyData, messageData;
-        return regeneratorRuntime.wrap(function _callee150$(_context151) {
-          while (1) {
-            switch (_context151.prev = _context151.next) {
-              case 0:
-                _context151.next = 2;
-                return this.hexStringToArrayBuffer(key);
-
-              case 2:
-                keyHexData = _context151.sent;
-                _context151.next = 5;
-                return this.webCryptoImportKey(keyHexData, "HMAC", ["sign"], { name: "SHA-256" });
-
-              case 5:
-                keyData = _context151.sent;
-                _context151.next = 8;
-                return this.stringToArrayBuffer(message);
-
-              case 8:
-                messageData = _context151.sent;
-                return _context151.abrupt("return", crypto.subtle.sign({ name: "HMAC" }, keyData, messageData).then(function () {
-                  var _ref164 = _asyncToGenerator( /*#__PURE__*/regeneratorRuntime.mark(function _callee149(signature) {
-                    var hash;
-                    return regeneratorRuntime.wrap(function _callee149$(_context150) {
-                      while (1) {
-                        switch (_context150.prev = _context150.next) {
-                          case 0:
-                            _context150.next = 2;
-                            return _this37.arrayBufferToHexString(signature);
-
-                          case 2:
-                            hash = _context150.sent;
-                            return _context150.abrupt("return", hash);
-
-                          case 4:
-                          case "end":
-                            return _context150.stop();
-                        }
-                      }
-                    }, _callee149, _this37);
-                  }));
-
-                  return function (_x209) {
-                    return _ref164.apply(this, arguments);
-                  };
-                }()).catch(function (err) {
-                  console.error("Error computing hmac", err);
-                }));
-
-              case 10:
-              case "end":
                 return _context151.stop();
             }
           }
         }, _callee150, this);
       }));
 
-      function hmac256(_x207, _x208) {
-        return _ref163.apply(this, arguments);
+      function arrayBufferToBase64(_x209) {
+        return _ref164.apply(this, arguments);
       }
 
-      return hmac256;
+      return arrayBufferToBase64;
     }()
   }]);
 
