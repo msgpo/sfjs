@@ -3742,7 +3742,7 @@ var SFModelManager = exports.SFModelManager = function () {
                 for (_iterator30 = items[Symbol.iterator](); !(_iteratorNormalCompletion30 = (_step30 = _iterator30.next()).done); _iteratorNormalCompletion30 = true) {
                   item = _step30.value;
 
-                  this.setItemDirty(item, true, true);
+                  this.setItemDirty(item, true, false);
                   item.deleted = false;
                 }
 

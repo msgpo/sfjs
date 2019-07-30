@@ -1227,7 +1227,7 @@ export class SFHttpManager {
 
     let items = await this.mapResponseItemsToLocalModels(itemsToBeMapped, SFModelManager.MappingSourceFileImport);
     for(let item of items) {
-      this.setItemDirty(item, true, true);
+      this.setItemDirty(item, true, false);
       item.deleted = false;
     }
 
