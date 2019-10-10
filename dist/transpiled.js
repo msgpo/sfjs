@@ -6826,7 +6826,8 @@ var SFSyncManager = exports.SFSyncManager = function () {
                                 resolve(response);
                               }).catch(function (e) {
                                 console.log("Caught sync success exception:", e);
-                                _this24.handleSyncError(null, null, allDirtyItems).then(function (errorResponse) {
+                                _this24.handleSyncError(e, null, allDirtyItems).then(function (errorResponse) {
+                                  _this24.notifyEvent("sync-exception", e);
                                   resolve(errorResponse);
                                 });
                               });

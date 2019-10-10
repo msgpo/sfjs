@@ -2506,7 +2506,8 @@ export class SFStorageManager {
             resolve(response);
           }).catch((e) => {
             console.log("Caught sync success exception:", e);
-            this.handleSyncError(null, null, allDirtyItems).then((errorResponse) => {
+            this.handleSyncError(e, null, allDirtyItems).then((errorResponse) => {
+              this.notifyEvent("sync-exception", e);
               resolve(errorResponse);
             });
           });
