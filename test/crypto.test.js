@@ -150,4 +150,29 @@ describe('crypto operations', () => {
     expect(cryptoJsSignature).to.equal(webCryptoSignature);
   })
 
+  it('compares strings with timing safe comparison', async () => {
+    let webcrypto = new SFCryptoWeb();
+
+    expect(webcrypto.timingSafeEqual("hello world", "hello world")).to.equal(true);
+
+    expect(webcrypto.timingSafeEqual("helo world", "hello world")).to.equal(false);
+
+    expect(webcrypto.timingSafeEqual("", "a")).to.equal(false);
+
+    expect(webcrypto.timingSafeEqual("", "")).to.equal(true);
+
+    expect(webcrypto.timingSafeEqual(
+      "2e1ee7920bb188a88f94bb912153befd83cc55cd",
+      "2e1ee7920bb188a88f94bb912153befd83cc55cd")
+    ).to.equal(true);
+    expect(webcrypto.timingSafeEqual(
+      "1e1ee7920bb188a88f94bb912153befd83cc55cd",
+      "2e1ee7920bb188a88f94bb912153befd83cc55cd")
+    ).to.equal(false);
+    expect(webcrypto.timingSafeEqual(
+      "2e1ee7920bb188a88f94bb912153befd83cc55cc",
+      "2e1ee7920bb188a88f94bb912153befd83cc55cd")
+    ).to.equal(false);
+  })
+
 })

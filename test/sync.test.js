@@ -1186,7 +1186,7 @@ describe('sync discordance', () => {
   });
 });
 
-describe.only('http manager', () => {
+describe('http manager', () => {
 
   const httpManager = Factory.globalHttpManager();
 

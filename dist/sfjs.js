@@ -9803,6 +9803,28 @@ var SFAbstractCrypto = exports.SFAbstractCrypto = function () {
 
       return generateUUID;
     }()
+
+    /* Constant-time string comparison */
+
+  }, {
+    key: "timingSafeEqual",
+    value: function timingSafeEqual(a, b) {
+      var strA = String(a);
+      var strB = String(b);
+      var lenA = strA.length;
+      var result = 0;
+
+      if (lenA !== strB.length) {
+        strB = strA;
+        result = 1;
+      }
+
+      for (var i = 0; i < lenA; i++) {
+        result |= strA.charCodeAt(i) ^ strB.charCodeAt(i);
+      }
+
+      return result === 0;
+    }
   }, {
     key: "decryptText",
     value: function () {
@@ -9841,7 +9863,7 @@ var SFAbstractCrypto = exports.SFAbstractCrypto = function () {
               case 6:
                 localAuthHash = _context118.sent;
 
-                if (!(authHash !== localAuthHash)) {
+                if (!(this.timingSafeEqual(authHash, localAuthHash) === false)) {
                   _context118.next = 10;
                   break;
                 }
@@ -10604,7 +10626,7 @@ var SFCryptoWeb = exports.SFCryptoWeb = function (_SFAbstractCrypto2) {
               case 6:
                 localAuthHash = _context140.sent;
 
-                if (!(authHash !== localAuthHash)) {
+                if (!(this.timingSafeEqual(authHash, localAuthHash) === false)) {
                   _context140.next = 10;
                   break;
                 }

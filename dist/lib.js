@@ -4065,6 +4065,25 @@ export class SFAbstractCrypto {
     return this.generateUUIDSync();
   }
 
+  /* Constant-time string comparison */
+  timingSafeEqual(a, b) {
+    var strA = String(a);
+    var strB = String(b);
+    var lenA = strA.length;
+    var result = 0;
+
+    if(lenA !== strB.length) {
+      strB = strA;
+      result = 1;
+    }
+
+    for(var i = 0; i < lenA; i++) {
+      result |= (strA.charCodeAt(i) ^ strB.charCodeAt(i));
+    }
+
+    return result === 0;
+  }
+
   async decryptText({ciphertextToAuth, contentCiphertext, encryptionKey, iv, authHash, authKey} = {}, requiresAuth) {
     if(requiresAuth && !authHash) {
       console.error("Auth hash is required.");
@@ -4073,7 +4092,7 @@ export class SFAbstractCrypto {
 
     if(authHash) {
       var localAuthHash = await this.hmac256(ciphertextToAuth, authKey);
-      if(authHash !== localAuthHash) {
+      if(this.timingSafeEqual(authHash, localAuthHash) === false) {
         console.error("Auth hash does not match, returning null.");
         return null;
       }
@@ -4271,7 +4290,7 @@ export class SFCryptoWeb extends SFAbstractCrypto {
 
     if(authHash) {
       var localAuthHash = await this.hmac256(ciphertextToAuth, authKey);
-      if(authHash !== localAuthHash) {
+      if(this.timingSafeEqual(authHash, localAuthHash) === false) {
         console.error(`Auth hash does not match, returning null. ${authHash} != ${localAuthHash}`);
         return null;
       }
