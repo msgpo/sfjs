@@ -114,45 +114,55 @@ f)).finalize(b)}}});var s=p.algo={};return p}(Math);
 k)-899497514);j=k;k=e;e=g<<30|g>>>2;g=h;h=c}b[0]=b[0]+h|0;b[1]=b[1]+g|0;b[2]=b[2]+e|0;b[3]=b[3]+k|0;b[4]=b[4]+j|0},_doFinalize:function(){var f=this._data,e=f.words,b=8*this._nDataBytes,h=8*f.sigBytes;e[h>>>5]|=128<<24-h%32;e[(h+64>>>9<<4)+14]=Math.floor(b/4294967296);e[(h+64>>>9<<4)+15]=b;f.sigBytes=4*e.length;this._process();return this._hash},clone:function(){var e=j.clone.call(this);e._hash=this._hash.clone();return e}});e.SHA1=j._createHelper(m);e.HmacSHA1=j._createHmacHelper(m)})();
 ;"use strict";
 
-var _interopRequireDefault = require("@babel/runtime/helpers/interopRequireDefault");
-
 Object.defineProperty(exports, "__esModule", {
   value: true
 });
 exports.StandardFile = exports.SFItemTransformer = exports.SFCryptoWeb = exports.SFCryptoJS = exports.SFAbstractCrypto = exports.SFItemHistoryEntry = exports.SFItemHistory = exports.SFHistorySession = exports.SFPrivileges = exports.SFPredicate = exports.SFItemParams = exports.SFItem = exports.SFSyncManager = exports.SFStorageManager = exports.SFSingletonManager = exports.SFSessionHistoryManager = exports.SFPrivilegesManager = exports.SFModelManager = exports.SFMigrationManager = exports.SFHttpManager = exports.SFAuthManager = exports.SFAlertManager = void 0;
 
-var _possibleConstructorReturn2 = _interopRequireDefault(require("@babel/runtime/helpers/possibleConstructorReturn"));
+function _possibleConstructorReturn(self, call) { if (call && (_typeof(call) === "object" || typeof call === "function")) { return call; } return _assertThisInitialized(self); }
 
-var _getPrototypeOf2 = _interopRequireDefault(require("@babel/runtime/helpers/getPrototypeOf"));
+function _assertThisInitialized(self) { if (self === void 0) { throw new ReferenceError("this hasn't been initialised - super() hasn't been called"); } return self; }
 
-var _inherits2 = _interopRequireDefault(require("@babel/runtime/helpers/inherits"));
+function _getPrototypeOf(o) { _getPrototypeOf = Object.setPrototypeOf ? Object.getPrototypeOf : function _getPrototypeOf(o) { return o.__proto__ || Object.getPrototypeOf(o); }; return _getPrototypeOf(o); }
 
-var _slicedToArray2 = _interopRequireDefault(require("@babel/runtime/helpers/slicedToArray"));
+function _inherits(subClass, superClass) { if (typeof superClass !== "function" && superClass !== null) { throw new TypeError("Super expression must either be null or a function"); } subClass.prototype = Object.create(superClass && superClass.prototype, { constructor: { value: subClass, writable: true, configurable: true } }); if (superClass) _setPrototypeOf(subClass, superClass); }
 
-var _typeof2 = _interopRequireDefault(require("@babel/runtime/helpers/typeof"));
+function _setPrototypeOf(o, p) { _setPrototypeOf = Object.setPrototypeOf || function _setPrototypeOf(o, p) { o.__proto__ = p; return o; }; return _setPrototypeOf(o, p); }
 
-var _regenerator = _interopRequireDefault(require("@babel/runtime/regenerator"));
+function _slicedToArray(arr, i) { return _arrayWithHoles(arr) || _iterableToArrayLimit(arr, i) || _nonIterableRest(); }
 
-var _asyncToGenerator2 = _interopRequireDefault(require("@babel/runtime/helpers/asyncToGenerator"));
+function _nonIterableRest() { throw new TypeError("Invalid attempt to destructure non-iterable instance"); }
 
-var _classCallCheck2 = _interopRequireDefault(require("@babel/runtime/helpers/classCallCheck"));
+function _iterableToArrayLimit(arr, i) { if (!(Symbol.iterator in Object(arr) || Object.prototype.toString.call(arr) === "[object Arguments]")) { return; } var _arr = []; var _n = true; var _d = false; var _e = undefined; try { for (var _i = arr[Symbol.iterator](), _s; !(_n = (_s = _i.next()).done); _n = true) { _arr.push(_s.value); if (i && _arr.length === i) break; } } catch (err) { _d = true; _e = err; } finally { try { if (!_n && _i["return"] != null) _i["return"](); } finally { if (_d) throw _e; } } return _arr; }
 
-var _createClass2 = _interopRequireDefault(require("@babel/runtime/helpers/createClass"));
+function _arrayWithHoles(arr) { if (Array.isArray(arr)) return arr; }
+
+function _typeof(obj) { if (typeof Symbol === "function" && typeof Symbol.iterator === "symbol") { _typeof = function _typeof(obj) { return typeof obj; }; } else { _typeof = function _typeof(obj) { return obj && typeof Symbol === "function" && obj.constructor === Symbol && obj !== Symbol.prototype ? "symbol" : typeof obj; }; } return _typeof(obj); }
+
+function asyncGeneratorStep(gen, resolve, reject, _next, _throw, key, arg) { try { var info = gen[key](arg); var value = info.value; } catch (error) { reject(error); return; } if (info.done) { resolve(value); } else { Promise.resolve(value).then(_next, _throw); } }
+
+function _asyncToGenerator(fn) { return function () { var self = this, args = arguments; return new Promise(function (resolve, reject) { var gen = fn.apply(self, args); function _next(value) { asyncGeneratorStep(gen, resolve, reject, _next, _throw, "next", value); } function _throw(err) { asyncGeneratorStep(gen, resolve, reject, _next, _throw, "throw", err); } _next(undefined); }); }; }
+
+function _classCallCheck(instance, Constructor) { if (!(instance instanceof Constructor)) { throw new TypeError("Cannot call a class as a function"); } }
+
+function _defineProperties(target, props) { for (var i = 0; i < props.length; i++) { var descriptor = props[i]; descriptor.enumerable = descriptor.enumerable || false; descriptor.configurable = true; if ("value" in descriptor) descriptor.writable = true; Object.defineProperty(target, descriptor.key, descriptor); } }
+
+function _createClass(Constructor, protoProps, staticProps) { if (protoProps) _defineProperties(Constructor.prototype, protoProps); if (staticProps) _defineProperties(Constructor, staticProps); return Constructor; }
 
 var SFAlertManager =
 /*#__PURE__*/
 function () {
   function SFAlertManager() {
-    (0, _classCallCheck2["default"])(this, SFAlertManager);
+    _classCallCheck(this, SFAlertManager);
   }
 
-  (0, _createClass2["default"])(SFAlertManager, [{
+  _createClass(SFAlertManager, [{
     key: "alert",
     value: function () {
-      var _alert = (0, _asyncToGenerator2["default"])(
+      var _alert = _asyncToGenerator(
       /*#__PURE__*/
-      _regenerator["default"].mark(function _callee(params) {
-        return _regenerator["default"].wrap(function _callee$(_context) {
+      regeneratorRuntime.mark(function _callee(params) {
+        return regeneratorRuntime.wrap(function _callee$(_context) {
           while (1) {
             switch (_context.prev = _context.next) {
               case 0:
@@ -178,10 +188,10 @@ function () {
   }, {
     key: "confirm",
     value: function () {
-      var _confirm = (0, _asyncToGenerator2["default"])(
+      var _confirm = _asyncToGenerator(
       /*#__PURE__*/
-      _regenerator["default"].mark(function _callee2(params) {
-        return _regenerator["default"].wrap(function _callee2$(_context2) {
+      regeneratorRuntime.mark(function _callee2(params) {
+        return regeneratorRuntime.wrap(function _callee2$(_context2) {
           while (1) {
             switch (_context2.prev = _context2.next) {
               case 0:
@@ -208,6 +218,7 @@ function () {
       return confirm;
     }()
   }]);
+
   return SFAlertManager;
 }();
 
@@ -218,7 +229,8 @@ var SFAuthManager =
 /*#__PURE__*/
 function () {
   function SFAuthManager(storageManager, httpManager, alertManager, timeout) {
-    (0, _classCallCheck2["default"])(this, SFAuthManager);
+    _classCallCheck(this, SFAuthManager);
+
     SFAuthManager.DidSignOutEvent = "DidSignOutEvent";
     SFAuthManager.WillSignInEvent = "WillSignInEvent";
     SFAuthManager.DidSignInEvent = "DidSignInEvent";
@@ -229,7 +241,7 @@ function () {
     this.eventHandlers = [];
   }
 
-  (0, _createClass2["default"])(SFAuthManager, [{
+  _createClass(SFAuthManager, [{
     key: "addEventHandler",
     value: function addEventHandler(handler) {
       this.eventHandlers.push(handler);
@@ -270,10 +282,10 @@ function () {
   }, {
     key: "saveKeys",
     value: function () {
-      var _saveKeys = (0, _asyncToGenerator2["default"])(
+      var _saveKeys = _asyncToGenerator(
       /*#__PURE__*/
-      _regenerator["default"].mark(function _callee3(keys) {
-        return _regenerator["default"].wrap(function _callee3$(_context3) {
+      regeneratorRuntime.mark(function _callee3(keys) {
+        return regeneratorRuntime.wrap(function _callee3$(_context3) {
           while (1) {
             switch (_context3.prev = _context3.next) {
               case 0:
@@ -302,12 +314,12 @@ function () {
   }, {
     key: "signout",
     value: function () {
-      var _signout = (0, _asyncToGenerator2["default"])(
+      var _signout = _asyncToGenerator(
       /*#__PURE__*/
-      _regenerator["default"].mark(function _callee4(clearAllData) {
+      regeneratorRuntime.mark(function _callee4(clearAllData) {
         var _this = this;
 
-        return _regenerator["default"].wrap(function _callee4$(_context4) {
+        return regeneratorRuntime.wrap(function _callee4$(_context4) {
           while (1) {
             switch (_context4.prev = _context4.next) {
               case 0:
@@ -343,11 +355,11 @@ function () {
   }, {
     key: "keys",
     value: function () {
-      var _keys = (0, _asyncToGenerator2["default"])(
+      var _keys = _asyncToGenerator(
       /*#__PURE__*/
-      _regenerator["default"].mark(function _callee5() {
+      regeneratorRuntime.mark(function _callee5() {
         var mk;
-        return _regenerator["default"].wrap(function _callee5$(_context5) {
+        return regeneratorRuntime.wrap(function _callee5$(_context5) {
           while (1) {
             switch (_context5.prev = _context5.next) {
               case 0:
@@ -401,11 +413,11 @@ function () {
   }, {
     key: "getAuthParams",
     value: function () {
-      var _getAuthParams = (0, _asyncToGenerator2["default"])(
+      var _getAuthParams = _asyncToGenerator(
       /*#__PURE__*/
-      _regenerator["default"].mark(function _callee6() {
+      regeneratorRuntime.mark(function _callee6() {
         var data;
-        return _regenerator["default"].wrap(function _callee6$(_context6) {
+        return regeneratorRuntime.wrap(function _callee6$(_context6) {
           while (1) {
             switch (_context6.prev = _context6.next) {
               case 0:
@@ -453,11 +465,11 @@ function () {
   }, {
     key: "defaultProtocolVersion",
     value: function () {
-      var _defaultProtocolVersion = (0, _asyncToGenerator2["default"])(
+      var _defaultProtocolVersion = _asyncToGenerator(
       /*#__PURE__*/
-      _regenerator["default"].mark(function _callee7() {
+      regeneratorRuntime.mark(function _callee7() {
         var keys;
-        return _regenerator["default"].wrap(function _callee7$(_context7) {
+        return regeneratorRuntime.wrap(function _callee7$(_context7) {
           while (1) {
             switch (_context7.prev = _context7.next) {
               case 0:
@@ -494,11 +506,11 @@ function () {
   }, {
     key: "protocolVersion",
     value: function () {
-      var _protocolVersion = (0, _asyncToGenerator2["default"])(
+      var _protocolVersion = _asyncToGenerator(
       /*#__PURE__*/
-      _regenerator["default"].mark(function _callee8() {
+      regeneratorRuntime.mark(function _callee8() {
         var authParams;
-        return _regenerator["default"].wrap(function _callee8$(_context8) {
+        return regeneratorRuntime.wrap(function _callee8$(_context8) {
           while (1) {
             switch (_context8.prev = _context8.next) {
               case 0:
@@ -535,13 +547,13 @@ function () {
   }, {
     key: "getAuthParamsForEmail",
     value: function () {
-      var _getAuthParamsForEmail = (0, _asyncToGenerator2["default"])(
+      var _getAuthParamsForEmail = _asyncToGenerator(
       /*#__PURE__*/
-      _regenerator["default"].mark(function _callee9(url, email, extraParams) {
+      regeneratorRuntime.mark(function _callee9(url, email, extraParams) {
         var _this2 = this;
 
         var params;
-        return _regenerator["default"].wrap(function _callee9$(_context9) {
+        return regeneratorRuntime.wrap(function _callee9$(_context9) {
           while (1) {
             switch (_context9.prev = _context9.next) {
               case 0:
@@ -557,7 +569,7 @@ function () {
                   }, function (response) {
                     console.error("Error getting auth params", response);
 
-                    if ((0, _typeof2["default"])(response) !== 'object') {
+                    if (_typeof(response) !== 'object') {
                       response = {
                         error: {
                           message: "A server error occurred while trying to sign in. Please try again."
@@ -607,24 +619,24 @@ function () {
   }, {
     key: "login",
     value: function () {
-      var _login = (0, _asyncToGenerator2["default"])(
+      var _login = _asyncToGenerator(
       /*#__PURE__*/
-      _regenerator["default"].mark(function _callee12(url, email, password, strictSignin, extraParams) {
+      regeneratorRuntime.mark(function _callee12(url, email, password, strictSignin, extraParams) {
         var _this3 = this;
 
-        return _regenerator["default"].wrap(function _callee12$(_context12) {
+        return regeneratorRuntime.wrap(function _callee12$(_context12) {
           while (1) {
             switch (_context12.prev = _context12.next) {
               case 0:
                 return _context12.abrupt("return", new Promise(
                 /*#__PURE__*/
                 function () {
-                  var _ref = (0, _asyncToGenerator2["default"])(
+                  var _ref = _asyncToGenerator(
                   /*#__PURE__*/
-                  _regenerator["default"].mark(function _callee11(resolve, reject) {
+                  regeneratorRuntime.mark(function _callee11(resolve, reject) {
                     var existingKeys, authParams, message, _message, abort, _message2, minimum, _message3, latestVersion, _message4, keys, requestUrl, params;
 
-                    return _regenerator["default"].wrap(function _callee11$(_context11) {
+                    return regeneratorRuntime.wrap(function _callee11$(_context11) {
                       while (1) {
                         switch (_context11.prev = _context11.next) {
                           case 0:
@@ -820,10 +832,10 @@ function () {
                             _this3.httpManager.postAbsolute(requestUrl, params,
                             /*#__PURE__*/
                             function () {
-                              var _ref2 = (0, _asyncToGenerator2["default"])(
+                              var _ref2 = _asyncToGenerator(
                               /*#__PURE__*/
-                              _regenerator["default"].mark(function _callee10(response) {
-                                return _regenerator["default"].wrap(function _callee10$(_context10) {
+                              regeneratorRuntime.mark(function _callee10(response) {
+                                return regeneratorRuntime.wrap(function _callee10$(_context10) {
                                   while (1) {
                                     switch (_context10.prev = _context10.next) {
                                       case 0:
@@ -851,7 +863,7 @@ function () {
                             }(), function (response) {
                               console.error("Error logging in", response);
 
-                              if ((0, _typeof2["default"])(response) !== 'object') {
+                              if (_typeof(response) !== 'object') {
                                 response = {
                                   error: {
                                     message: "A server error occurred while trying to sign in. Please try again."
@@ -899,11 +911,11 @@ function () {
       return new Promise(
       /*#__PURE__*/
       function () {
-        var _ref3 = (0, _asyncToGenerator2["default"])(
+        var _ref3 = _asyncToGenerator(
         /*#__PURE__*/
-        _regenerator["default"].mark(function _callee14(resolve, reject) {
+        regeneratorRuntime.mark(function _callee14(resolve, reject) {
           var results, keys, authParams, requestUrl, params;
-          return _regenerator["default"].wrap(function _callee14$(_context14) {
+          return regeneratorRuntime.wrap(function _callee14$(_context14) {
             while (1) {
               switch (_context14.prev = _context14.next) {
                 case 0:
@@ -939,10 +951,10 @@ function () {
                   _this4.httpManager.postAbsolute(requestUrl, params,
                   /*#__PURE__*/
                   function () {
-                    var _ref4 = (0, _asyncToGenerator2["default"])(
+                    var _ref4 = _asyncToGenerator(
                     /*#__PURE__*/
-                    _regenerator["default"].mark(function _callee13(response) {
-                      return _regenerator["default"].wrap(function _callee13$(_context13) {
+                    regeneratorRuntime.mark(function _callee13(response) {
+                      return regeneratorRuntime.wrap(function _callee13$(_context13) {
                         while (1) {
                           switch (_context13.prev = _context13.next) {
                             case 0:
@@ -966,7 +978,7 @@ function () {
                   }(), function (response) {
                     console.error("Registration error", response);
 
-                    if ((0, _typeof2["default"])(response) !== 'object') {
+                    if (_typeof(response) !== 'object') {
                       response = {
                         error: {
                           message: "A server error occurred while trying to register. Please try again."
@@ -993,23 +1005,23 @@ function () {
   }, {
     key: "changePassword",
     value: function () {
-      var _changePassword = (0, _asyncToGenerator2["default"])(
+      var _changePassword = _asyncToGenerator(
       /*#__PURE__*/
-      _regenerator["default"].mark(function _callee17(url, email, current_server_pw, newKeys, newAuthParams) {
+      regeneratorRuntime.mark(function _callee17(url, email, current_server_pw, newKeys, newAuthParams) {
         var _this5 = this;
 
-        return _regenerator["default"].wrap(function _callee17$(_context17) {
+        return regeneratorRuntime.wrap(function _callee17$(_context17) {
           while (1) {
             switch (_context17.prev = _context17.next) {
               case 0:
                 return _context17.abrupt("return", new Promise(
                 /*#__PURE__*/
                 function () {
-                  var _ref5 = (0, _asyncToGenerator2["default"])(
+                  var _ref5 = _asyncToGenerator(
                   /*#__PURE__*/
-                  _regenerator["default"].mark(function _callee16(resolve, reject) {
+                  regeneratorRuntime.mark(function _callee16(resolve, reject) {
                     var newServerPw, requestUrl, params;
-                    return _regenerator["default"].wrap(function _callee16$(_context16) {
+                    return regeneratorRuntime.wrap(function _callee16$(_context16) {
                       while (1) {
                         switch (_context16.prev = _context16.next) {
                           case 0:
@@ -1039,10 +1051,10 @@ function () {
                             _this5.httpManager.postAuthenticatedAbsolute(requestUrl, params,
                             /*#__PURE__*/
                             function () {
-                              var _ref6 = (0, _asyncToGenerator2["default"])(
+                              var _ref6 = _asyncToGenerator(
                               /*#__PURE__*/
-                              _regenerator["default"].mark(function _callee15(response) {
-                                return _regenerator["default"].wrap(function _callee15$(_context15) {
+                              regeneratorRuntime.mark(function _callee15(response) {
+                                return regeneratorRuntime.wrap(function _callee15$(_context15) {
                                   while (1) {
                                     switch (_context15.prev = _context15.next) {
                                       case 0:
@@ -1064,7 +1076,7 @@ function () {
                                 return _ref6.apply(this, arguments);
                               };
                             }(), function (response) {
-                              if ((0, _typeof2["default"])(response) !== 'object') {
+                              if (_typeof(response) !== 'object') {
                                 response = {
                                   error: {
                                     message: "Something went wrong while changing your password. Your password was not changed. Please try again."
@@ -1105,10 +1117,10 @@ function () {
   }, {
     key: "handleAuthResponse",
     value: function () {
-      var _handleAuthResponse = (0, _asyncToGenerator2["default"])(
+      var _handleAuthResponse = _asyncToGenerator(
       /*#__PURE__*/
-      _regenerator["default"].mark(function _callee18(response, email, url, authParams, keys) {
-        return _regenerator["default"].wrap(function _callee18$(_context18) {
+      regeneratorRuntime.mark(function _callee18(response, email, url, authParams, keys) {
+        return regeneratorRuntime.wrap(function _callee18$(_context18) {
           while (1) {
             switch (_context18.prev = _context18.next) {
               case 0:
@@ -1147,6 +1159,7 @@ function () {
       return handleAuthResponse;
     }()
   }]);
+
   return SFAuthManager;
 }();
 
@@ -1157,7 +1170,7 @@ var globalScope = typeof window !== 'undefined' ? window : typeof global !== 'un
 var SFHttpManager =
 /*#__PURE__*/
 function () {
-  (0, _createClass2["default"])(SFHttpManager, null, [{
+  _createClass(SFHttpManager, null, [{
     key: "getApiVersion",
     value: function getApiVersion() {
       // Applicable only to Standard File requests. Requests to external acitons should not use this.
@@ -1167,12 +1180,13 @@ function () {
   }]);
 
   function SFHttpManager(timeout, apiVersion) {
-    (0, _classCallCheck2["default"])(this, SFHttpManager);
+    _classCallCheck(this, SFHttpManager);
+
     // calling callbacks in a $timeout allows UI to update
     this.$timeout = timeout || setTimeout.bind(globalScope);
   }
 
-  (0, _createClass2["default"])(SFHttpManager, [{
+  _createClass(SFHttpManager, [{
     key: "setJWTRequestHandler",
     value: function setJWTRequestHandler(handler) {
       this.jwtRequestHandler = handler;
@@ -1180,11 +1194,11 @@ function () {
   }, {
     key: "setAuthHeadersForRequest",
     value: function () {
-      var _setAuthHeadersForRequest = (0, _asyncToGenerator2["default"])(
+      var _setAuthHeadersForRequest = _asyncToGenerator(
       /*#__PURE__*/
-      _regenerator["default"].mark(function _callee19(request) {
+      regeneratorRuntime.mark(function _callee19(request) {
         var token;
-        return _regenerator["default"].wrap(function _callee19$(_context19) {
+        return regeneratorRuntime.wrap(function _callee19$(_context19) {
           while (1) {
             switch (_context19.prev = _context19.next) {
               case 0:
@@ -1215,10 +1229,10 @@ function () {
   }, {
     key: "postAbsolute",
     value: function () {
-      var _postAbsolute = (0, _asyncToGenerator2["default"])(
+      var _postAbsolute = _asyncToGenerator(
       /*#__PURE__*/
-      _regenerator["default"].mark(function _callee20(url, params, onsuccess, onerror) {
-        return _regenerator["default"].wrap(function _callee20$(_context20) {
+      regeneratorRuntime.mark(function _callee20(url, params, onsuccess, onerror) {
+        return regeneratorRuntime.wrap(function _callee20$(_context20) {
           while (1) {
             switch (_context20.prev = _context20.next) {
               case 0:
@@ -1241,10 +1255,10 @@ function () {
   }, {
     key: "postAuthenticatedAbsolute",
     value: function () {
-      var _postAuthenticatedAbsolute = (0, _asyncToGenerator2["default"])(
+      var _postAuthenticatedAbsolute = _asyncToGenerator(
       /*#__PURE__*/
-      _regenerator["default"].mark(function _callee21(url, params, onsuccess, onerror) {
-        return _regenerator["default"].wrap(function _callee21$(_context21) {
+      regeneratorRuntime.mark(function _callee21(url, params, onsuccess, onerror) {
+        return regeneratorRuntime.wrap(function _callee21$(_context21) {
           while (1) {
             switch (_context21.prev = _context21.next) {
               case 0:
@@ -1267,10 +1281,10 @@ function () {
   }, {
     key: "patchAbsolute",
     value: function () {
-      var _patchAbsolute = (0, _asyncToGenerator2["default"])(
+      var _patchAbsolute = _asyncToGenerator(
       /*#__PURE__*/
-      _regenerator["default"].mark(function _callee22(url, params, onsuccess, onerror) {
-        return _regenerator["default"].wrap(function _callee22$(_context22) {
+      regeneratorRuntime.mark(function _callee22(url, params, onsuccess, onerror) {
+        return regeneratorRuntime.wrap(function _callee22$(_context22) {
           while (1) {
             switch (_context22.prev = _context22.next) {
               case 0:
@@ -1293,10 +1307,10 @@ function () {
   }, {
     key: "getAbsolute",
     value: function () {
-      var _getAbsolute = (0, _asyncToGenerator2["default"])(
+      var _getAbsolute = _asyncToGenerator(
       /*#__PURE__*/
-      _regenerator["default"].mark(function _callee23(url, params, onsuccess, onerror) {
-        return _regenerator["default"].wrap(function _callee23$(_context23) {
+      regeneratorRuntime.mark(function _callee23(url, params, onsuccess, onerror) {
+        return regeneratorRuntime.wrap(function _callee23$(_context23) {
           while (1) {
             switch (_context23.prev = _context23.next) {
               case 0:
@@ -1319,14 +1333,14 @@ function () {
   }, {
     key: "httpRequest",
     value: function () {
-      var _httpRequest = (0, _asyncToGenerator2["default"])(
+      var _httpRequest = _asyncToGenerator(
       /*#__PURE__*/
-      _regenerator["default"].mark(function _callee25(verb, url, params, onsuccess, onerror) {
+      regeneratorRuntime.mark(function _callee25(verb, url, params, onsuccess, onerror) {
         var _this6 = this;
 
         var authenticated,
             _args25 = arguments;
-        return _regenerator["default"].wrap(function _callee25$(_context25) {
+        return regeneratorRuntime.wrap(function _callee25$(_context25) {
           while (1) {
             switch (_context25.prev = _context25.next) {
               case 0:
@@ -1334,11 +1348,11 @@ function () {
                 return _context25.abrupt("return", new Promise(
                 /*#__PURE__*/
                 function () {
-                  var _ref7 = (0, _asyncToGenerator2["default"])(
+                  var _ref7 = _asyncToGenerator(
                   /*#__PURE__*/
-                  _regenerator["default"].mark(function _callee24(resolve, reject) {
+                  regeneratorRuntime.mark(function _callee24(resolve, reject) {
                     var xmlhttp;
-                    return _regenerator["default"].wrap(function _callee24$(_context24) {
+                    return regeneratorRuntime.wrap(function _callee24$(_context24) {
                       while (1) {
                         switch (_context24.prev = _context24.next) {
                           case 0:
@@ -1433,6 +1447,7 @@ function () {
       }
     }
   }]);
+
   return SFHttpManager;
 }();
 
@@ -1445,7 +1460,8 @@ function () {
   function SFMigrationManager(modelManager, syncManager, storageManager, authManager) {
     var _this7 = this;
 
-    (0, _classCallCheck2["default"])(this, SFMigrationManager);
+    _classCallCheck(this, SFMigrationManager);
+
     this.modelManager = modelManager;
     this.syncManager = syncManager;
     this.storageManager = storageManager;
@@ -1465,12 +1481,12 @@ function () {
     this.syncManager.addEventHandler(
     /*#__PURE__*/
     function () {
-      var _ref8 = (0, _asyncToGenerator2["default"])(
+      var _ref8 = _asyncToGenerator(
       /*#__PURE__*/
-      _regenerator["default"].mark(function _callee26(event, data) {
+      regeneratorRuntime.mark(function _callee26(event, data) {
         var dataLoadedEvent, syncCompleteEvent, completedList, _iteratorNormalCompletion2, _didIteratorError2, _iteratorError2, _iterator2, _step2, migrationName, migration;
 
-        return _regenerator["default"].wrap(function _callee26$(_context26) {
+        return regeneratorRuntime.wrap(function _callee26$(_context26) {
           while (1) {
             switch (_context26.prev = _context26.next) {
               case 0:
@@ -1589,7 +1605,7 @@ function () {
     }());
   }
 
-  (0, _createClass2["default"])(SFMigrationManager, [{
+  _createClass(SFMigrationManager, [{
     key: "addCompletionHandler",
     value: function addCompletionHandler(handler) {
       this.completionHandlers.push(handler);
@@ -1602,11 +1618,11 @@ function () {
   }, {
     key: "migrationForEncodedName",
     value: function () {
-      var _migrationForEncodedName = (0, _asyncToGenerator2["default"])(
+      var _migrationForEncodedName = _asyncToGenerator(
       /*#__PURE__*/
-      _regenerator["default"].mark(function _callee27(name) {
+      regeneratorRuntime.mark(function _callee27(name) {
         var decoded;
-        return _regenerator["default"].wrap(function _callee27$(_context27) {
+        return regeneratorRuntime.wrap(function _callee27$(_context27) {
           while (1) {
             switch (_context27.prev = _context27.next) {
               case 0:
@@ -1647,12 +1663,12 @@ function () {
   }, {
     key: "runPendingMigrations",
     value: function () {
-      var _runPendingMigrations = (0, _asyncToGenerator2["default"])(
+      var _runPendingMigrations = _asyncToGenerator(
       /*#__PURE__*/
-      _regenerator["default"].mark(function _callee28() {
+      regeneratorRuntime.mark(function _callee28() {
         var pending, _iteratorNormalCompletion3, _didIteratorError3, _iteratorError3, _iterator3, _step3, migration, _iteratorNormalCompletion4, _didIteratorError4, _iteratorError4, _iterator4, _step4, item, _iteratorNormalCompletion7, _didIteratorError7, _iteratorError7, _iterator7, _step7, _iteratorNormalCompletion5, _didIteratorError5, _iteratorError5, _iterator5, _step5, _iteratorNormalCompletion6, _didIteratorError6, _iteratorError6, _iterator6, _step6, handler;
 
-        return _regenerator["default"].wrap(function _callee28$(_context28) {
+        return regeneratorRuntime.wrap(function _callee28$(_context28) {
           while (1) {
             switch (_context28.prev = _context28.next) {
               case 0:
@@ -1935,10 +1951,10 @@ function () {
   }, {
     key: "encode",
     value: function () {
-      var _encode = (0, _asyncToGenerator2["default"])(
+      var _encode = _asyncToGenerator(
       /*#__PURE__*/
-      _regenerator["default"].mark(function _callee29(text) {
-        return _regenerator["default"].wrap(function _callee29$(_context29) {
+      regeneratorRuntime.mark(function _callee29(text) {
+        return regeneratorRuntime.wrap(function _callee29$(_context29) {
           while (1) {
             switch (_context29.prev = _context29.next) {
               case 0:
@@ -1961,10 +1977,10 @@ function () {
   }, {
     key: "decode",
     value: function () {
-      var _decode = (0, _asyncToGenerator2["default"])(
+      var _decode = _asyncToGenerator(
       /*#__PURE__*/
-      _regenerator["default"].mark(function _callee30(text) {
-        return _regenerator["default"].wrap(function _callee30$(_context30) {
+      regeneratorRuntime.mark(function _callee30(text) {
+        return regeneratorRuntime.wrap(function _callee30$(_context30) {
           while (1) {
             switch (_context30.prev = _context30.next) {
               case 0:
@@ -1987,11 +2003,11 @@ function () {
   }, {
     key: "getCompletedMigrations",
     value: function () {
-      var _getCompletedMigrations = (0, _asyncToGenerator2["default"])(
+      var _getCompletedMigrations = _asyncToGenerator(
       /*#__PURE__*/
-      _regenerator["default"].mark(function _callee31() {
+      regeneratorRuntime.mark(function _callee31() {
         var rawCompleted;
-        return _regenerator["default"].wrap(function _callee31$(_context31) {
+        return regeneratorRuntime.wrap(function _callee31$(_context31) {
           while (1) {
             switch (_context31.prev = _context31.next) {
               case 0:
@@ -2032,12 +2048,12 @@ function () {
   }, {
     key: "getPendingMigrations",
     value: function () {
-      var _getPendingMigrations = (0, _asyncToGenerator2["default"])(
+      var _getPendingMigrations = _asyncToGenerator(
       /*#__PURE__*/
-      _regenerator["default"].mark(function _callee32() {
+      regeneratorRuntime.mark(function _callee32() {
         var completed, pending, _iteratorNormalCompletion8, _didIteratorError8, _iteratorError8, _iterator8, _step8, migration;
 
-        return _regenerator["default"].wrap(function _callee32$(_context32) {
+        return regeneratorRuntime.wrap(function _callee32$(_context32) {
           while (1) {
             switch (_context32.prev = _context32.next) {
               case 0:
@@ -2135,11 +2151,11 @@ function () {
   }, {
     key: "markMigrationCompleted",
     value: function () {
-      var _markMigrationCompleted = (0, _asyncToGenerator2["default"])(
+      var _markMigrationCompleted = _asyncToGenerator(
       /*#__PURE__*/
-      _regenerator["default"].mark(function _callee33(migration) {
+      regeneratorRuntime.mark(function _callee33(migration) {
         var completed;
-        return _regenerator["default"].wrap(function _callee33$(_context33) {
+        return regeneratorRuntime.wrap(function _callee33$(_context33) {
           while (1) {
             switch (_context33.prev = _context33.next) {
               case 0:
@@ -2177,12 +2193,12 @@ function () {
   }, {
     key: "runMigration",
     value: function () {
-      var _runMigration = (0, _asyncToGenerator2["default"])(
+      var _runMigration = _asyncToGenerator(
       /*#__PURE__*/
-      _regenerator["default"].mark(function _callee34(migration, items) {
+      regeneratorRuntime.mark(function _callee34(migration, items) {
         var _this8 = this;
 
-        return _regenerator["default"].wrap(function _callee34$(_context34) {
+        return regeneratorRuntime.wrap(function _callee34$(_context34) {
           while (1) {
             switch (_context34.prev = _context34.next) {
               case 0:
@@ -2226,6 +2242,7 @@ function () {
       return runMigration;
     }()
   }]);
+
   return SFMigrationManager;
 }();
 
@@ -2236,7 +2253,8 @@ var SFModelManager =
 /*#__PURE__*/
 function () {
   function SFModelManager(timeout) {
-    (0, _classCallCheck2["default"])(this, SFModelManager);
+    _classCallCheck(this, SFModelManager);
+
     SFModelManager.MappingSourceRemoteRetrieved = "MappingSourceRemoteRetrieved";
     SFModelManager.MappingSourceRemoteSaved = "MappingSourceRemoteSaved";
     SFModelManager.MappingSourceLocalSaved = "MappingSourceLocalSaved";
@@ -2262,7 +2280,7 @@ function () {
     this.uuidChangeObservers = [];
   }
 
-  (0, _createClass2["default"])(SFModelManager, [{
+  _createClass(SFModelManager, [{
     key: "handleSignout",
     value: function handleSignout() {
       this.items.length = 0;
@@ -2312,12 +2330,12 @@ function () {
   }, {
     key: "alternateUUIDForItem",
     value: function () {
-      var _alternateUUIDForItem = (0, _asyncToGenerator2["default"])(
+      var _alternateUUIDForItem = _asyncToGenerator(
       /*#__PURE__*/
-      _regenerator["default"].mark(function _callee35(item) {
+      regeneratorRuntime.mark(function _callee35(item) {
         var newItem, _iteratorNormalCompletion10, _didIteratorError10, _iteratorError10, _iterator10, _step10, referencingObject;
 
-        return _regenerator["default"].wrap(function _callee35$(_context35) {
+        return regeneratorRuntime.wrap(function _callee35$(_context35) {
           while (1) {
             switch (_context35.prev = _context35.next) {
               case 0:
@@ -2457,10 +2475,10 @@ function () {
   }, {
     key: "mapResponseItemsToLocalModels",
     value: function () {
-      var _mapResponseItemsToLocalModels = (0, _asyncToGenerator2["default"])(
+      var _mapResponseItemsToLocalModels = _asyncToGenerator(
       /*#__PURE__*/
-      _regenerator["default"].mark(function _callee36(items, source, sourceKey) {
-        return _regenerator["default"].wrap(function _callee36$(_context36) {
+      regeneratorRuntime.mark(function _callee36(items, source, sourceKey) {
+        return regeneratorRuntime.wrap(function _callee36$(_context36) {
           while (1) {
             switch (_context36.prev = _context36.next) {
               case 0:
@@ -2487,10 +2505,10 @@ function () {
   }, {
     key: "mapResponseItemsToLocalModelsOmittingFields",
     value: function () {
-      var _mapResponseItemsToLocalModelsOmittingFields = (0, _asyncToGenerator2["default"])(
+      var _mapResponseItemsToLocalModelsOmittingFields = _asyncToGenerator(
       /*#__PURE__*/
-      _regenerator["default"].mark(function _callee37(items, omitFields, source, sourceKey) {
-        return _regenerator["default"].wrap(function _callee37$(_context37) {
+      regeneratorRuntime.mark(function _callee37(items, omitFields, source, sourceKey) {
+        return regeneratorRuntime.wrap(function _callee37$(_context37) {
           while (1) {
             switch (_context37.prev = _context37.next) {
               case 0:
@@ -2518,12 +2536,12 @@ function () {
   }, {
     key: "mapResponseItemsToLocalModelsWithOptions",
     value: function () {
-      var _mapResponseItemsToLocalModelsWithOptions = (0, _asyncToGenerator2["default"])(
+      var _mapResponseItemsToLocalModelsWithOptions = _asyncToGenerator(
       /*#__PURE__*/
-      _regenerator["default"].mark(function _callee38(_ref9) {
+      regeneratorRuntime.mark(function _callee38(_ref9) {
         var items, omitFields, source, sourceKey, options, models, processedObjects, modelsToNotifyObserversOf, _iteratorNormalCompletion12, _didIteratorError12, _iteratorError12, _iterator12, _step12, json_obj, isMissingContent, isCorrupt, _iteratorNormalCompletion15, _didIteratorError15, _iteratorError15, _iterator15, _step15, key, item, contentType, unknownContentType, isDirtyItemPendingDelete, _iteratorNormalCompletion13, _didIteratorError13, _iteratorError13, _iterator13, _step13, _step13$value, index, _json_obj, model, missedRefs, _iteratorNormalCompletion14, _didIteratorError14, _iteratorError14, _loop, _iterator14, _step14;
 
-        return _regenerator["default"].wrap(function _callee38$(_context38) {
+        return regeneratorRuntime.wrap(function _callee38$(_context38) {
           while (1) {
             switch (_context38.prev = _context38.next) {
               case 0:
@@ -2724,7 +2742,7 @@ function () {
                 _context38.prev = 75;
 
                 for (_iterator13 = processedObjects.entries()[Symbol.iterator](); !(_iteratorNormalCompletion13 = (_step13 = _iterator13.next()).done); _iteratorNormalCompletion13 = true) {
-                  _step13$value = (0, _slicedToArray2["default"])(_step13.value, 2), index = _step13$value[0], _json_obj = _step13$value[1];
+                  _step13$value = _slicedToArray(_step13.value, 2), index = _step13$value[0], _json_obj = _step13$value[1];
                   model = models[index];
 
                   if (_json_obj.content) {
@@ -2864,8 +2882,8 @@ function () {
       var genericUuidLength = uuids[0].length;
       var keys = Object.keys(this.missedReferences);
 
-      for (var _i = 0, _keys2 = keys; _i < _keys2.length; _i++) {
-        var candidateKey = _keys2[_i];
+      for (var _i2 = 0, _keys2 = keys; _i2 < _keys2.length; _i2++) {
+        var candidateKey = _keys2[_i2];
 
         /*
         We used to do string.split to get at the UUID, but surprisingly,
@@ -2881,8 +2899,8 @@ function () {
       } // remove from hash
 
 
-      for (var _i2 = 0, _toDelete = toDelete; _i2 < _toDelete.length; _i2++) {
-        var key = _toDelete[_i2];
+      for (var _i3 = 0, _toDelete = toDelete; _i3 < _toDelete.length; _i3++) {
+        var key = _toDelete[_i3];
         delete this.missedReferences[key];
       }
 
@@ -2919,7 +2937,7 @@ function () {
 
       try {
         for (var _iterator16 = referencesObjectResults.entries()[Symbol.iterator](), _step16; !(_iteratorNormalCompletion16 = (_step16 = _iterator16.next()).done); _iteratorNormalCompletion16 = true) {
-          var _step16$value = (0, _slicedToArray2["default"])(_step16.value, 2),
+          var _step16$value = _slicedToArray(_step16.value, 2),
               index = _step16$value[0],
               referencedItem = _step16$value[1];
 
@@ -2964,14 +2982,14 @@ function () {
   }, {
     key: "notifySyncObserversOfModels",
     value: function () {
-      var _notifySyncObserversOfModels = (0, _asyncToGenerator2["default"])(
+      var _notifySyncObserversOfModels = _asyncToGenerator(
       /*#__PURE__*/
-      _regenerator["default"].mark(function _callee39(models, source, sourceKey) {
+      regeneratorRuntime.mark(function _callee39(models, source, sourceKey) {
         var _this9 = this;
 
         var observers, _iteratorNormalCompletion17, _didIteratorError17, _iteratorError17, _loop2, _iterator17, _step17;
 
-        return _regenerator["default"].wrap(function _callee39$(_context40) {
+        return regeneratorRuntime.wrap(function _callee39$(_context40) {
           while (1) {
             switch (_context40.prev = _context40.next) {
               case 0:
@@ -2986,10 +3004,10 @@ function () {
                 _context40.prev = 4;
                 _loop2 =
                 /*#__PURE__*/
-                _regenerator["default"].mark(function _loop2() {
+                regeneratorRuntime.mark(function _loop2() {
                   var observer, allRelevantItems, validItems, deletedItems, _iteratorNormalCompletion18, _didIteratorError18, _iteratorError18, _iterator18, _step18, item;
 
-                  return _regenerator["default"].wrap(function _loop2$(_context39) {
+                  return regeneratorRuntime.wrap(function _loop2$(_context39) {
                     while (1) {
                       switch (_context39.prev = _context39.next) {
                         case 0:
@@ -3133,12 +3151,12 @@ function () {
   }, {
     key: "_callSyncObserverCallbackWithTimeout",
     value: function () {
-      var _callSyncObserverCallbackWithTimeout2 = (0, _asyncToGenerator2["default"])(
+      var _callSyncObserverCallbackWithTimeout2 = _asyncToGenerator(
       /*#__PURE__*/
-      _regenerator["default"].mark(function _callee40(observer, allRelevantItems, validItems, deletedItems, source, sourceKey) {
+      regeneratorRuntime.mark(function _callee40(observer, allRelevantItems, validItems, deletedItems, source, sourceKey) {
         var _this10 = this;
 
-        return _regenerator["default"].wrap(function _callee40$(_context41) {
+        return regeneratorRuntime.wrap(function _callee40$(_context41) {
           while (1) {
             switch (_context41.prev = _context41.next) {
               case 0:
@@ -3236,11 +3254,11 @@ function () {
   }, {
     key: "createDuplicateItemFromResponseItem",
     value: function () {
-      var _createDuplicateItemFromResponseItem = (0, _asyncToGenerator2["default"])(
+      var _createDuplicateItemFromResponseItem = _asyncToGenerator(
       /*#__PURE__*/
-      _regenerator["default"].mark(function _callee41(itemResponse) {
+      regeneratorRuntime.mark(function _callee41(itemResponse) {
         var itemResponseCopy, duplicate;
-        return _regenerator["default"].wrap(function _callee41$(_context42) {
+        return regeneratorRuntime.wrap(function _callee41$(_context42) {
           while (1) {
             switch (_context42.prev = _context42.next) {
               case 0:
@@ -3563,10 +3581,10 @@ function () {
   }, {
     key: "removeItemLocally",
     value: function () {
-      var _removeItemLocally = (0, _asyncToGenerator2["default"])(
+      var _removeItemLocally = _asyncToGenerator(
       /*#__PURE__*/
-      _regenerator["default"].mark(function _callee42(item) {
-        return _regenerator["default"].wrap(function _callee42$(_context43) {
+      regeneratorRuntime.mark(function _callee42(item) {
+        return regeneratorRuntime.wrap(function _callee42$(_context43) {
           while (1) {
             switch (_context43.prev = _context43.next) {
               case 0:
@@ -3706,12 +3724,12 @@ function () {
   }, {
     key: "importItems",
     value: function () {
-      var _importItems = (0, _asyncToGenerator2["default"])(
+      var _importItems = _asyncToGenerator(
       /*#__PURE__*/
-      _regenerator["default"].mark(function _callee43(externalItems) {
+      regeneratorRuntime.mark(function _callee43(externalItems) {
         var itemsToBeMapped, localValues, _iteratorNormalCompletion26, _didIteratorError26, _iteratorError26, _iterator26, _step26, itemData, localItem, frozenValue, _iteratorNormalCompletion27, _didIteratorError27, _iteratorError27, _iterator27, _step27, _itemData, _localValues$_itemDat, _frozenValue, itemRef, duplicate, items, _iteratorNormalCompletion28, _didIteratorError28, _iteratorError28, _iterator28, _step28, item;
 
-        return _regenerator["default"].wrap(function _callee43$(_context44) {
+        return regeneratorRuntime.wrap(function _callee43$(_context44) {
           while (1) {
             switch (_context44.prev = _context44.next) {
               case 0:
@@ -3945,10 +3963,10 @@ function () {
   }, {
     key: "getAllItemsJSONData",
     value: function () {
-      var _getAllItemsJSONData = (0, _asyncToGenerator2["default"])(
+      var _getAllItemsJSONData = _asyncToGenerator(
       /*#__PURE__*/
-      _regenerator["default"].mark(function _callee44(keys, authParams, returnNullIfEmpty) {
-        return _regenerator["default"].wrap(function _callee44$(_context45) {
+      regeneratorRuntime.mark(function _callee44(keys, authParams, returnNullIfEmpty) {
+        return regeneratorRuntime.wrap(function _callee44$(_context45) {
           while (1) {
             switch (_context45.prev = _context45.next) {
               case 0:
@@ -3971,10 +3989,10 @@ function () {
   }, {
     key: "getJSONDataForItems",
     value: function () {
-      var _getJSONDataForItems = (0, _asyncToGenerator2["default"])(
+      var _getJSONDataForItems = _asyncToGenerator(
       /*#__PURE__*/
-      _regenerator["default"].mark(function _callee45(items, keys, authParams, returnNullIfEmpty) {
-        return _regenerator["default"].wrap(function _callee45$(_context46) {
+      regeneratorRuntime.mark(function _callee45(items, keys, authParams, returnNullIfEmpty) {
+        return regeneratorRuntime.wrap(function _callee45$(_context46) {
           while (1) {
             switch (_context46.prev = _context46.next) {
               case 0:
@@ -4017,11 +4035,11 @@ function () {
   }, {
     key: "computeDataIntegrityHash",
     value: function () {
-      var _computeDataIntegrityHash = (0, _asyncToGenerator2["default"])(
+      var _computeDataIntegrityHash = _asyncToGenerator(
       /*#__PURE__*/
-      _regenerator["default"].mark(function _callee46() {
+      regeneratorRuntime.mark(function _callee46() {
         var items, dates, string, hash;
-        return _regenerator["default"].wrap(function _callee46$(_context47) {
+        return regeneratorRuntime.wrap(function _callee46$(_context47) {
           while (1) {
             switch (_context47.prev = _context47.next) {
               case 0:
@@ -4073,6 +4091,7 @@ function () {
       });
     }
   }]);
+
   return SFModelManager;
 }();
 
@@ -4083,7 +4102,8 @@ var SFPrivilegesManager =
 /*#__PURE__*/
 function () {
   function SFPrivilegesManager(modelManager, syncManager, singletonManager) {
-    (0, _classCallCheck2["default"])(this, SFPrivilegesManager);
+    _classCallCheck(this, SFPrivilegesManager);
+
     this.modelManager = modelManager;
     this.syncManager = syncManager;
     this.singletonManager = singletonManager;
@@ -4116,7 +4136,7 @@ function () {
   */
 
 
-  (0, _createClass2["default"])(SFPrivilegesManager, [{
+  _createClass(SFPrivilegesManager, [{
     key: "setDelegate",
     value: function setDelegate(delegate) {
       this.delegate = delegate;
@@ -4134,12 +4154,12 @@ function () {
   }, {
     key: "netCredentialsForAction",
     value: function () {
-      var _netCredentialsForAction = (0, _asyncToGenerator2["default"])(
+      var _netCredentialsForAction = _asyncToGenerator(
       /*#__PURE__*/
-      _regenerator["default"].mark(function _callee47(action) {
+      regeneratorRuntime.mark(function _callee47(action) {
         var credentials, netCredentials, _iteratorNormalCompletion29, _didIteratorError29, _iteratorError29, _iterator29, _step29, cred, isOffline, hasLocalPasscode;
 
-        return _regenerator["default"].wrap(function _callee47$(_context48) {
+        return regeneratorRuntime.wrap(function _callee47$(_context48) {
           while (1) {
             switch (_context48.prev = _context48.next) {
               case 0:
@@ -4257,12 +4277,12 @@ function () {
   }, {
     key: "loadPrivileges",
     value: function () {
-      var _loadPrivileges = (0, _asyncToGenerator2["default"])(
+      var _loadPrivileges = _asyncToGenerator(
       /*#__PURE__*/
-      _regenerator["default"].mark(function _callee49() {
+      regeneratorRuntime.mark(function _callee49() {
         var _this12 = this;
 
-        return _regenerator["default"].wrap(function _callee49$(_context50) {
+        return regeneratorRuntime.wrap(function _callee49$(_context50) {
           while (1) {
             switch (_context50.prev = _context50.next) {
               case 0:
@@ -4284,11 +4304,11 @@ function () {
                   },
                   /*#__PURE__*/
                   function () {
-                    var _ref14 = (0, _asyncToGenerator2["default"])(
+                    var _ref14 = _asyncToGenerator(
                     /*#__PURE__*/
-                    _regenerator["default"].mark(function _callee48(valueCallback) {
+                    regeneratorRuntime.mark(function _callee48(valueCallback) {
                       var privs;
-                      return _regenerator["default"].wrap(function _callee48$(_context49) {
+                      return regeneratorRuntime.wrap(function _callee48$(_context49) {
                         while (1) {
                           switch (_context49.prev = _context49.next) {
                             case 0:
@@ -4347,10 +4367,10 @@ function () {
   }, {
     key: "getPrivileges",
     value: function () {
-      var _getPrivileges = (0, _asyncToGenerator2["default"])(
+      var _getPrivileges = _asyncToGenerator(
       /*#__PURE__*/
-      _regenerator["default"].mark(function _callee50() {
-        return _regenerator["default"].wrap(function _callee50$(_context51) {
+      regeneratorRuntime.mark(function _callee50() {
+        return regeneratorRuntime.wrap(function _callee50$(_context51) {
           while (1) {
             switch (_context51.prev = _context51.next) {
               case 0:
@@ -4436,11 +4456,11 @@ function () {
   }, {
     key: "setSessionLength",
     value: function () {
-      var _setSessionLength = (0, _asyncToGenerator2["default"])(
+      var _setSessionLength = _asyncToGenerator(
       /*#__PURE__*/
-      _regenerator["default"].mark(function _callee51(length) {
+      regeneratorRuntime.mark(function _callee51(length) {
         var addToNow, expiresAt;
-        return _regenerator["default"].wrap(function _callee51$(_context52) {
+        return regeneratorRuntime.wrap(function _callee51$(_context52) {
           while (1) {
             switch (_context52.prev = _context52.next) {
               case 0:
@@ -4470,10 +4490,10 @@ function () {
   }, {
     key: "clearSession",
     value: function () {
-      var _clearSession = (0, _asyncToGenerator2["default"])(
+      var _clearSession = _asyncToGenerator(
       /*#__PURE__*/
-      _regenerator["default"].mark(function _callee52() {
-        return _regenerator["default"].wrap(function _callee52$(_context53) {
+      regeneratorRuntime.mark(function _callee52() {
+        return regeneratorRuntime.wrap(function _callee52$(_context53) {
           while (1) {
             switch (_context53.prev = _context53.next) {
               case 0:
@@ -4496,11 +4516,11 @@ function () {
   }, {
     key: "getSelectedSessionLength",
     value: function () {
-      var _getSelectedSessionLength = (0, _asyncToGenerator2["default"])(
+      var _getSelectedSessionLength = _asyncToGenerator(
       /*#__PURE__*/
-      _regenerator["default"].mark(function _callee53() {
+      regeneratorRuntime.mark(function _callee53() {
         var length;
-        return _regenerator["default"].wrap(function _callee53$(_context54) {
+        return regeneratorRuntime.wrap(function _callee53$(_context54) {
           while (1) {
             switch (_context54.prev = _context54.next) {
               case 0:
@@ -4537,11 +4557,11 @@ function () {
   }, {
     key: "getSessionExpirey",
     value: function () {
-      var _getSessionExpirey = (0, _asyncToGenerator2["default"])(
+      var _getSessionExpirey = _asyncToGenerator(
       /*#__PURE__*/
-      _regenerator["default"].mark(function _callee54() {
+      regeneratorRuntime.mark(function _callee54() {
         var expiresAt;
-        return _regenerator["default"].wrap(function _callee54$(_context55) {
+        return regeneratorRuntime.wrap(function _callee54$(_context55) {
           while (1) {
             switch (_context55.prev = _context55.next) {
               case 0:
@@ -4578,10 +4598,10 @@ function () {
   }, {
     key: "actionHasPrivilegesConfigured",
     value: function () {
-      var _actionHasPrivilegesConfigured = (0, _asyncToGenerator2["default"])(
+      var _actionHasPrivilegesConfigured = _asyncToGenerator(
       /*#__PURE__*/
-      _regenerator["default"].mark(function _callee55(action) {
-        return _regenerator["default"].wrap(function _callee55$(_context56) {
+      regeneratorRuntime.mark(function _callee55(action) {
+        return regeneratorRuntime.wrap(function _callee55$(_context56) {
           while (1) {
             switch (_context56.prev = _context56.next) {
               case 0:
@@ -4609,11 +4629,11 @@ function () {
   }, {
     key: "actionRequiresPrivilege",
     value: function () {
-      var _actionRequiresPrivilege = (0, _asyncToGenerator2["default"])(
+      var _actionRequiresPrivilege = _asyncToGenerator(
       /*#__PURE__*/
-      _regenerator["default"].mark(function _callee56(action) {
+      regeneratorRuntime.mark(function _callee56(action) {
         var expiresAt, netCredentials;
-        return _regenerator["default"].wrap(function _callee56$(_context57) {
+        return regeneratorRuntime.wrap(function _callee56$(_context57) {
           while (1) {
             switch (_context57.prev = _context57.next) {
               case 0:
@@ -4655,11 +4675,11 @@ function () {
   }, {
     key: "savePrivileges",
     value: function () {
-      var _savePrivileges = (0, _asyncToGenerator2["default"])(
+      var _savePrivileges = _asyncToGenerator(
       /*#__PURE__*/
-      _regenerator["default"].mark(function _callee57() {
+      regeneratorRuntime.mark(function _callee57() {
         var privs;
-        return _regenerator["default"].wrap(function _callee57$(_context58) {
+        return regeneratorRuntime.wrap(function _callee57$(_context58) {
           while (1) {
             switch (_context58.prev = _context58.next) {
               case 0:
@@ -4688,12 +4708,12 @@ function () {
   }, {
     key: "authenticateAction",
     value: function () {
-      var _authenticateAction = (0, _asyncToGenerator2["default"])(
+      var _authenticateAction = _asyncToGenerator(
       /*#__PURE__*/
-      _regenerator["default"].mark(function _callee58(action, credentialAuthMapping) {
+      regeneratorRuntime.mark(function _callee58(action, credentialAuthMapping) {
         var requiredCredentials, successfulCredentials, failedCredentials, _iteratorNormalCompletion30, _didIteratorError30, _iteratorError30, _iterator30, _step30, requiredCredential, passesAuth;
 
-        return _regenerator["default"].wrap(function _callee58$(_context59) {
+        return regeneratorRuntime.wrap(function _callee58$(_context59) {
           while (1) {
             switch (_context59.prev = _context59.next) {
               case 0:
@@ -4791,23 +4811,23 @@ function () {
   }, {
     key: "_verifyAuthenticationParameters",
     value: function () {
-      var _verifyAuthenticationParameters2 = (0, _asyncToGenerator2["default"])(
+      var _verifyAuthenticationParameters2 = _asyncToGenerator(
       /*#__PURE__*/
-      _regenerator["default"].mark(function _callee61(credential, value) {
+      regeneratorRuntime.mark(function _callee61(credential, value) {
         var _this13 = this;
 
         var verifyAccountPassword, verifyLocalPasscode;
-        return _regenerator["default"].wrap(function _callee61$(_context62) {
+        return regeneratorRuntime.wrap(function _callee61$(_context62) {
           while (1) {
             switch (_context62.prev = _context62.next) {
               case 0:
                 verifyAccountPassword =
                 /*#__PURE__*/
                 function () {
-                  var _ref15 = (0, _asyncToGenerator2["default"])(
+                  var _ref15 = _asyncToGenerator(
                   /*#__PURE__*/
-                  _regenerator["default"].mark(function _callee59(password) {
-                    return _regenerator["default"].wrap(function _callee59$(_context60) {
+                  regeneratorRuntime.mark(function _callee59(password) {
+                    return regeneratorRuntime.wrap(function _callee59$(_context60) {
                       while (1) {
                         switch (_context60.prev = _context60.next) {
                           case 0:
@@ -4829,10 +4849,10 @@ function () {
                 verifyLocalPasscode =
                 /*#__PURE__*/
                 function () {
-                  var _ref16 = (0, _asyncToGenerator2["default"])(
+                  var _ref16 = _asyncToGenerator(
                   /*#__PURE__*/
-                  _regenerator["default"].mark(function _callee60(passcode) {
-                    return _regenerator["default"].wrap(function _callee60$(_context61) {
+                  regeneratorRuntime.mark(function _callee60(passcode) {
+                    return regeneratorRuntime.wrap(function _callee60$(_context61) {
                       while (1) {
                         switch (_context61.prev = _context61.next) {
                           case 0:
@@ -4881,6 +4901,7 @@ function () {
       return _verifyAuthenticationParameters;
     }()
   }]);
+
   return SFPrivilegesManager;
 }();
 
@@ -4896,7 +4917,8 @@ function () {
   function SFSessionHistoryManager(modelManager, storageManager, keyRequestHandler, contentTypes, timeout) {
     var _this14 = this;
 
-    (0, _classCallCheck2["default"])(this, SFSessionHistoryManager);
+    _classCallCheck(this, SFSessionHistoryManager);
+
     this.modelManager = modelManager;
     this.storageManager = storageManager;
     this.$timeout = timeout || setTimeout.bind(window); // Required to persist the encrypted form of SFHistorySession
@@ -4940,13 +4962,13 @@ function () {
     });
   }
 
-  (0, _createClass2["default"])(SFSessionHistoryManager, [{
+  _createClass(SFSessionHistoryManager, [{
     key: "encryptionParams",
     value: function () {
-      var _encryptionParams = (0, _asyncToGenerator2["default"])(
+      var _encryptionParams = _asyncToGenerator(
       /*#__PURE__*/
-      _regenerator["default"].mark(function _callee62() {
-        return _regenerator["default"].wrap(function _callee62$(_context63) {
+      regeneratorRuntime.mark(function _callee62() {
+        return regeneratorRuntime.wrap(function _callee62$(_context63) {
           while (1) {
             switch (_context63.prev = _context63.next) {
               case 0:
@@ -5007,10 +5029,10 @@ function () {
   }, {
     key: "clearHistoryForItem",
     value: function () {
-      var _clearHistoryForItem = (0, _asyncToGenerator2["default"])(
+      var _clearHistoryForItem = _asyncToGenerator(
       /*#__PURE__*/
-      _regenerator["default"].mark(function _callee63(item) {
-        return _regenerator["default"].wrap(function _callee63$(_context64) {
+      regeneratorRuntime.mark(function _callee63(item) {
+        return regeneratorRuntime.wrap(function _callee63$(_context64) {
           while (1) {
             switch (_context64.prev = _context64.next) {
               case 0:
@@ -5034,10 +5056,10 @@ function () {
   }, {
     key: "clearAllHistory",
     value: function () {
-      var _clearAllHistory = (0, _asyncToGenerator2["default"])(
+      var _clearAllHistory = _asyncToGenerator(
       /*#__PURE__*/
-      _regenerator["default"].mark(function _callee64() {
-        return _regenerator["default"].wrap(function _callee64$(_context65) {
+      regeneratorRuntime.mark(function _callee64() {
+        return regeneratorRuntime.wrap(function _callee64$(_context65) {
           while (1) {
             switch (_context65.prev = _context65.next) {
               case 0:
@@ -5061,10 +5083,10 @@ function () {
   }, {
     key: "toggleDiskSaving",
     value: function () {
-      var _toggleDiskSaving = (0, _asyncToGenerator2["default"])(
+      var _toggleDiskSaving = _asyncToGenerator(
       /*#__PURE__*/
-      _regenerator["default"].mark(function _callee65() {
-        return _regenerator["default"].wrap(function _callee65$(_context66) {
+      regeneratorRuntime.mark(function _callee65() {
+        return regeneratorRuntime.wrap(function _callee65$(_context66) {
           while (1) {
             switch (_context66.prev = _context66.next) {
               case 0:
@@ -5101,13 +5123,13 @@ function () {
   }, {
     key: "saveToDisk",
     value: function () {
-      var _saveToDisk = (0, _asyncToGenerator2["default"])(
+      var _saveToDisk = _asyncToGenerator(
       /*#__PURE__*/
-      _regenerator["default"].mark(function _callee66() {
+      regeneratorRuntime.mark(function _callee66() {
         var _this16 = this;
 
         var encryptionParams, itemParams;
-        return _regenerator["default"].wrap(function _callee66$(_context67) {
+        return regeneratorRuntime.wrap(function _callee66$(_context67) {
           while (1) {
             switch (_context67.prev = _context67.next) {
               case 0:
@@ -5147,11 +5169,11 @@ function () {
   }, {
     key: "loadFromDisk",
     value: function () {
-      var _loadFromDisk = (0, _asyncToGenerator2["default"])(
+      var _loadFromDisk = _asyncToGenerator(
       /*#__PURE__*/
-      _regenerator["default"].mark(function _callee67() {
+      regeneratorRuntime.mark(function _callee67() {
         var diskValue, historyValue, encryptionParams, historySession, autoOptimizeValue;
-        return _regenerator["default"].wrap(function _callee67$(_context68) {
+        return regeneratorRuntime.wrap(function _callee67$(_context68) {
           while (1) {
             switch (_context68.prev = _context68.next) {
               case 0:
@@ -5225,10 +5247,10 @@ function () {
   }, {
     key: "toggleAutoOptimize",
     value: function () {
-      var _toggleAutoOptimize = (0, _asyncToGenerator2["default"])(
+      var _toggleAutoOptimize = _asyncToGenerator(
       /*#__PURE__*/
-      _regenerator["default"].mark(function _callee68() {
-        return _regenerator["default"].wrap(function _callee68$(_context69) {
+      regeneratorRuntime.mark(function _callee68() {
+        return regeneratorRuntime.wrap(function _callee68$(_context69) {
           while (1) {
             switch (_context69.prev = _context69.next) {
               case 0:
@@ -5255,6 +5277,7 @@ function () {
       return toggleAutoOptimize;
     }()
   }]);
+
   return SFSessionHistoryManager;
 }();
 
@@ -5281,7 +5304,8 @@ function () {
   function SFSingletonManager(modelManager, syncManager) {
     var _this17 = this;
 
-    (0, _classCallCheck2["default"])(this, SFSingletonManager);
+    _classCallCheck(this, SFSingletonManager);
+
     this.syncManager = syncManager;
     this.modelManager = modelManager;
     this.singletonHandlers = []; // We use sync observer instead of syncEvent `local-data-incremental-load`, because we want singletons
@@ -5363,7 +5387,7 @@ function () {
     });
   }
 
-  (0, _createClass2["default"])(SFSingletonManager, [{
+  _createClass(SFSingletonManager, [{
     key: "registerSingleton",
     value: function registerSingleton(predicates, resolveCallback, createBlock) {
       /*
@@ -5516,6 +5540,7 @@ function () {
       }
     }
   }]);
+
   return SFSingletonManager;
 }();
 
@@ -5526,18 +5551,18 @@ var SFStorageManager =
 /*#__PURE__*/
 function () {
   function SFStorageManager() {
-    (0, _classCallCheck2["default"])(this, SFStorageManager);
+    _classCallCheck(this, SFStorageManager);
   }
 
-  (0, _createClass2["default"])(SFStorageManager, [{
+  _createClass(SFStorageManager, [{
     key: "setItem",
 
     /* Simple Key/Value Storage */
     value: function () {
-      var _setItem = (0, _asyncToGenerator2["default"])(
+      var _setItem = _asyncToGenerator(
       /*#__PURE__*/
-      _regenerator["default"].mark(function _callee69(key, value) {
-        return _regenerator["default"].wrap(function _callee69$(_context70) {
+      regeneratorRuntime.mark(function _callee69(key, value) {
+        return regeneratorRuntime.wrap(function _callee69$(_context70) {
           while (1) {
             switch (_context70.prev = _context70.next) {
               case 0:
@@ -5557,10 +5582,10 @@ function () {
   }, {
     key: "getItem",
     value: function () {
-      var _getItem = (0, _asyncToGenerator2["default"])(
+      var _getItem = _asyncToGenerator(
       /*#__PURE__*/
-      _regenerator["default"].mark(function _callee70(key) {
-        return _regenerator["default"].wrap(function _callee70$(_context71) {
+      regeneratorRuntime.mark(function _callee70(key) {
+        return regeneratorRuntime.wrap(function _callee70$(_context71) {
           while (1) {
             switch (_context71.prev = _context71.next) {
               case 0:
@@ -5580,10 +5605,10 @@ function () {
   }, {
     key: "removeItem",
     value: function () {
-      var _removeItem = (0, _asyncToGenerator2["default"])(
+      var _removeItem = _asyncToGenerator(
       /*#__PURE__*/
-      _regenerator["default"].mark(function _callee71(key) {
-        return _regenerator["default"].wrap(function _callee71$(_context72) {
+      regeneratorRuntime.mark(function _callee71(key) {
+        return regeneratorRuntime.wrap(function _callee71$(_context72) {
           while (1) {
             switch (_context72.prev = _context72.next) {
               case 0:
@@ -5603,10 +5628,10 @@ function () {
   }, {
     key: "clear",
     value: function () {
-      var _clear = (0, _asyncToGenerator2["default"])(
+      var _clear = _asyncToGenerator(
       /*#__PURE__*/
-      _regenerator["default"].mark(function _callee72() {
-        return _regenerator["default"].wrap(function _callee72$(_context73) {
+      regeneratorRuntime.mark(function _callee72() {
+        return regeneratorRuntime.wrap(function _callee72$(_context73) {
           while (1) {
             switch (_context73.prev = _context73.next) {
               case 0:
@@ -5630,10 +5655,10 @@ function () {
     Model Storage
     */
     value: function () {
-      var _getAllModels = (0, _asyncToGenerator2["default"])(
+      var _getAllModels = _asyncToGenerator(
       /*#__PURE__*/
-      _regenerator["default"].mark(function _callee73() {
-        return _regenerator["default"].wrap(function _callee73$(_context74) {
+      regeneratorRuntime.mark(function _callee73() {
+        return regeneratorRuntime.wrap(function _callee73$(_context74) {
           while (1) {
             switch (_context74.prev = _context74.next) {
               case 0:
@@ -5653,10 +5678,10 @@ function () {
   }, {
     key: "saveModel",
     value: function () {
-      var _saveModel = (0, _asyncToGenerator2["default"])(
+      var _saveModel = _asyncToGenerator(
       /*#__PURE__*/
-      _regenerator["default"].mark(function _callee74(item) {
-        return _regenerator["default"].wrap(function _callee74$(_context75) {
+      regeneratorRuntime.mark(function _callee74(item) {
+        return regeneratorRuntime.wrap(function _callee74$(_context75) {
           while (1) {
             switch (_context75.prev = _context75.next) {
               case 0:
@@ -5679,10 +5704,10 @@ function () {
   }, {
     key: "saveModels",
     value: function () {
-      var _saveModels = (0, _asyncToGenerator2["default"])(
+      var _saveModels = _asyncToGenerator(
       /*#__PURE__*/
-      _regenerator["default"].mark(function _callee75(items) {
-        return _regenerator["default"].wrap(function _callee75$(_context76) {
+      regeneratorRuntime.mark(function _callee75(items) {
+        return regeneratorRuntime.wrap(function _callee75$(_context76) {
           while (1) {
             switch (_context76.prev = _context76.next) {
               case 0:
@@ -5702,10 +5727,10 @@ function () {
   }, {
     key: "deleteModel",
     value: function () {
-      var _deleteModel = (0, _asyncToGenerator2["default"])(
+      var _deleteModel = _asyncToGenerator(
       /*#__PURE__*/
-      _regenerator["default"].mark(function _callee76(item) {
-        return _regenerator["default"].wrap(function _callee76$(_context77) {
+      regeneratorRuntime.mark(function _callee76(item) {
+        return regeneratorRuntime.wrap(function _callee76$(_context77) {
           while (1) {
             switch (_context77.prev = _context77.next) {
               case 0:
@@ -5725,10 +5750,10 @@ function () {
   }, {
     key: "clearAllModels",
     value: function () {
-      var _clearAllModels = (0, _asyncToGenerator2["default"])(
+      var _clearAllModels = _asyncToGenerator(
       /*#__PURE__*/
-      _regenerator["default"].mark(function _callee77() {
-        return _regenerator["default"].wrap(function _callee77$(_context78) {
+      regeneratorRuntime.mark(function _callee77() {
+        return regeneratorRuntime.wrap(function _callee77$(_context78) {
           while (1) {
             switch (_context78.prev = _context78.next) {
               case 0:
@@ -5750,10 +5775,10 @@ function () {
 
     /* General */
     value: function () {
-      var _clearAllData = (0, _asyncToGenerator2["default"])(
+      var _clearAllData = _asyncToGenerator(
       /*#__PURE__*/
-      _regenerator["default"].mark(function _callee78() {
-        return _regenerator["default"].wrap(function _callee78$(_context79) {
+      regeneratorRuntime.mark(function _callee78() {
+        return regeneratorRuntime.wrap(function _callee78$(_context79) {
           while (1) {
             switch (_context79.prev = _context79.next) {
               case 0:
@@ -5774,6 +5799,7 @@ function () {
       return clearAllData;
     }()
   }]);
+
   return SFStorageManager;
 }();
 
@@ -5784,7 +5810,8 @@ var SFSyncManager =
 /*#__PURE__*/
 function () {
   function SFSyncManager(modelManager, storageManager, httpManager, timeout, interval) {
-    (0, _classCallCheck2["default"])(this, SFSyncManager);
+    _classCallCheck(this, SFSyncManager);
+
     SFSyncManager.KeyRequestLoadLocal = "KeyRequestLoadLocal";
     SFSyncManager.KeyRequestSaveLocal = "KeyRequestSaveLocal";
     SFSyncManager.KeyRequestLoadSaveAccount = "KeyRequestLoadSaveAccount";
@@ -5811,14 +5838,14 @@ function () {
     this.outOfSync = false;
   }
 
-  (0, _createClass2["default"])(SFSyncManager, [{
+  _createClass(SFSyncManager, [{
     key: "handleServerIntegrityHash",
     value: function () {
-      var _handleServerIntegrityHash = (0, _asyncToGenerator2["default"])(
+      var _handleServerIntegrityHash = _asyncToGenerator(
       /*#__PURE__*/
-      _regenerator["default"].mark(function _callee79(serverHash) {
+      regeneratorRuntime.mark(function _callee79(serverHash) {
         var localHash;
-        return _regenerator["default"].wrap(function _callee79$(_context80) {
+        return regeneratorRuntime.wrap(function _callee79$(_context80) {
           while (1) {
             switch (_context80.prev = _context80.next) {
               case 0:
@@ -5894,10 +5921,10 @@ function () {
   }, {
     key: "getServerURL",
     value: function () {
-      var _getServerURL = (0, _asyncToGenerator2["default"])(
+      var _getServerURL = _asyncToGenerator(
       /*#__PURE__*/
-      _regenerator["default"].mark(function _callee80() {
-        return _regenerator["default"].wrap(function _callee80$(_context81) {
+      regeneratorRuntime.mark(function _callee80() {
+        return regeneratorRuntime.wrap(function _callee80$(_context81) {
           while (1) {
             switch (_context81.prev = _context81.next) {
               case 0:
@@ -5934,10 +5961,10 @@ function () {
   }, {
     key: "getSyncURL",
     value: function () {
-      var _getSyncURL = (0, _asyncToGenerator2["default"])(
+      var _getSyncURL = _asyncToGenerator(
       /*#__PURE__*/
-      _regenerator["default"].mark(function _callee81() {
-        return _regenerator["default"].wrap(function _callee81$(_context82) {
+      regeneratorRuntime.mark(function _callee81() {
+        return regeneratorRuntime.wrap(function _callee81$(_context82) {
           while (1) {
             switch (_context82.prev = _context82.next) {
               case 0:
@@ -6043,10 +6070,10 @@ function () {
   }, {
     key: "getActiveKeyInfo",
     value: function () {
-      var _getActiveKeyInfo = (0, _asyncToGenerator2["default"])(
+      var _getActiveKeyInfo = _asyncToGenerator(
       /*#__PURE__*/
-      _regenerator["default"].mark(function _callee82(request) {
-        return _regenerator["default"].wrap(function _callee82$(_context83) {
+      regeneratorRuntime.mark(function _callee82(request) {
+        return regeneratorRuntime.wrap(function _callee82$(_context83) {
           while (1) {
             switch (_context83.prev = _context83.next) {
               case 0:
@@ -6114,9 +6141,9 @@ function () {
   }, {
     key: "loadLocalItems",
     value: function () {
-      var _loadLocalItems = (0, _asyncToGenerator2["default"])(
+      var _loadLocalItems = _asyncToGenerator(
       /*#__PURE__*/
-      _regenerator["default"].mark(function _callee84() {
+      regeneratorRuntime.mark(function _callee84() {
         var _this21 = this;
 
         var _ref17,
@@ -6126,7 +6153,7 @@ function () {
             latency,
             _args85 = arguments;
 
-        return _regenerator["default"].wrap(function _callee84$(_context85) {
+        return regeneratorRuntime.wrap(function _callee84$(_context85) {
           while (1) {
             switch (_context85.prev = _context85.next) {
               case 0:
@@ -6175,11 +6202,11 @@ function () {
                   var decryptNext =
                   /*#__PURE__*/
                   function () {
-                    var _ref18 = (0, _asyncToGenerator2["default"])(
+                    var _ref18 = _asyncToGenerator(
                     /*#__PURE__*/
-                    _regenerator["default"].mark(function _callee83() {
+                    regeneratorRuntime.mark(function _callee83() {
                       var subitems, processedSubitems;
-                      return _regenerator["default"].wrap(function _callee83$(_context84) {
+                      return regeneratorRuntime.wrap(function _callee83$(_context84) {
                         while (1) {
                           switch (_context84.prev = _context84.next) {
                             case 0:
@@ -6246,12 +6273,12 @@ function () {
   }, {
     key: "writeItemsToLocalStorage",
     value: function () {
-      var _writeItemsToLocalStorage = (0, _asyncToGenerator2["default"])(
+      var _writeItemsToLocalStorage = _asyncToGenerator(
       /*#__PURE__*/
-      _regenerator["default"].mark(function _callee88(items, offlineOnly) {
+      regeneratorRuntime.mark(function _callee88(items, offlineOnly) {
         var _this22 = this;
 
-        return _regenerator["default"].wrap(function _callee88$(_context89) {
+        return regeneratorRuntime.wrap(function _callee88$(_context89) {
           while (1) {
             switch (_context89.prev = _context89.next) {
               case 0:
@@ -6266,12 +6293,12 @@ function () {
                 return _context89.abrupt("return", new Promise(
                 /*#__PURE__*/
                 function () {
-                  var _ref19 = (0, _asyncToGenerator2["default"])(
+                  var _ref19 = _asyncToGenerator(
                   /*#__PURE__*/
-                  _regenerator["default"].mark(function _callee87(resolve, reject) {
+                  regeneratorRuntime.mark(function _callee87(resolve, reject) {
                     var nonDeletedItems, deletedItems, _iteratorNormalCompletion36, _didIteratorError36, _iteratorError36, _iterator36, _step36, item, info, params;
 
-                    return _regenerator["default"].wrap(function _callee87$(_context88) {
+                    return regeneratorRuntime.wrap(function _callee87$(_context88) {
                       while (1) {
                         switch (_context88.prev = _context88.next) {
                           case 0:
@@ -6335,10 +6362,10 @@ function () {
                             return Promise.all(deletedItems.map(
                             /*#__PURE__*/
                             function () {
-                              var _ref20 = (0, _asyncToGenerator2["default"])(
+                              var _ref20 = _asyncToGenerator(
                               /*#__PURE__*/
-                              _regenerator["default"].mark(function _callee85(deletedItem) {
-                                return _regenerator["default"].wrap(function _callee85$(_context86) {
+                              regeneratorRuntime.mark(function _callee85(deletedItem) {
+                                return regeneratorRuntime.wrap(function _callee85$(_context86) {
                                   while (1) {
                                     switch (_context86.prev = _context86.next) {
                                       case 0:
@@ -6373,11 +6400,11 @@ function () {
                             return Promise.all(nonDeletedItems.map(
                             /*#__PURE__*/
                             function () {
-                              var _ref21 = (0, _asyncToGenerator2["default"])(
+                              var _ref21 = _asyncToGenerator(
                               /*#__PURE__*/
-                              _regenerator["default"].mark(function _callee86(item) {
+                              regeneratorRuntime.mark(function _callee86(item) {
                                 var itemParams;
-                                return _regenerator["default"].wrap(function _callee86$(_context87) {
+                                return regeneratorRuntime.wrap(function _callee86$(_context87) {
                                   while (1) {
                                     switch (_context87.prev = _context87.next) {
                                       case 0:
@@ -6462,14 +6489,14 @@ function () {
   }, {
     key: "syncOffline",
     value: function () {
-      var _syncOffline = (0, _asyncToGenerator2["default"])(
+      var _syncOffline = _asyncToGenerator(
       /*#__PURE__*/
-      _regenerator["default"].mark(function _callee89(items) {
+      regeneratorRuntime.mark(function _callee89(items) {
         var _this23 = this;
 
         var _iteratorNormalCompletion37, _didIteratorError37, _iteratorError37, _iterator37, _step37, item;
 
-        return _regenerator["default"].wrap(function _callee89$(_context90) {
+        return regeneratorRuntime.wrap(function _callee89$(_context90) {
           while (1) {
             switch (_context90.prev = _context90.next) {
               case 0:
@@ -6584,12 +6611,12 @@ function () {
   }, {
     key: "markAllItemsDirtyAndSaveOffline",
     value: function () {
-      var _markAllItemsDirtyAndSaveOffline = (0, _asyncToGenerator2["default"])(
+      var _markAllItemsDirtyAndSaveOffline = _asyncToGenerator(
       /*#__PURE__*/
-      _regenerator["default"].mark(function _callee90(alternateUUIDs) {
+      regeneratorRuntime.mark(function _callee90(alternateUUIDs) {
         var originalItems, _iteratorNormalCompletion39, _didIteratorError39, _iteratorError39, _iterator39, _step39, item, allItems, _iteratorNormalCompletion40, _didIteratorError40, _iteratorError40, _iterator40, _step40, _item;
 
-        return _regenerator["default"].wrap(function _callee90$(_context91) {
+        return regeneratorRuntime.wrap(function _callee90$(_context91) {
           while (1) {
             switch (_context91.prev = _context91.next) {
               case 0:
@@ -6723,10 +6750,10 @@ function () {
   }, {
     key: "setSyncToken",
     value: function () {
-      var _setSyncToken = (0, _asyncToGenerator2["default"])(
+      var _setSyncToken = _asyncToGenerator(
       /*#__PURE__*/
-      _regenerator["default"].mark(function _callee91(token) {
-        return _regenerator["default"].wrap(function _callee91$(_context92) {
+      regeneratorRuntime.mark(function _callee91(token) {
+        return regeneratorRuntime.wrap(function _callee91$(_context92) {
           while (1) {
             switch (_context92.prev = _context92.next) {
               case 0:
@@ -6751,10 +6778,10 @@ function () {
   }, {
     key: "getSyncToken",
     value: function () {
-      var _getSyncToken = (0, _asyncToGenerator2["default"])(
+      var _getSyncToken = _asyncToGenerator(
       /*#__PURE__*/
-      _regenerator["default"].mark(function _callee92() {
-        return _regenerator["default"].wrap(function _callee92$(_context93) {
+      regeneratorRuntime.mark(function _callee92() {
+        return regeneratorRuntime.wrap(function _callee92$(_context93) {
           while (1) {
             switch (_context93.prev = _context93.next) {
               case 0:
@@ -6789,10 +6816,10 @@ function () {
   }, {
     key: "setCursorToken",
     value: function () {
-      var _setCursorToken = (0, _asyncToGenerator2["default"])(
+      var _setCursorToken = _asyncToGenerator(
       /*#__PURE__*/
-      _regenerator["default"].mark(function _callee93(token) {
-        return _regenerator["default"].wrap(function _callee93$(_context94) {
+      regeneratorRuntime.mark(function _callee93(token) {
+        return regeneratorRuntime.wrap(function _callee93$(_context94) {
           while (1) {
             switch (_context94.prev = _context94.next) {
               case 0:
@@ -6831,10 +6858,10 @@ function () {
   }, {
     key: "getCursorToken",
     value: function () {
-      var _getCursorToken = (0, _asyncToGenerator2["default"])(
+      var _getCursorToken = _asyncToGenerator(
       /*#__PURE__*/
-      _regenerator["default"].mark(function _callee94() {
-        return _regenerator["default"].wrap(function _callee94$(_context95) {
+      regeneratorRuntime.mark(function _callee94() {
+        return regeneratorRuntime.wrap(function _callee94$(_context95) {
           while (1) {
             switch (_context95.prev = _context95.next) {
               case 0:
@@ -6946,14 +6973,14 @@ function () {
   }, {
     key: "sync",
     value: function () {
-      var _sync = (0, _asyncToGenerator2["default"])(
+      var _sync = _asyncToGenerator(
       /*#__PURE__*/
-      _regenerator["default"].mark(function _callee96() {
+      regeneratorRuntime.mark(function _callee96() {
         var _this24 = this;
 
         var options,
             _args97 = arguments;
-        return _regenerator["default"].wrap(function _callee96$(_context97) {
+        return regeneratorRuntime.wrap(function _callee96$(_context97) {
           while (1) {
             switch (_context97.prev = _context97.next) {
               case 0:
@@ -6971,12 +6998,12 @@ function () {
                 return _context97.abrupt("return", new Promise(
                 /*#__PURE__*/
                 function () {
-                  var _ref22 = (0, _asyncToGenerator2["default"])(
+                  var _ref22 = _asyncToGenerator(
                   /*#__PURE__*/
-                  _regenerator["default"].mark(function _callee95(resolve, reject) {
+                  regeneratorRuntime.mark(function _callee95(resolve, reject) {
                     var allDirtyItems, dirtyItemsNotYetSaved, info, isSyncInProgress, initialDataLoaded, isContinuationSync, submitLimit, subItems, params, _iteratorNormalCompletion42, _didIteratorError42, _iteratorError42, _iterator42, _step42, item;
 
-                    return _regenerator["default"].wrap(function _callee95$(_context96) {
+                    return regeneratorRuntime.wrap(function _callee95$(_context96) {
                       while (1) {
                         switch (_context96.prev = _context96.next) {
                           case 0:
@@ -7262,10 +7289,10 @@ function () {
   }, {
     key: "_awaitSleep",
     value: function () {
-      var _awaitSleep2 = (0, _asyncToGenerator2["default"])(
+      var _awaitSleep2 = _asyncToGenerator(
       /*#__PURE__*/
-      _regenerator["default"].mark(function _callee97(durationInMs) {
-        return _regenerator["default"].wrap(function _callee97$(_context98) {
+      regeneratorRuntime.mark(function _callee97(durationInMs) {
+        return regeneratorRuntime.wrap(function _callee97$(_context98) {
           while (1) {
             switch (_context98.prev = _context98.next) {
               case 0:
@@ -7293,14 +7320,14 @@ function () {
   }, {
     key: "handleSyncSuccess",
     value: function () {
-      var _handleSyncSuccess = (0, _asyncToGenerator2["default"])(
+      var _handleSyncSuccess = _asyncToGenerator(
       /*#__PURE__*/
-      _regenerator["default"].mark(function _callee98(syncedItems, response, options) {
+      regeneratorRuntime.mark(function _callee98(syncedItems, response, options) {
         var _this25 = this;
 
         var latency, allSavedUUIDs, currentRequestSavedUUIDs, itemsToClearAsDirty, _iteratorNormalCompletion43, _didIteratorError43, _iteratorError43, _iterator43, _step43, item, retrieved, omitFields, saved, deprecated_unsaved, conflicts, conflictsNeedSync, matches, cursorToken;
 
-        return _regenerator["default"].wrap(function _callee98$(_context99) {
+        return regeneratorRuntime.wrap(function _callee98$(_context99) {
           while (1) {
             switch (_context99.prev = _context99.next) {
               case 0:
@@ -7550,10 +7577,10 @@ function () {
   }, {
     key: "handleSyncError",
     value: function () {
-      var _handleSyncError = (0, _asyncToGenerator2["default"])(
+      var _handleSyncError = _asyncToGenerator(
       /*#__PURE__*/
-      _regenerator["default"].mark(function _callee99(response, statusCode, allDirtyItems) {
-        return _regenerator["default"].wrap(function _callee99$(_context100) {
+      regeneratorRuntime.mark(function _callee99(response, statusCode, allDirtyItems) {
+        return regeneratorRuntime.wrap(function _callee99$(_context100) {
           while (1) {
             switch (_context100.prev = _context100.next) {
               case 0:
@@ -7606,11 +7633,11 @@ function () {
   }, {
     key: "handleItemsResponse",
     value: function () {
-      var _handleItemsResponse = (0, _asyncToGenerator2["default"])(
+      var _handleItemsResponse = _asyncToGenerator(
       /*#__PURE__*/
-      _regenerator["default"].mark(function _callee100(responseItems, omitFields, source, keyRequest) {
+      regeneratorRuntime.mark(function _callee100(responseItems, omitFields, source, keyRequest) {
         var keys, items, itemsWithErrorStatusChange;
-        return _regenerator["default"].wrap(function _callee100$(_context101) {
+        return regeneratorRuntime.wrap(function _callee100$(_context101) {
           while (1) {
             switch (_context101.prev = _context101.next) {
               case 0:
@@ -7661,11 +7688,11 @@ function () {
   }, {
     key: "refreshErroredItems",
     value: function () {
-      var _refreshErroredItems = (0, _asyncToGenerator2["default"])(
+      var _refreshErroredItems = _asyncToGenerator(
       /*#__PURE__*/
-      _regenerator["default"].mark(function _callee101() {
+      regeneratorRuntime.mark(function _callee101() {
         var erroredItems;
-        return _regenerator["default"].wrap(function _callee101$(_context102) {
+        return regeneratorRuntime.wrap(function _callee101$(_context102) {
           while (1) {
             switch (_context102.prev = _context102.next) {
               case 0:
@@ -7707,12 +7734,12 @@ function () {
   }, {
     key: "handleConflictsResponse",
     value: function () {
-      var _handleConflictsResponse = (0, _asyncToGenerator2["default"])(
+      var _handleConflictsResponse = _asyncToGenerator(
       /*#__PURE__*/
-      _regenerator["default"].mark(function _callee102(conflicts) {
+      regeneratorRuntime.mark(function _callee102(conflicts) {
         var localValues, _iteratorNormalCompletion44, _didIteratorError44, _iteratorError44, _iterator44, _step44, conflict, serverItemResponse, localItem, frozenContent, itemsNeedingLocalSave, _iteratorNormalCompletion45, _didIteratorError45, _iteratorError45, _iterator45, _step45, _conflict, _serverItemResponse, _localValues$_serverI, _frozenContent, itemRef, newItem, tempServerItem, _tempItemWithFrozenValues, frozenContentDiffers, currentContentDiffers, duplicateLocal, duplicateServer, keepLocal, keepServer, IsActiveItemSecondsThreshold, isActivelyBeingEdited, contentExcludingReferencesDiffers, isOnlyReferenceChange, localDuplicate;
 
-        return _regenerator["default"].wrap(function _callee102$(_context103) {
+        return regeneratorRuntime.wrap(function _callee102$(_context103) {
           while (1) {
             switch (_context103.prev = _context103.next) {
               case 0:
@@ -8022,12 +8049,12 @@ function () {
   }, {
     key: "deprecated_handleUnsavedItemsResponse",
     value: function () {
-      var _deprecated_handleUnsavedItemsResponse = (0, _asyncToGenerator2["default"])(
+      var _deprecated_handleUnsavedItemsResponse = _asyncToGenerator(
       /*#__PURE__*/
-      _regenerator["default"].mark(function _callee103(unsaved) {
+      regeneratorRuntime.mark(function _callee103(unsaved) {
         var _iteratorNormalCompletion46, _didIteratorError46, _iteratorError46, _iterator46, _step46, mapping, itemResponse, item, error, dup;
 
-        return _regenerator["default"].wrap(function _callee103$(_context104) {
+        return regeneratorRuntime.wrap(function _callee103$(_context104) {
           while (1) {
             switch (_context104.prev = _context104.next) {
               case 0:
@@ -8181,11 +8208,11 @@ function () {
       return new Promise(
       /*#__PURE__*/
       function () {
-        var _ref23 = (0, _asyncToGenerator2["default"])(
+        var _ref23 = _asyncToGenerator(
         /*#__PURE__*/
-        _regenerator["default"].mark(function _callee105(resolve, reject) {
+        regeneratorRuntime.mark(function _callee105(resolve, reject) {
           var params;
-          return _regenerator["default"].wrap(function _callee105$(_context106) {
+          return regeneratorRuntime.wrap(function _callee105$(_context106) {
             while (1) {
               switch (_context106.prev = _context106.next) {
                 case 0:
@@ -8209,11 +8236,11 @@ function () {
                   _context106.t3 =
                   /*#__PURE__*/
                   function () {
-                    var _ref24 = (0, _asyncToGenerator2["default"])(
+                    var _ref24 = _asyncToGenerator(
                     /*#__PURE__*/
-                    _regenerator["default"].mark(function _callee104(response) {
+                    regeneratorRuntime.mark(function _callee104(response) {
                       var incomingItems, keys;
-                      return _regenerator["default"].wrap(function _callee104$(_context105) {
+                      return regeneratorRuntime.wrap(function _callee104$(_context105) {
                         while (1) {
                           switch (_context105.prev = _context105.next) {
                             case 0:
@@ -8288,12 +8315,12 @@ function () {
   }, {
     key: "resolveOutOfSync",
     value: function () {
-      var _resolveOutOfSync = (0, _asyncToGenerator2["default"])(
+      var _resolveOutOfSync = _asyncToGenerator(
       /*#__PURE__*/
-      _regenerator["default"].mark(function _callee107() {
+      regeneratorRuntime.mark(function _callee107() {
         var _this27 = this;
 
-        return _regenerator["default"].wrap(function _callee107$(_context108) {
+        return regeneratorRuntime.wrap(function _callee107$(_context108) {
           while (1) {
             switch (_context108.prev = _context108.next) {
               case 0:
@@ -8302,12 +8329,12 @@ function () {
                 }).then(
                 /*#__PURE__*/
                 function () {
-                  var _ref25 = (0, _asyncToGenerator2["default"])(
+                  var _ref25 = _asyncToGenerator(
                   /*#__PURE__*/
-                  _regenerator["default"].mark(function _callee106(downloadedItems) {
+                  regeneratorRuntime.mark(function _callee106(downloadedItems) {
                     var itemsToMap, _iteratorNormalCompletion47, _didIteratorError47, _iteratorError47, _iterator47, _step47, downloadedItem, existingItem, contentDoesntMatch;
 
-                    return _regenerator["default"].wrap(function _callee106$(_context107) {
+                    return regeneratorRuntime.wrap(function _callee106$(_context107) {
                       while (1) {
                         switch (_context107.prev = _context107.next) {
                           case 0:
@@ -8434,10 +8461,10 @@ function () {
   }, {
     key: "handleSignout",
     value: function () {
-      var _handleSignout = (0, _asyncToGenerator2["default"])(
+      var _handleSignout = _asyncToGenerator(
       /*#__PURE__*/
-      _regenerator["default"].mark(function _callee108() {
-        return _regenerator["default"].wrap(function _callee108$(_context109) {
+      regeneratorRuntime.mark(function _callee108() {
+        return regeneratorRuntime.wrap(function _callee108$(_context109) {
           while (1) {
             switch (_context109.prev = _context109.next) {
               case 0:
@@ -8466,10 +8493,10 @@ function () {
   }, {
     key: "clearSyncToken",
     value: function () {
-      var _clearSyncToken = (0, _asyncToGenerator2["default"])(
+      var _clearSyncToken = _asyncToGenerator(
       /*#__PURE__*/
-      _regenerator["default"].mark(function _callee109() {
-        return _regenerator["default"].wrap(function _callee109$(_context110) {
+      regeneratorRuntime.mark(function _callee109() {
+        return regeneratorRuntime.wrap(function _callee109$(_context110) {
           while (1) {
             switch (_context110.prev = _context110.next) {
               case 0:
@@ -8508,6 +8535,7 @@ function () {
       return this._queuedCallbacks;
     }
   }]);
+
   return SFSyncManager;
 }();
 
@@ -8520,7 +8548,9 @@ var SFItem =
 function () {
   function SFItem() {
     var json_obj = arguments.length > 0 && arguments[0] !== undefined ? arguments[0] : {};
-    (0, _classCallCheck2["default"])(this, SFItem);
+
+    _classCallCheck(this, SFItem);
+
     this.content = {};
     this.referencingObjects = [];
     this.updateFromJSON(json_obj);
@@ -8532,20 +8562,20 @@ function () {
       }
     }
 
-    if ((0, _typeof2["default"])(this.content) === 'object' && !this.content.references) {
+    if (_typeof(this.content) === 'object' && !this.content.references) {
       this.content.references = [];
     }
   } // On some platforms, syncrounous uuid generation is not available.
   // Those platforms (mobile) must call this function manually.
 
 
-  (0, _createClass2["default"])(SFItem, [{
+  _createClass(SFItem, [{
     key: "initUUID",
     value: function () {
-      var _initUUID = (0, _asyncToGenerator2["default"])(
+      var _initUUID = _asyncToGenerator(
       /*#__PURE__*/
-      _regenerator["default"].mark(function _callee110() {
-        return _regenerator["default"].wrap(function _callee110$(_context111) {
+      regeneratorRuntime.mark(function _callee110() {
+        return regeneratorRuntime.wrap(function _callee110$(_context111) {
           while (1) {
             switch (_context111.prev = _context111.next) {
               case 0:
@@ -8591,8 +8621,8 @@ function () {
 
       var clientKeys = ["errorDecrypting", "dirty", "dirtyCount", "dirtiedDate", "dummy"];
 
-      for (var _i3 = 0, _clientKeys = clientKeys; _i3 < _clientKeys.length; _i3++) {
-        var key = _clientKeys[_i3];
+      for (var _i4 = 0, _clientKeys = clientKeys; _i4 < _clientKeys.length; _i4++) {
+        var key = _clientKeys[_i4];
 
         if (json[key] !== undefined) {
           this[key] = json[key];
@@ -8998,7 +9028,7 @@ function () {
         return this.content;
       }
 
-      if (this.content !== null && (0, _typeof2["default"])(this.content) === 'object') {
+      if (this.content !== null && _typeof(this.content) === 'object') {
         // this is the case when mapping localStorage content, in which case the content is already parsed
         return this.content;
       }
@@ -9126,6 +9156,7 @@ function () {
       return JSON.stringify(leftContent) === JSON.stringify(rightContent);
     }
   }]);
+
   return SFItem;
 }();
 
@@ -9136,7 +9167,8 @@ var SFItemParams =
 /*#__PURE__*/
 function () {
   function SFItemParams(item, keys, auth_params) {
-    (0, _classCallCheck2["default"])(this, SFItemParams);
+    _classCallCheck(this, SFItemParams);
+
     this.item = item;
     this.keys = keys;
     this.auth_params = auth_params;
@@ -9150,14 +9182,14 @@ function () {
     }
   }
 
-  (0, _createClass2["default"])(SFItemParams, [{
+  _createClass(SFItemParams, [{
     key: "paramsForExportFile",
     value: function () {
-      var _paramsForExportFile = (0, _asyncToGenerator2["default"])(
+      var _paramsForExportFile = _asyncToGenerator(
       /*#__PURE__*/
-      _regenerator["default"].mark(function _callee111(includeDeleted) {
+      regeneratorRuntime.mark(function _callee111(includeDeleted) {
         var result;
-        return _regenerator["default"].wrap(function _callee111$(_context112) {
+        return regeneratorRuntime.wrap(function _callee111$(_context112) {
           while (1) {
             switch (_context112.prev = _context112.next) {
               case 0:
@@ -9195,10 +9227,10 @@ function () {
   }, {
     key: "paramsForExtension",
     value: function () {
-      var _paramsForExtension = (0, _asyncToGenerator2["default"])(
+      var _paramsForExtension = _asyncToGenerator(
       /*#__PURE__*/
-      _regenerator["default"].mark(function _callee112() {
-        return _regenerator["default"].wrap(function _callee112$(_context113) {
+      regeneratorRuntime.mark(function _callee112() {
+        return regeneratorRuntime.wrap(function _callee112$(_context113) {
           while (1) {
             switch (_context113.prev = _context113.next) {
               case 0:
@@ -9221,10 +9253,10 @@ function () {
   }, {
     key: "paramsForLocalStorage",
     value: function () {
-      var _paramsForLocalStorage = (0, _asyncToGenerator2["default"])(
+      var _paramsForLocalStorage = _asyncToGenerator(
       /*#__PURE__*/
-      _regenerator["default"].mark(function _callee113() {
-        return _regenerator["default"].wrap(function _callee113$(_context114) {
+      regeneratorRuntime.mark(function _callee113() {
+        return regeneratorRuntime.wrap(function _callee113$(_context114) {
           while (1) {
             switch (_context114.prev = _context114.next) {
               case 0:
@@ -9249,10 +9281,10 @@ function () {
   }, {
     key: "paramsForSync",
     value: function () {
-      var _paramsForSync = (0, _asyncToGenerator2["default"])(
+      var _paramsForSync = _asyncToGenerator(
       /*#__PURE__*/
-      _regenerator["default"].mark(function _callee114() {
-        return _regenerator["default"].wrap(function _callee114$(_context115) {
+      regeneratorRuntime.mark(function _callee114() {
+        return regeneratorRuntime.wrap(function _callee114$(_context115) {
           while (1) {
             switch (_context115.prev = _context115.next) {
               case 0:
@@ -9275,11 +9307,11 @@ function () {
   }, {
     key: "__params",
     value: function () {
-      var _params = (0, _asyncToGenerator2["default"])(
+      var _params = _asyncToGenerator(
       /*#__PURE__*/
-      _regenerator["default"].mark(function _callee115() {
+      regeneratorRuntime.mark(function _callee115() {
         var params, doNotEncrypt, encryptedParams;
-        return _regenerator["default"].wrap(function _callee115$(_context116) {
+        return regeneratorRuntime.wrap(function _callee115$(_context116) {
           while (1) {
             switch (_context116.prev = _context116.next) {
               case 0:
@@ -9377,6 +9409,7 @@ function () {
       return __params;
     }()
   }]);
+
   return SFItemParams;
 }();
 
@@ -9387,7 +9420,8 @@ var SFPredicate =
 /*#__PURE__*/
 function () {
   function SFPredicate(keypath, operator, value) {
-    (0, _classCallCheck2["default"])(this, SFPredicate);
+    _classCallCheck(this, SFPredicate);
+
     this.keypath = keypath;
     this.operator = operator;
     this.value = value; // Preprocessing to make predicate evaluation faster.
@@ -9399,7 +9433,7 @@ function () {
     }
   }
 
-  (0, _createClass2["default"])(SFPredicate, null, [{
+  _createClass(SFPredicate, null, [{
     key: "fromArray",
     value: function fromArray(array) {
       return new SFPredicate(array[0], array[1], array[2]);
@@ -9642,6 +9676,7 @@ function () {
       return ["and", "or"].includes(operator);
     }
   }]);
+
   return SFPredicate;
 }();
 
@@ -9651,8 +9686,9 @@ exports.SFPredicate = SFPredicate;
 var SFPrivileges =
 /*#__PURE__*/
 function (_SFItem) {
-  (0, _inherits2["default"])(SFPrivileges, _SFItem);
-  (0, _createClass2["default"])(SFPrivileges, null, [{
+  _inherits(SFPrivileges, _SFItem);
+
+  _createClass(SFPrivileges, null, [{
     key: "contentType",
     value: function contentType() {
       // It has prefix SN since it was originally imported from SN codebase
@@ -9663,8 +9699,9 @@ function (_SFItem) {
   function SFPrivileges(json_obj) {
     var _this28;
 
-    (0, _classCallCheck2["default"])(this, SFPrivileges);
-    _this28 = (0, _possibleConstructorReturn2["default"])(this, (0, _getPrototypeOf2["default"])(SFPrivileges).call(this, json_obj));
+    _classCallCheck(this, SFPrivileges);
+
+    _this28 = _possibleConstructorReturn(this, _getPrototypeOf(SFPrivileges).call(this, json_obj));
 
     if (!_this28.content.desktopPrivileges) {
       _this28.content.desktopPrivileges = {};
@@ -9673,7 +9710,7 @@ function (_SFItem) {
     return _this28;
   }
 
-  (0, _createClass2["default"])(SFPrivileges, [{
+  _createClass(SFPrivileges, [{
     key: "setCredentialsForAction",
     value: function setCredentialsForAction(action, credentials) {
       this.content.desktopPrivileges[action] = credentials;
@@ -9711,6 +9748,7 @@ function (_SFItem) {
       return credentialsRequired.includes(credential);
     }
   }]);
+
   return SFPrivileges;
 }(SFItem);
 
@@ -9729,13 +9767,14 @@ exports.SFPrivileges = SFPrivileges;
 var SFHistorySession =
 /*#__PURE__*/
 function (_SFItem2) {
-  (0, _inherits2["default"])(SFHistorySession, _SFItem2);
+  _inherits(SFHistorySession, _SFItem2);
 
   function SFHistorySession(json_obj) {
     var _this29;
 
-    (0, _classCallCheck2["default"])(this, SFHistorySession);
-    _this29 = (0, _possibleConstructorReturn2["default"])(this, (0, _getPrototypeOf2["default"])(SFHistorySession).call(this, json_obj));
+    _classCallCheck(this, SFHistorySession);
+
+    _this29 = _possibleConstructorReturn(this, _getPrototypeOf(SFHistorySession).call(this, json_obj));
     /*
       Our .content params:
       {
@@ -9756,7 +9795,7 @@ function (_SFItem2) {
     return _this29;
   }
 
-  (0, _createClass2["default"])(SFHistorySession, [{
+  _createClass(SFHistorySession, [{
     key: "addEntryForItem",
     value: function addEntryForItem(item) {
       var itemHistory = this.historyForItem(item);
@@ -9797,6 +9836,7 @@ function (_SFItem2) {
       }
     }
   }]);
+
   return SFHistorySession;
 }(SFItem); // See comment in `this.optimizeHistoryForItem`
 
@@ -9810,7 +9850,8 @@ var SFItemHistory =
 function () {
   function SFItemHistory() {
     var params = arguments.length > 0 && arguments[0] !== undefined ? arguments[0] : {};
-    (0, _classCallCheck2["default"])(this, SFItemHistory);
+
+    _classCallCheck(this, SFItemHistory);
 
     if (!this.entries) {
       this.entries = [];
@@ -9846,7 +9887,7 @@ function () {
     }
   }
 
-  (0, _createClass2["default"])(SFItemHistory, [{
+  _createClass(SFItemHistory, [{
     key: "createEntryForItem",
     value: function createEntryForItem(item) {
       var historyItemClass = SFItemHistory.HistoryEntryClassMapping && SFItemHistory.HistoryEntryClassMapping[item.content_type];
@@ -9936,6 +9977,7 @@ function () {
       });
     }
   }]);
+
   return SFItemHistory;
 }(); // The amount of characters added or removed that constitute a keepable entry after optimization.
 
@@ -9948,7 +9990,8 @@ var SFItemHistoryEntry =
 /*#__PURE__*/
 function () {
   function SFItemHistoryEntry(item) {
-    (0, _classCallCheck2["default"])(this, SFItemHistoryEntry);
+    _classCallCheck(this, SFItemHistoryEntry);
+
     // Whatever values `item` has will be persisted, so be sure that the values are picked beforehand.
     this.item = SFItem.deepMerge({}, item); // We'll assume a `text` content value to diff on. If it doesn't exist, no problem.
 
@@ -9961,7 +10004,7 @@ function () {
     }
   }
 
-  (0, _createClass2["default"])(SFItemHistoryEntry, [{
+  _createClass(SFItemHistoryEntry, [{
     key: "setPreviousEntry",
     value: function setPreviousEntry(previousEntry) {
       this.hasPreviousEntry = previousEntry != null; // we'll try to compute the delta based on an assumed content property of `text`, if it exists.
@@ -10017,6 +10060,7 @@ function () {
       return lhs.isItemContentEqualWith(rhs);
     }
   }]);
+
   return SFItemHistoryEntry;
 }();
 
@@ -10034,11 +10078,12 @@ var SFAbstractCrypto =
 /*#__PURE__*/
 function () {
   function SFAbstractCrypto() {
-    (0, _classCallCheck2["default"])(this, SFAbstractCrypto);
+    _classCallCheck(this, SFAbstractCrypto);
+
     this.DefaultPBKDF2Length = 768;
   }
 
-  (0, _createClass2["default"])(SFAbstractCrypto, [{
+  _createClass(SFAbstractCrypto, [{
     key: "generateUUIDSync",
     value: function generateUUIDSync() {
       var crypto = globalScope.crypto || globalScope.msCrypto;
@@ -10071,10 +10116,10 @@ function () {
   }, {
     key: "generateUUID",
     value: function () {
-      var _generateUUID = (0, _asyncToGenerator2["default"])(
+      var _generateUUID = _asyncToGenerator(
       /*#__PURE__*/
-      _regenerator["default"].mark(function _callee116() {
-        return _regenerator["default"].wrap(function _callee116$(_context117) {
+      regeneratorRuntime.mark(function _callee116() {
+        return regeneratorRuntime.wrap(function _callee116$(_context117) {
           while (1) {
             switch (_context117.prev = _context117.next) {
               case 0:
@@ -10118,9 +10163,9 @@ function () {
   }, {
     key: "decryptText",
     value: function () {
-      var _decryptText = (0, _asyncToGenerator2["default"])(
+      var _decryptText = _asyncToGenerator(
       /*#__PURE__*/
-      _regenerator["default"].mark(function _callee117() {
+      regeneratorRuntime.mark(function _callee117() {
         var _ref27,
             ciphertextToAuth,
             contentCiphertext,
@@ -10135,7 +10180,7 @@ function () {
             decrypted,
             _args118 = arguments;
 
-        return _regenerator["default"].wrap(function _callee117$(_context118) {
+        return regeneratorRuntime.wrap(function _callee117$(_context118) {
           while (1) {
             switch (_context118.prev = _context118.next) {
               case 0:
@@ -10197,11 +10242,11 @@ function () {
   }, {
     key: "encryptText",
     value: function () {
-      var _encryptText = (0, _asyncToGenerator2["default"])(
+      var _encryptText = _asyncToGenerator(
       /*#__PURE__*/
-      _regenerator["default"].mark(function _callee118(text, key, iv) {
+      regeneratorRuntime.mark(function _callee118(text, key, iv) {
         var keyData, ivData, encrypted;
-        return _regenerator["default"].wrap(function _callee118$(_context119) {
+        return regeneratorRuntime.wrap(function _callee118$(_context119) {
           while (1) {
             switch (_context119.prev = _context119.next) {
               case 0:
@@ -10231,10 +10276,10 @@ function () {
   }, {
     key: "generateRandomKey",
     value: function () {
-      var _generateRandomKey = (0, _asyncToGenerator2["default"])(
+      var _generateRandomKey = _asyncToGenerator(
       /*#__PURE__*/
-      _regenerator["default"].mark(function _callee119(bits) {
-        return _regenerator["default"].wrap(function _callee119$(_context120) {
+      regeneratorRuntime.mark(function _callee119(bits) {
+        return regeneratorRuntime.wrap(function _callee119$(_context120) {
           while (1) {
             switch (_context120.prev = _context120.next) {
               case 0:
@@ -10257,11 +10302,11 @@ function () {
   }, {
     key: "generateItemEncryptionKey",
     value: function () {
-      var _generateItemEncryptionKey = (0, _asyncToGenerator2["default"])(
+      var _generateItemEncryptionKey = _asyncToGenerator(
       /*#__PURE__*/
-      _regenerator["default"].mark(function _callee120() {
+      regeneratorRuntime.mark(function _callee120() {
         var length, cost, salt, passphrase;
-        return _regenerator["default"].wrap(function _callee120$(_context121) {
+        return regeneratorRuntime.wrap(function _callee120$(_context121) {
           while (1) {
             switch (_context121.prev = _context121.next) {
               case 0:
@@ -10297,10 +10342,10 @@ function () {
   }, {
     key: "firstHalfOfKey",
     value: function () {
-      var _firstHalfOfKey = (0, _asyncToGenerator2["default"])(
+      var _firstHalfOfKey = _asyncToGenerator(
       /*#__PURE__*/
-      _regenerator["default"].mark(function _callee121(key) {
-        return _regenerator["default"].wrap(function _callee121$(_context122) {
+      regeneratorRuntime.mark(function _callee121(key) {
+        return regeneratorRuntime.wrap(function _callee121$(_context122) {
           while (1) {
             switch (_context122.prev = _context122.next) {
               case 0:
@@ -10323,10 +10368,10 @@ function () {
   }, {
     key: "secondHalfOfKey",
     value: function () {
-      var _secondHalfOfKey = (0, _asyncToGenerator2["default"])(
+      var _secondHalfOfKey = _asyncToGenerator(
       /*#__PURE__*/
-      _regenerator["default"].mark(function _callee122(key) {
-        return _regenerator["default"].wrap(function _callee122$(_context123) {
+      regeneratorRuntime.mark(function _callee122(key) {
+        return regeneratorRuntime.wrap(function _callee122$(_context123) {
           while (1) {
             switch (_context123.prev = _context123.next) {
               case 0:
@@ -10349,10 +10394,10 @@ function () {
   }, {
     key: "base64",
     value: function () {
-      var _base = (0, _asyncToGenerator2["default"])(
+      var _base = _asyncToGenerator(
       /*#__PURE__*/
-      _regenerator["default"].mark(function _callee123(text) {
-        return _regenerator["default"].wrap(function _callee123$(_context124) {
+      regeneratorRuntime.mark(function _callee123(text) {
+        return regeneratorRuntime.wrap(function _callee123$(_context124) {
           while (1) {
             switch (_context124.prev = _context124.next) {
               case 0:
@@ -10377,10 +10422,10 @@ function () {
   }, {
     key: "base64Decode",
     value: function () {
-      var _base64Decode = (0, _asyncToGenerator2["default"])(
+      var _base64Decode = _asyncToGenerator(
       /*#__PURE__*/
-      _regenerator["default"].mark(function _callee124(base64String) {
-        return _regenerator["default"].wrap(function _callee124$(_context125) {
+      regeneratorRuntime.mark(function _callee124(base64String) {
+        return regeneratorRuntime.wrap(function _callee124$(_context125) {
           while (1) {
             switch (_context125.prev = _context125.next) {
               case 0:
@@ -10403,10 +10448,10 @@ function () {
   }, {
     key: "sha256",
     value: function () {
-      var _sha = (0, _asyncToGenerator2["default"])(
+      var _sha = _asyncToGenerator(
       /*#__PURE__*/
-      _regenerator["default"].mark(function _callee125(text) {
-        return _regenerator["default"].wrap(function _callee125$(_context126) {
+      regeneratorRuntime.mark(function _callee125(text) {
+        return regeneratorRuntime.wrap(function _callee125$(_context126) {
           while (1) {
             switch (_context126.prev = _context126.next) {
               case 0:
@@ -10429,11 +10474,11 @@ function () {
   }, {
     key: "hmac256",
     value: function () {
-      var _hmac = (0, _asyncToGenerator2["default"])(
+      var _hmac = _asyncToGenerator(
       /*#__PURE__*/
-      _regenerator["default"].mark(function _callee126(message, key) {
+      regeneratorRuntime.mark(function _callee126(message, key) {
         var keyData, messageData, result;
-        return _regenerator["default"].wrap(function _callee126$(_context127) {
+        return regeneratorRuntime.wrap(function _callee126$(_context127) {
           while (1) {
             switch (_context127.prev = _context127.next) {
               case 0:
@@ -10459,11 +10504,11 @@ function () {
   }, {
     key: "generateSalt",
     value: function () {
-      var _generateSalt = (0, _asyncToGenerator2["default"])(
+      var _generateSalt = _asyncToGenerator(
       /*#__PURE__*/
-      _regenerator["default"].mark(function _callee127(identifier, version, cost, nonce) {
+      regeneratorRuntime.mark(function _callee127(identifier, version, cost, nonce) {
         var result;
-        return _regenerator["default"].wrap(function _callee127$(_context128) {
+        return regeneratorRuntime.wrap(function _callee127$(_context128) {
           while (1) {
             switch (_context128.prev = _context128.next) {
               case 0:
@@ -10493,9 +10538,9 @@ function () {
   }, {
     key: "generateSymmetricKeyPair",
     value: function () {
-      var _generateSymmetricKeyPair = (0, _asyncToGenerator2["default"])(
+      var _generateSymmetricKeyPair = _asyncToGenerator(
       /*#__PURE__*/
-      _regenerator["default"].mark(function _callee128() {
+      regeneratorRuntime.mark(function _callee128() {
         var _ref28,
             password,
             pw_salt,
@@ -10508,7 +10553,7 @@ function () {
             thirdThird,
             _args129 = arguments;
 
-        return _regenerator["default"].wrap(function _callee128$(_context129) {
+        return regeneratorRuntime.wrap(function _callee128$(_context129) {
           while (1) {
             switch (_context129.prev = _context129.next) {
               case 0:
@@ -10542,11 +10587,11 @@ function () {
   }, {
     key: "computeEncryptionKeysForUser",
     value: function () {
-      var _computeEncryptionKeysForUser = (0, _asyncToGenerator2["default"])(
+      var _computeEncryptionKeysForUser = _asyncToGenerator(
       /*#__PURE__*/
-      _regenerator["default"].mark(function _callee129(password, authParams) {
+      regeneratorRuntime.mark(function _callee129(password, authParams) {
         var pw_salt;
-        return _regenerator["default"].wrap(function _callee129$(_context130) {
+        return regeneratorRuntime.wrap(function _callee129$(_context130) {
           while (1) {
             switch (_context130.prev = _context130.next) {
               case 0:
@@ -10608,11 +10653,11 @@ function () {
   }, {
     key: "generateInitialKeysAndAuthParamsForUser",
     value: function () {
-      var _generateInitialKeysAndAuthParamsForUser = (0, _asyncToGenerator2["default"])(
+      var _generateInitialKeysAndAuthParamsForUser = _asyncToGenerator(
       /*#__PURE__*/
-      _regenerator["default"].mark(function _callee130(identifier, password) {
+      regeneratorRuntime.mark(function _callee130(identifier, password) {
         var version, pw_cost, pw_nonce, pw_salt;
-        return _regenerator["default"].wrap(function _callee130$(_context131) {
+        return regeneratorRuntime.wrap(function _callee130$(_context131) {
           while (1) {
             switch (_context131.prev = _context131.next) {
               case 0:
@@ -10665,6 +10710,7 @@ function () {
       return generateInitialKeysAndAuthParamsForUser;
     }()
   }]);
+
   return SFAbstractCrypto;
 }();
 
@@ -10674,21 +10720,22 @@ exports.SFAbstractCrypto = SFAbstractCrypto;
 var SFCryptoJS =
 /*#__PURE__*/
 function (_SFAbstractCrypto) {
-  (0, _inherits2["default"])(SFCryptoJS, _SFAbstractCrypto);
+  _inherits(SFCryptoJS, _SFAbstractCrypto);
 
   function SFCryptoJS() {
-    (0, _classCallCheck2["default"])(this, SFCryptoJS);
-    return (0, _possibleConstructorReturn2["default"])(this, (0, _getPrototypeOf2["default"])(SFCryptoJS).apply(this, arguments));
+    _classCallCheck(this, SFCryptoJS);
+
+    return _possibleConstructorReturn(this, _getPrototypeOf(SFCryptoJS).apply(this, arguments));
   }
 
-  (0, _createClass2["default"])(SFCryptoJS, [{
+  _createClass(SFCryptoJS, [{
     key: "pbkdf2",
     value: function () {
-      var _pbkdf = (0, _asyncToGenerator2["default"])(
+      var _pbkdf = _asyncToGenerator(
       /*#__PURE__*/
-      _regenerator["default"].mark(function _callee131(password, pw_salt, pw_cost, length) {
+      regeneratorRuntime.mark(function _callee131(password, pw_salt, pw_cost, length) {
         var params;
-        return _regenerator["default"].wrap(function _callee131$(_context132) {
+        return regeneratorRuntime.wrap(function _callee131$(_context132) {
           while (1) {
             switch (_context132.prev = _context132.next) {
               case 0:
@@ -10714,6 +10761,7 @@ function (_SFAbstractCrypto) {
       return pbkdf2;
     }()
   }]);
+
   return SFCryptoJS;
 }(SFAbstractCrypto);
 
@@ -10725,25 +10773,26 @@ var subtleCrypto = globalScope.crypto ? globalScope.crypto.subtle : null;
 var SFCryptoWeb =
 /*#__PURE__*/
 function (_SFAbstractCrypto2) {
-  (0, _inherits2["default"])(SFCryptoWeb, _SFAbstractCrypto2);
+  _inherits(SFCryptoWeb, _SFAbstractCrypto2);
 
   function SFCryptoWeb() {
-    (0, _classCallCheck2["default"])(this, SFCryptoWeb);
-    return (0, _possibleConstructorReturn2["default"])(this, (0, _getPrototypeOf2["default"])(SFCryptoWeb).apply(this, arguments));
+    _classCallCheck(this, SFCryptoWeb);
+
+    return _possibleConstructorReturn(this, _getPrototypeOf(SFCryptoWeb).apply(this, arguments));
   }
 
-  (0, _createClass2["default"])(SFCryptoWeb, [{
+  _createClass(SFCryptoWeb, [{
     key: "pbkdf2",
 
     /**
     Public
     */
     value: function () {
-      var _pbkdf2 = (0, _asyncToGenerator2["default"])(
+      var _pbkdf2 = _asyncToGenerator(
       /*#__PURE__*/
-      _regenerator["default"].mark(function _callee132(password, pw_salt, pw_cost, length) {
+      regeneratorRuntime.mark(function _callee132(password, pw_salt, pw_cost, length) {
         var key;
-        return _regenerator["default"].wrap(function _callee132$(_context133) {
+        return regeneratorRuntime.wrap(function _callee132$(_context133) {
           while (1) {
             switch (_context133.prev = _context133.next) {
               case 0:
@@ -10781,13 +10830,13 @@ function (_SFAbstractCrypto2) {
   }, {
     key: "generateRandomKey",
     value: function () {
-      var _generateRandomKey2 = (0, _asyncToGenerator2["default"])(
+      var _generateRandomKey2 = _asyncToGenerator(
       /*#__PURE__*/
-      _regenerator["default"].mark(function _callee134(bits) {
+      regeneratorRuntime.mark(function _callee134(bits) {
         var _this31 = this;
 
         var extractable;
-        return _regenerator["default"].wrap(function _callee134$(_context135) {
+        return regeneratorRuntime.wrap(function _callee134$(_context135) {
           while (1) {
             switch (_context135.prev = _context135.next) {
               case 0:
@@ -10799,11 +10848,11 @@ function (_SFAbstractCrypto2) {
                   return subtleCrypto.exportKey("raw", keyObject).then(
                   /*#__PURE__*/
                   function () {
-                    var _ref29 = (0, _asyncToGenerator2["default"])(
+                    var _ref29 = _asyncToGenerator(
                     /*#__PURE__*/
-                    _regenerator["default"].mark(function _callee133(keyData) {
+                    regeneratorRuntime.mark(function _callee133(keyData) {
                       var key;
-                      return _regenerator["default"].wrap(function _callee133$(_context134) {
+                      return regeneratorRuntime.wrap(function _callee133$(_context134) {
                         while (1) {
                           switch (_context134.prev = _context134.next) {
                             case 0:
@@ -10849,11 +10898,11 @@ function (_SFAbstractCrypto2) {
   }, {
     key: "generateItemEncryptionKey",
     value: function () {
-      var _generateItemEncryptionKey2 = (0, _asyncToGenerator2["default"])(
+      var _generateItemEncryptionKey2 = _asyncToGenerator(
       /*#__PURE__*/
-      _regenerator["default"].mark(function _callee135() {
+      regeneratorRuntime.mark(function _callee135() {
         var length;
-        return _regenerator["default"].wrap(function _callee135$(_context136) {
+        return regeneratorRuntime.wrap(function _callee135$(_context136) {
           while (1) {
             switch (_context136.prev = _context136.next) {
               case 0:
@@ -10880,13 +10929,13 @@ function (_SFAbstractCrypto2) {
   }, {
     key: "encryptText",
     value: function () {
-      var _encryptText2 = (0, _asyncToGenerator2["default"])(
+      var _encryptText2 = _asyncToGenerator(
       /*#__PURE__*/
-      _regenerator["default"].mark(function _callee137(text, key, iv) {
+      regeneratorRuntime.mark(function _callee137(text, key, iv) {
         var _this32 = this;
 
         var ivData, alg, keyBuffer, keyData, textData;
-        return _regenerator["default"].wrap(function _callee137$(_context138) {
+        return regeneratorRuntime.wrap(function _callee137$(_context138) {
           while (1) {
             switch (_context138.prev = _context138.next) {
               case 0:
@@ -10930,11 +10979,11 @@ function (_SFAbstractCrypto2) {
                 return _context138.abrupt("return", crypto.subtle.encrypt(alg, keyData, textData).then(
                 /*#__PURE__*/
                 function () {
-                  var _ref30 = (0, _asyncToGenerator2["default"])(
+                  var _ref30 = _asyncToGenerator(
                   /*#__PURE__*/
-                  _regenerator["default"].mark(function _callee136(result) {
+                  regeneratorRuntime.mark(function _callee136(result) {
                     var cipher;
-                    return _regenerator["default"].wrap(function _callee136$(_context137) {
+                    return regeneratorRuntime.wrap(function _callee136$(_context137) {
                       while (1) {
                         switch (_context137.prev = _context137.next) {
                           case 0:
@@ -10975,9 +11024,9 @@ function (_SFAbstractCrypto2) {
   }, {
     key: "decryptText",
     value: function () {
-      var _decryptText2 = (0, _asyncToGenerator2["default"])(
+      var _decryptText2 = _asyncToGenerator(
       /*#__PURE__*/
-      _regenerator["default"].mark(function _callee139() {
+      regeneratorRuntime.mark(function _callee139() {
         var _this33 = this;
 
         var _ref31,
@@ -10996,7 +11045,7 @@ function (_SFAbstractCrypto2) {
             textData,
             _args140 = arguments;
 
-        return _regenerator["default"].wrap(function _callee139$(_context140) {
+        return regeneratorRuntime.wrap(function _callee139$(_context140) {
           while (1) {
             switch (_context140.prev = _context140.next) {
               case 0:
@@ -11072,11 +11121,11 @@ function (_SFAbstractCrypto2) {
                 return _context140.abrupt("return", crypto.subtle.decrypt(alg, keyData, textData).then(
                 /*#__PURE__*/
                 function () {
-                  var _ref32 = (0, _asyncToGenerator2["default"])(
+                  var _ref32 = _asyncToGenerator(
                   /*#__PURE__*/
-                  _regenerator["default"].mark(function _callee138(result) {
+                  regeneratorRuntime.mark(function _callee138(result) {
                     var decoded;
-                    return _regenerator["default"].wrap(function _callee138$(_context139) {
+                    return regeneratorRuntime.wrap(function _callee138$(_context139) {
                       while (1) {
                         switch (_context139.prev = _context139.next) {
                           case 0:
@@ -11119,13 +11168,13 @@ function (_SFAbstractCrypto2) {
   }, {
     key: "hmac256",
     value: function () {
-      var _hmac2 = (0, _asyncToGenerator2["default"])(
+      var _hmac2 = _asyncToGenerator(
       /*#__PURE__*/
-      _regenerator["default"].mark(function _callee141(message, key) {
+      regeneratorRuntime.mark(function _callee141(message, key) {
         var _this34 = this;
 
         var keyHexData, keyData, messageData;
-        return _regenerator["default"].wrap(function _callee141$(_context142) {
+        return regeneratorRuntime.wrap(function _callee141$(_context142) {
           while (1) {
             switch (_context142.prev = _context142.next) {
               case 0:
@@ -11151,11 +11200,11 @@ function (_SFAbstractCrypto2) {
                 }, keyData, messageData).then(
                 /*#__PURE__*/
                 function () {
-                  var _ref33 = (0, _asyncToGenerator2["default"])(
+                  var _ref33 = _asyncToGenerator(
                   /*#__PURE__*/
-                  _regenerator["default"].mark(function _callee140(signature) {
+                  regeneratorRuntime.mark(function _callee140(signature) {
                     var hash;
-                    return _regenerator["default"].wrap(function _callee140$(_context141) {
+                    return regeneratorRuntime.wrap(function _callee140$(_context141) {
                       while (1) {
                         switch (_context141.prev = _context141.next) {
                           case 0:
@@ -11202,11 +11251,11 @@ function (_SFAbstractCrypto2) {
   }, {
     key: "webCryptoImportKey",
     value: function () {
-      var _webCryptoImportKey = (0, _asyncToGenerator2["default"])(
+      var _webCryptoImportKey = _asyncToGenerator(
       /*#__PURE__*/
-      _regenerator["default"].mark(function _callee142(input, alg, actions, hash) {
+      regeneratorRuntime.mark(function _callee142(input, alg, actions, hash) {
         var text;
-        return _regenerator["default"].wrap(function _callee142$(_context143) {
+        return regeneratorRuntime.wrap(function _callee142$(_context143) {
           while (1) {
             switch (_context143.prev = _context143.next) {
               case 0:
@@ -11255,13 +11304,13 @@ function (_SFAbstractCrypto2) {
   }, {
     key: "webCryptoDeriveBits",
     value: function () {
-      var _webCryptoDeriveBits = (0, _asyncToGenerator2["default"])(
+      var _webCryptoDeriveBits = _asyncToGenerator(
       /*#__PURE__*/
-      _regenerator["default"].mark(function _callee144(key, pw_salt, pw_cost, length) {
+      regeneratorRuntime.mark(function _callee144(key, pw_salt, pw_cost, length) {
         var _this35 = this;
 
         var params;
-        return _regenerator["default"].wrap(function _callee144$(_context145) {
+        return regeneratorRuntime.wrap(function _callee144$(_context145) {
           while (1) {
             switch (_context145.prev = _context145.next) {
               case 0:
@@ -11283,11 +11332,11 @@ function (_SFAbstractCrypto2) {
                 return _context145.abrupt("return", subtleCrypto.deriveBits(params, key, length).then(
                 /*#__PURE__*/
                 function () {
-                  var _ref34 = (0, _asyncToGenerator2["default"])(
+                  var _ref34 = _asyncToGenerator(
                   /*#__PURE__*/
-                  _regenerator["default"].mark(function _callee143(bits) {
+                  regeneratorRuntime.mark(function _callee143(bits) {
                     var key;
-                    return _regenerator["default"].wrap(function _callee143$(_context144) {
+                    return regeneratorRuntime.wrap(function _callee143$(_context144) {
                       while (1) {
                         switch (_context144.prev = _context144.next) {
                           case 0:
@@ -11331,10 +11380,10 @@ function (_SFAbstractCrypto2) {
   }, {
     key: "stringToArrayBuffer",
     value: function () {
-      var _stringToArrayBuffer = (0, _asyncToGenerator2["default"])(
+      var _stringToArrayBuffer = _asyncToGenerator(
       /*#__PURE__*/
-      _regenerator["default"].mark(function _callee145(string) {
-        return _regenerator["default"].wrap(function _callee145$(_context146) {
+      regeneratorRuntime.mark(function _callee145(string) {
+        return regeneratorRuntime.wrap(function _callee145$(_context146) {
           while (1) {
             switch (_context146.prev = _context146.next) {
               case 0:
@@ -11366,10 +11415,10 @@ function (_SFAbstractCrypto2) {
   }, {
     key: "arrayBufferToString",
     value: function () {
-      var _arrayBufferToString = (0, _asyncToGenerator2["default"])(
+      var _arrayBufferToString = _asyncToGenerator(
       /*#__PURE__*/
-      _regenerator["default"].mark(function _callee146(arrayBuffer) {
-        return _regenerator["default"].wrap(function _callee146$(_context147) {
+      regeneratorRuntime.mark(function _callee146(arrayBuffer) {
+        return regeneratorRuntime.wrap(function _callee146$(_context147) {
           while (1) {
             switch (_context147.prev = _context147.next) {
               case 0:
@@ -11401,11 +11450,11 @@ function (_SFAbstractCrypto2) {
   }, {
     key: "arrayBufferToHexString",
     value: function () {
-      var _arrayBufferToHexString = (0, _asyncToGenerator2["default"])(
+      var _arrayBufferToHexString = _asyncToGenerator(
       /*#__PURE__*/
-      _regenerator["default"].mark(function _callee147(arrayBuffer) {
+      regeneratorRuntime.mark(function _callee147(arrayBuffer) {
         var byteArray, hexString, nextHexByte, i;
-        return _regenerator["default"].wrap(function _callee147$(_context148) {
+        return regeneratorRuntime.wrap(function _callee147$(_context148) {
           while (1) {
             switch (_context148.prev = _context148.next) {
               case 0:
@@ -11441,11 +11490,11 @@ function (_SFAbstractCrypto2) {
   }, {
     key: "hexStringToArrayBuffer",
     value: function () {
-      var _hexStringToArrayBuffer = (0, _asyncToGenerator2["default"])(
+      var _hexStringToArrayBuffer = _asyncToGenerator(
       /*#__PURE__*/
-      _regenerator["default"].mark(function _callee148(hex) {
+      regeneratorRuntime.mark(function _callee148(hex) {
         var bytes, c;
-        return _regenerator["default"].wrap(function _callee148$(_context149) {
+        return regeneratorRuntime.wrap(function _callee148$(_context149) {
           while (1) {
             switch (_context149.prev = _context149.next) {
               case 0:
@@ -11472,11 +11521,11 @@ function (_SFAbstractCrypto2) {
   }, {
     key: "base64ToArrayBuffer",
     value: function () {
-      var _base64ToArrayBuffer = (0, _asyncToGenerator2["default"])(
+      var _base64ToArrayBuffer = _asyncToGenerator(
       /*#__PURE__*/
-      _regenerator["default"].mark(function _callee149(base64) {
+      regeneratorRuntime.mark(function _callee149(base64) {
         var binary_string, len, bytes, i;
-        return _regenerator["default"].wrap(function _callee149$(_context150) {
+        return regeneratorRuntime.wrap(function _callee149$(_context150) {
           while (1) {
             switch (_context150.prev = _context150.next) {
               case 0:
@@ -11511,10 +11560,10 @@ function (_SFAbstractCrypto2) {
   }, {
     key: "arrayBufferToBase64",
     value: function () {
-      var _arrayBufferToBase = (0, _asyncToGenerator2["default"])(
+      var _arrayBufferToBase = _asyncToGenerator(
       /*#__PURE__*/
-      _regenerator["default"].mark(function _callee150(buffer) {
-        return _regenerator["default"].wrap(function _callee150$(_context151) {
+      regeneratorRuntime.mark(function _callee150(buffer) {
+        return regeneratorRuntime.wrap(function _callee150$(_context151) {
           while (1) {
             switch (_context151.prev = _context151.next) {
               case 0:
@@ -11547,6 +11596,7 @@ function (_SFAbstractCrypto2) {
       return arrayBufferToBase64;
     }()
   }]);
+
   return SFCryptoWeb;
 }(SFAbstractCrypto);
 
@@ -11557,18 +11607,19 @@ var SFItemTransformer =
 /*#__PURE__*/
 function () {
   function SFItemTransformer(crypto) {
-    (0, _classCallCheck2["default"])(this, SFItemTransformer);
+    _classCallCheck(this, SFItemTransformer);
+
     this.crypto = crypto;
   }
 
-  (0, _createClass2["default"])(SFItemTransformer, [{
+  _createClass(SFItemTransformer, [{
     key: "_private_encryptString",
     value: function () {
-      var _private_encryptString2 = (0, _asyncToGenerator2["default"])(
+      var _private_encryptString2 = _asyncToGenerator(
       /*#__PURE__*/
-      _regenerator["default"].mark(function _callee151(string, encryptionKey, authKey, uuid, auth_params) {
+      regeneratorRuntime.mark(function _callee151(string, encryptionKey, authKey, uuid, auth_params) {
         var fullCiphertext, contentCiphertext, iv, ciphertextToAuth, authHash, authParamsString;
-        return _regenerator["default"].wrap(function _callee151$(_context152) {
+        return regeneratorRuntime.wrap(function _callee151$(_context152) {
           while (1) {
             switch (_context152.prev = _context152.next) {
               case 0:
@@ -11630,11 +11681,11 @@ function () {
   }, {
     key: "encryptItem",
     value: function () {
-      var _encryptItem = (0, _asyncToGenerator2["default"])(
+      var _encryptItem = _asyncToGenerator(
       /*#__PURE__*/
-      _regenerator["default"].mark(function _callee152(item, keys, auth_params) {
+      regeneratorRuntime.mark(function _callee152(item, keys, auth_params) {
         var params, item_key, ek, ak, ciphertext, authHash;
-        return _regenerator["default"].wrap(function _callee152$(_context153) {
+        return regeneratorRuntime.wrap(function _callee152$(_context153) {
           while (1) {
             switch (_context153.prev = _context153.next) {
               case 0:
@@ -11746,11 +11797,11 @@ function () {
   }, {
     key: "decryptItem",
     value: function () {
-      var _decryptItem = (0, _asyncToGenerator2["default"])(
+      var _decryptItem = _asyncToGenerator(
       /*#__PURE__*/
-      _regenerator["default"].mark(function _callee153(item, keys) {
+      regeneratorRuntime.mark(function _callee153(item, keys) {
         var encryptedItemKey, requiresAuth, keyParams, item_key, ek, ak, itemParams, content;
-        return _regenerator["default"].wrap(function _callee153$(_context154) {
+        return regeneratorRuntime.wrap(function _callee153$(_context154) {
           while (1) {
             switch (_context154.prev = _context154.next) {
               case 0:
@@ -11928,24 +11979,24 @@ function () {
   }, {
     key: "decryptMultipleItems",
     value: function () {
-      var _decryptMultipleItems = (0, _asyncToGenerator2["default"])(
+      var _decryptMultipleItems = _asyncToGenerator(
       /*#__PURE__*/
-      _regenerator["default"].mark(function _callee155(items, keys, _throws) {
+      regeneratorRuntime.mark(function _callee155(items, keys, _throws) {
         var _this36 = this;
 
         var decrypt;
-        return _regenerator["default"].wrap(function _callee155$(_context156) {
+        return regeneratorRuntime.wrap(function _callee155$(_context156) {
           while (1) {
             switch (_context156.prev = _context156.next) {
               case 0:
                 decrypt =
                 /*#__PURE__*/
                 function () {
-                  var _ref35 = (0, _asyncToGenerator2["default"])(
+                  var _ref35 = _asyncToGenerator(
                   /*#__PURE__*/
-                  _regenerator["default"].mark(function _callee154(item) {
+                  regeneratorRuntime.mark(function _callee154(item) {
                     var isString;
-                    return _regenerator["default"].wrap(function _callee154$(_context155) {
+                    return regeneratorRuntime.wrap(function _callee154$(_context155) {
                       while (1) {
                         switch (_context155.prev = _context155.next) {
                           case 0:
@@ -12033,6 +12084,7 @@ function () {
       return decryptMultipleItems;
     }()
   }]);
+
   return SFItemTransformer;
 }();
 
@@ -12044,7 +12096,7 @@ var StandardFile =
 /*#__PURE__*/
 function () {
   function StandardFile(cryptoInstance) {
-    (0, _classCallCheck2["default"])(this, StandardFile);
+    _classCallCheck(this, StandardFile);
 
     // This library runs in native environments as well (react native)
     if (globalScope) {
@@ -12071,7 +12123,7 @@ function () {
     };
   }
 
-  (0, _createClass2["default"])(StandardFile, [{
+  _createClass(StandardFile, [{
     key: "version",
     value: function version() {
       return "003";
@@ -12134,6 +12186,7 @@ function () {
       return this.costMinimumForVersion(this.version());
     }
   }]);
+
   return StandardFile;
 }();
 
@@ -12171,945 +12224,5 @@ if (globalScope) {
 
 
 }).call(this,typeof global !== "undefined" ? global : typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {})
-},{"@babel/runtime/helpers/asyncToGenerator":4,"@babel/runtime/helpers/classCallCheck":5,"@babel/runtime/helpers/createClass":6,"@babel/runtime/helpers/getPrototypeOf":7,"@babel/runtime/helpers/inherits":8,"@babel/runtime/helpers/interopRequireDefault":9,"@babel/runtime/helpers/possibleConstructorReturn":12,"@babel/runtime/helpers/slicedToArray":14,"@babel/runtime/helpers/typeof":15,"@babel/runtime/regenerator":17}],2:[function(require,module,exports){
-function _arrayWithHoles(arr) {
-  if (Array.isArray(arr)) return arr;
-}
-
-module.exports = _arrayWithHoles;
-},{}],3:[function(require,module,exports){
-function _assertThisInitialized(self) {
-  if (self === void 0) {
-    throw new ReferenceError("this hasn't been initialised - super() hasn't been called");
-  }
-
-  return self;
-}
-
-module.exports = _assertThisInitialized;
-},{}],4:[function(require,module,exports){
-function asyncGeneratorStep(gen, resolve, reject, _next, _throw, key, arg) {
-  try {
-    var info = gen[key](arg);
-    var value = info.value;
-  } catch (error) {
-    reject(error);
-    return;
-  }
-
-  if (info.done) {
-    resolve(value);
-  } else {
-    Promise.resolve(value).then(_next, _throw);
-  }
-}
-
-function _asyncToGenerator(fn) {
-  return function () {
-    var self = this,
-        args = arguments;
-    return new Promise(function (resolve, reject) {
-      var gen = fn.apply(self, args);
-
-      function _next(value) {
-        asyncGeneratorStep(gen, resolve, reject, _next, _throw, "next", value);
-      }
-
-      function _throw(err) {
-        asyncGeneratorStep(gen, resolve, reject, _next, _throw, "throw", err);
-      }
-
-      _next(undefined);
-    });
-  };
-}
-
-module.exports = _asyncToGenerator;
-},{}],5:[function(require,module,exports){
-function _classCallCheck(instance, Constructor) {
-  if (!(instance instanceof Constructor)) {
-    throw new TypeError("Cannot call a class as a function");
-  }
-}
-
-module.exports = _classCallCheck;
-},{}],6:[function(require,module,exports){
-function _defineProperties(target, props) {
-  for (var i = 0; i < props.length; i++) {
-    var descriptor = props[i];
-    descriptor.enumerable = descriptor.enumerable || false;
-    descriptor.configurable = true;
-    if ("value" in descriptor) descriptor.writable = true;
-    Object.defineProperty(target, descriptor.key, descriptor);
-  }
-}
-
-function _createClass(Constructor, protoProps, staticProps) {
-  if (protoProps) _defineProperties(Constructor.prototype, protoProps);
-  if (staticProps) _defineProperties(Constructor, staticProps);
-  return Constructor;
-}
-
-module.exports = _createClass;
-},{}],7:[function(require,module,exports){
-function _getPrototypeOf(o) {
-  module.exports = _getPrototypeOf = Object.setPrototypeOf ? Object.getPrototypeOf : function _getPrototypeOf(o) {
-    return o.__proto__ || Object.getPrototypeOf(o);
-  };
-  return _getPrototypeOf(o);
-}
-
-module.exports = _getPrototypeOf;
-},{}],8:[function(require,module,exports){
-var setPrototypeOf = require("./setPrototypeOf");
-
-function _inherits(subClass, superClass) {
-  if (typeof superClass !== "function" && superClass !== null) {
-    throw new TypeError("Super expression must either be null or a function");
-  }
-
-  subClass.prototype = Object.create(superClass && superClass.prototype, {
-    constructor: {
-      value: subClass,
-      writable: true,
-      configurable: true
-    }
-  });
-  if (superClass) setPrototypeOf(subClass, superClass);
-}
-
-module.exports = _inherits;
-},{"./setPrototypeOf":13}],9:[function(require,module,exports){
-function _interopRequireDefault(obj) {
-  return obj && obj.__esModule ? obj : {
-    "default": obj
-  };
-}
-
-module.exports = _interopRequireDefault;
-},{}],10:[function(require,module,exports){
-function _iterableToArrayLimit(arr, i) {
-  if (!(Symbol.iterator in Object(arr) || Object.prototype.toString.call(arr) === "[object Arguments]")) {
-    return;
-  }
-
-  var _arr = [];
-  var _n = true;
-  var _d = false;
-  var _e = undefined;
-
-  try {
-    for (var _i = arr[Symbol.iterator](), _s; !(_n = (_s = _i.next()).done); _n = true) {
-      _arr.push(_s.value);
-
-      if (i && _arr.length === i) break;
-    }
-  } catch (err) {
-    _d = true;
-    _e = err;
-  } finally {
-    try {
-      if (!_n && _i["return"] != null) _i["return"]();
-    } finally {
-      if (_d) throw _e;
-    }
-  }
-
-  return _arr;
-}
-
-module.exports = _iterableToArrayLimit;
-},{}],11:[function(require,module,exports){
-function _nonIterableRest() {
-  throw new TypeError("Invalid attempt to destructure non-iterable instance");
-}
-
-module.exports = _nonIterableRest;
-},{}],12:[function(require,module,exports){
-var _typeof = require("../helpers/typeof");
-
-var assertThisInitialized = require("./assertThisInitialized");
-
-function _possibleConstructorReturn(self, call) {
-  if (call && (_typeof(call) === "object" || typeof call === "function")) {
-    return call;
-  }
-
-  return assertThisInitialized(self);
-}
-
-module.exports = _possibleConstructorReturn;
-},{"../helpers/typeof":15,"./assertThisInitialized":3}],13:[function(require,module,exports){
-function _setPrototypeOf(o, p) {
-  module.exports = _setPrototypeOf = Object.setPrototypeOf || function _setPrototypeOf(o, p) {
-    o.__proto__ = p;
-    return o;
-  };
-
-  return _setPrototypeOf(o, p);
-}
-
-module.exports = _setPrototypeOf;
-},{}],14:[function(require,module,exports){
-var arrayWithHoles = require("./arrayWithHoles");
-
-var iterableToArrayLimit = require("./iterableToArrayLimit");
-
-var nonIterableRest = require("./nonIterableRest");
-
-function _slicedToArray(arr, i) {
-  return arrayWithHoles(arr) || iterableToArrayLimit(arr, i) || nonIterableRest();
-}
-
-module.exports = _slicedToArray;
-},{"./arrayWithHoles":2,"./iterableToArrayLimit":10,"./nonIterableRest":11}],15:[function(require,module,exports){
-function _typeof2(obj) { if (typeof Symbol === "function" && typeof Symbol.iterator === "symbol") { _typeof2 = function _typeof2(obj) { return typeof obj; }; } else { _typeof2 = function _typeof2(obj) { return obj && typeof Symbol === "function" && obj.constructor === Symbol && obj !== Symbol.prototype ? "symbol" : typeof obj; }; } return _typeof2(obj); }
-
-function _typeof(obj) {
-  if (typeof Symbol === "function" && _typeof2(Symbol.iterator) === "symbol") {
-    module.exports = _typeof = function _typeof(obj) {
-      return _typeof2(obj);
-    };
-  } else {
-    module.exports = _typeof = function _typeof(obj) {
-      return obj && typeof Symbol === "function" && obj.constructor === Symbol && obj !== Symbol.prototype ? "symbol" : _typeof2(obj);
-    };
-  }
-
-  return _typeof(obj);
-}
-
-module.exports = _typeof;
-},{}],16:[function(require,module,exports){
-/**
- * Copyright (c) 2014-present, Facebook, Inc.
- *
- * This source code is licensed under the MIT license found in the
- * LICENSE file in the root directory of this source tree.
- */
-
-var runtime = (function (exports) {
-  "use strict";
-
-  var Op = Object.prototype;
-  var hasOwn = Op.hasOwnProperty;
-  var undefined; // More compressible than void 0.
-  var $Symbol = typeof Symbol === "function" ? Symbol : {};
-  var iteratorSymbol = $Symbol.iterator || "@@iterator";
-  var asyncIteratorSymbol = $Symbol.asyncIterator || "@@asyncIterator";
-  var toStringTagSymbol = $Symbol.toStringTag || "@@toStringTag";
-
-  function wrap(innerFn, outerFn, self, tryLocsList) {
-    // If outerFn provided and outerFn.prototype is a Generator, then outerFn.prototype instanceof Generator.
-    var protoGenerator = outerFn && outerFn.prototype instanceof Generator ? outerFn : Generator;
-    var generator = Object.create(protoGenerator.prototype);
-    var context = new Context(tryLocsList || []);
-
-    // The ._invoke method unifies the implementations of the .next,
-    // .throw, and .return methods.
-    generator._invoke = makeInvokeMethod(innerFn, self, context);
-
-    return generator;
-  }
-  exports.wrap = wrap;
-
-  // Try/catch helper to minimize deoptimizations. Returns a completion
-  // record like context.tryEntries[i].completion. This interface could
-  // have been (and was previously) designed to take a closure to be
-  // invoked without arguments, but in all the cases we care about we
-  // already have an existing method we want to call, so there's no need
-  // to create a new function object. We can even get away with assuming
-  // the method takes exactly one argument, since that happens to be true
-  // in every case, so we don't have to touch the arguments object. The
-  // only additional allocation required is the completion record, which
-  // has a stable shape and so hopefully should be cheap to allocate.
-  function tryCatch(fn, obj, arg) {
-    try {
-      return { type: "normal", arg: fn.call(obj, arg) };
-    } catch (err) {
-      return { type: "throw", arg: err };
-    }
-  }
-
-  var GenStateSuspendedStart = "suspendedStart";
-  var GenStateSuspendedYield = "suspendedYield";
-  var GenStateExecuting = "executing";
-  var GenStateCompleted = "completed";
-
-  // Returning this object from the innerFn has the same effect as
-  // breaking out of the dispatch switch statement.
-  var ContinueSentinel = {};
-
-  // Dummy constructor functions that we use as the .constructor and
-  // .constructor.prototype properties for functions that return Generator
-  // objects. For full spec compliance, you may wish to configure your
-  // minifier not to mangle the names of these two functions.
-  function Generator() {}
-  function GeneratorFunction() {}
-  function GeneratorFunctionPrototype() {}
-
-  // This is a polyfill for %IteratorPrototype% for environments that
-  // don't natively support it.
-  var IteratorPrototype = {};
-  IteratorPrototype[iteratorSymbol] = function () {
-    return this;
-  };
-
-  var getProto = Object.getPrototypeOf;
-  var NativeIteratorPrototype = getProto && getProto(getProto(values([])));
-  if (NativeIteratorPrototype &&
-      NativeIteratorPrototype !== Op &&
-      hasOwn.call(NativeIteratorPrototype, iteratorSymbol)) {
-    // This environment has a native %IteratorPrototype%; use it instead
-    // of the polyfill.
-    IteratorPrototype = NativeIteratorPrototype;
-  }
-
-  var Gp = GeneratorFunctionPrototype.prototype =
-    Generator.prototype = Object.create(IteratorPrototype);
-  GeneratorFunction.prototype = Gp.constructor = GeneratorFunctionPrototype;
-  GeneratorFunctionPrototype.constructor = GeneratorFunction;
-  GeneratorFunctionPrototype[toStringTagSymbol] =
-    GeneratorFunction.displayName = "GeneratorFunction";
-
-  // Helper for defining the .next, .throw, and .return methods of the
-  // Iterator interface in terms of a single ._invoke method.
-  function defineIteratorMethods(prototype) {
-    ["next", "throw", "return"].forEach(function(method) {
-      prototype[method] = function(arg) {
-        return this._invoke(method, arg);
-      };
-    });
-  }
-
-  exports.isGeneratorFunction = function(genFun) {
-    var ctor = typeof genFun === "function" && genFun.constructor;
-    return ctor
-      ? ctor === GeneratorFunction ||
-        // For the native GeneratorFunction constructor, the best we can
-        // do is to check its .name property.
-        (ctor.displayName || ctor.name) === "GeneratorFunction"
-      : false;
-  };
-
-  exports.mark = function(genFun) {
-    if (Object.setPrototypeOf) {
-      Object.setPrototypeOf(genFun, GeneratorFunctionPrototype);
-    } else {
-      genFun.__proto__ = GeneratorFunctionPrototype;
-      if (!(toStringTagSymbol in genFun)) {
-        genFun[toStringTagSymbol] = "GeneratorFunction";
-      }
-    }
-    genFun.prototype = Object.create(Gp);
-    return genFun;
-  };
-
-  // Within the body of any async function, `await x` is transformed to
-  // `yield regeneratorRuntime.awrap(x)`, so that the runtime can test
-  // `hasOwn.call(value, "__await")` to determine if the yielded value is
-  // meant to be awaited.
-  exports.awrap = function(arg) {
-    return { __await: arg };
-  };
-
-  function AsyncIterator(generator) {
-    function invoke(method, arg, resolve, reject) {
-      var record = tryCatch(generator[method], generator, arg);
-      if (record.type === "throw") {
-        reject(record.arg);
-      } else {
-        var result = record.arg;
-        var value = result.value;
-        if (value &&
-            typeof value === "object" &&
-            hasOwn.call(value, "__await")) {
-          return Promise.resolve(value.__await).then(function(value) {
-            invoke("next", value, resolve, reject);
-          }, function(err) {
-            invoke("throw", err, resolve, reject);
-          });
-        }
-
-        return Promise.resolve(value).then(function(unwrapped) {
-          // When a yielded Promise is resolved, its final value becomes
-          // the .value of the Promise<{value,done}> result for the
-          // current iteration.
-          result.value = unwrapped;
-          resolve(result);
-        }, function(error) {
-          // If a rejected Promise was yielded, throw the rejection back
-          // into the async generator function so it can be handled there.
-          return invoke("throw", error, resolve, reject);
-        });
-      }
-    }
-
-    var previousPromise;
-
-    function enqueue(method, arg) {
-      function callInvokeWithMethodAndArg() {
-        return new Promise(function(resolve, reject) {
-          invoke(method, arg, resolve, reject);
-        });
-      }
-
-      return previousPromise =
-        // If enqueue has been called before, then we want to wait until
-        // all previous Promises have been resolved before calling invoke,
-        // so that results are always delivered in the correct order. If
-        // enqueue has not been called before, then it is important to
-        // call invoke immediately, without waiting on a callback to fire,
-        // so that the async generator function has the opportunity to do
-        // any necessary setup in a predictable way. This predictability
-        // is why the Promise constructor synchronously invokes its
-        // executor callback, and why async functions synchronously
-        // execute code before the first await. Since we implement simple
-        // async functions in terms of async generators, it is especially
-        // important to get this right, even though it requires care.
-        previousPromise ? previousPromise.then(
-          callInvokeWithMethodAndArg,
-          // Avoid propagating failures to Promises returned by later
-          // invocations of the iterator.
-          callInvokeWithMethodAndArg
-        ) : callInvokeWithMethodAndArg();
-    }
-
-    // Define the unified helper method that is used to implement .next,
-    // .throw, and .return (see defineIteratorMethods).
-    this._invoke = enqueue;
-  }
-
-  defineIteratorMethods(AsyncIterator.prototype);
-  AsyncIterator.prototype[asyncIteratorSymbol] = function () {
-    return this;
-  };
-  exports.AsyncIterator = AsyncIterator;
-
-  // Note that simple async functions are implemented on top of
-  // AsyncIterator objects; they just return a Promise for the value of
-  // the final result produced by the iterator.
-  exports.async = function(innerFn, outerFn, self, tryLocsList) {
-    var iter = new AsyncIterator(
-      wrap(innerFn, outerFn, self, tryLocsList)
-    );
-
-    return exports.isGeneratorFunction(outerFn)
-      ? iter // If outerFn is a generator, return the full iterator.
-      : iter.next().then(function(result) {
-          return result.done ? result.value : iter.next();
-        });
-  };
-
-  function makeInvokeMethod(innerFn, self, context) {
-    var state = GenStateSuspendedStart;
-
-    return function invoke(method, arg) {
-      if (state === GenStateExecuting) {
-        throw new Error("Generator is already running");
-      }
-
-      if (state === GenStateCompleted) {
-        if (method === "throw") {
-          throw arg;
-        }
-
-        // Be forgiving, per 25.3.3.3.3 of the spec:
-        // https://people.mozilla.org/~jorendorff/es6-draft.html#sec-generatorresume
-        return doneResult();
-      }
-
-      context.method = method;
-      context.arg = arg;
-
-      while (true) {
-        var delegate = context.delegate;
-        if (delegate) {
-          var delegateResult = maybeInvokeDelegate(delegate, context);
-          if (delegateResult) {
-            if (delegateResult === ContinueSentinel) continue;
-            return delegateResult;
-          }
-        }
-
-        if (context.method === "next") {
-          // Setting context._sent for legacy support of Babel's
-          // function.sent implementation.
-          context.sent = context._sent = context.arg;
-
-        } else if (context.method === "throw") {
-          if (state === GenStateSuspendedStart) {
-            state = GenStateCompleted;
-            throw context.arg;
-          }
-
-          context.dispatchException(context.arg);
-
-        } else if (context.method === "return") {
-          context.abrupt("return", context.arg);
-        }
-
-        state = GenStateExecuting;
-
-        var record = tryCatch(innerFn, self, context);
-        if (record.type === "normal") {
-          // If an exception is thrown from innerFn, we leave state ===
-          // GenStateExecuting and loop back for another invocation.
-          state = context.done
-            ? GenStateCompleted
-            : GenStateSuspendedYield;
-
-          if (record.arg === ContinueSentinel) {
-            continue;
-          }
-
-          return {
-            value: record.arg,
-            done: context.done
-          };
-
-        } else if (record.type === "throw") {
-          state = GenStateCompleted;
-          // Dispatch the exception by looping back around to the
-          // context.dispatchException(context.arg) call above.
-          context.method = "throw";
-          context.arg = record.arg;
-        }
-      }
-    };
-  }
-
-  // Call delegate.iterator[context.method](context.arg) and handle the
-  // result, either by returning a { value, done } result from the
-  // delegate iterator, or by modifying context.method and context.arg,
-  // setting context.delegate to null, and returning the ContinueSentinel.
-  function maybeInvokeDelegate(delegate, context) {
-    var method = delegate.iterator[context.method];
-    if (method === undefined) {
-      // A .throw or .return when the delegate iterator has no .throw
-      // method always terminates the yield* loop.
-      context.delegate = null;
-
-      if (context.method === "throw") {
-        // Note: ["return"] must be used for ES3 parsing compatibility.
-        if (delegate.iterator["return"]) {
-          // If the delegate iterator has a return method, give it a
-          // chance to clean up.
-          context.method = "return";
-          context.arg = undefined;
-          maybeInvokeDelegate(delegate, context);
-
-          if (context.method === "throw") {
-            // If maybeInvokeDelegate(context) changed context.method from
-            // "return" to "throw", let that override the TypeError below.
-            return ContinueSentinel;
-          }
-        }
-
-        context.method = "throw";
-        context.arg = new TypeError(
-          "The iterator does not provide a 'throw' method");
-      }
-
-      return ContinueSentinel;
-    }
-
-    var record = tryCatch(method, delegate.iterator, context.arg);
-
-    if (record.type === "throw") {
-      context.method = "throw";
-      context.arg = record.arg;
-      context.delegate = null;
-      return ContinueSentinel;
-    }
-
-    var info = record.arg;
-
-    if (! info) {
-      context.method = "throw";
-      context.arg = new TypeError("iterator result is not an object");
-      context.delegate = null;
-      return ContinueSentinel;
-    }
-
-    if (info.done) {
-      // Assign the result of the finished delegate to the temporary
-      // variable specified by delegate.resultName (see delegateYield).
-      context[delegate.resultName] = info.value;
-
-      // Resume execution at the desired location (see delegateYield).
-      context.next = delegate.nextLoc;
-
-      // If context.method was "throw" but the delegate handled the
-      // exception, let the outer generator proceed normally. If
-      // context.method was "next", forget context.arg since it has been
-      // "consumed" by the delegate iterator. If context.method was
-      // "return", allow the original .return call to continue in the
-      // outer generator.
-      if (context.method !== "return") {
-        context.method = "next";
-        context.arg = undefined;
-      }
-
-    } else {
-      // Re-yield the result returned by the delegate method.
-      return info;
-    }
-
-    // The delegate iterator is finished, so forget it and continue with
-    // the outer generator.
-    context.delegate = null;
-    return ContinueSentinel;
-  }
-
-  // Define Generator.prototype.{next,throw,return} in terms of the
-  // unified ._invoke helper method.
-  defineIteratorMethods(Gp);
-
-  Gp[toStringTagSymbol] = "Generator";
-
-  // A Generator should always return itself as the iterator object when the
-  // @@iterator function is called on it. Some browsers' implementations of the
-  // iterator prototype chain incorrectly implement this, causing the Generator
-  // object to not be returned from this call. This ensures that doesn't happen.
-  // See https://github.com/facebook/regenerator/issues/274 for more details.
-  Gp[iteratorSymbol] = function() {
-    return this;
-  };
-
-  Gp.toString = function() {
-    return "[object Generator]";
-  };
-
-  function pushTryEntry(locs) {
-    var entry = { tryLoc: locs[0] };
-
-    if (1 in locs) {
-      entry.catchLoc = locs[1];
-    }
-
-    if (2 in locs) {
-      entry.finallyLoc = locs[2];
-      entry.afterLoc = locs[3];
-    }
-
-    this.tryEntries.push(entry);
-  }
-
-  function resetTryEntry(entry) {
-    var record = entry.completion || {};
-    record.type = "normal";
-    delete record.arg;
-    entry.completion = record;
-  }
-
-  function Context(tryLocsList) {
-    // The root entry object (effectively a try statement without a catch
-    // or a finally block) gives us a place to store values thrown from
-    // locations where there is no enclosing try statement.
-    this.tryEntries = [{ tryLoc: "root" }];
-    tryLocsList.forEach(pushTryEntry, this);
-    this.reset(true);
-  }
-
-  exports.keys = function(object) {
-    var keys = [];
-    for (var key in object) {
-      keys.push(key);
-    }
-    keys.reverse();
-
-    // Rather than returning an object with a next method, we keep
-    // things simple and return the next function itself.
-    return function next() {
-      while (keys.length) {
-        var key = keys.pop();
-        if (key in object) {
-          next.value = key;
-          next.done = false;
-          return next;
-        }
-      }
-
-      // To avoid creating an additional object, we just hang the .value
-      // and .done properties off the next function object itself. This
-      // also ensures that the minifier will not anonymize the function.
-      next.done = true;
-      return next;
-    };
-  };
-
-  function values(iterable) {
-    if (iterable) {
-      var iteratorMethod = iterable[iteratorSymbol];
-      if (iteratorMethod) {
-        return iteratorMethod.call(iterable);
-      }
-
-      if (typeof iterable.next === "function") {
-        return iterable;
-      }
-
-      if (!isNaN(iterable.length)) {
-        var i = -1, next = function next() {
-          while (++i < iterable.length) {
-            if (hasOwn.call(iterable, i)) {
-              next.value = iterable[i];
-              next.done = false;
-              return next;
-            }
-          }
-
-          next.value = undefined;
-          next.done = true;
-
-          return next;
-        };
-
-        return next.next = next;
-      }
-    }
-
-    // Return an iterator with no values.
-    return { next: doneResult };
-  }
-  exports.values = values;
-
-  function doneResult() {
-    return { value: undefined, done: true };
-  }
-
-  Context.prototype = {
-    constructor: Context,
-
-    reset: function(skipTempReset) {
-      this.prev = 0;
-      this.next = 0;
-      // Resetting context._sent for legacy support of Babel's
-      // function.sent implementation.
-      this.sent = this._sent = undefined;
-      this.done = false;
-      this.delegate = null;
-
-      this.method = "next";
-      this.arg = undefined;
-
-      this.tryEntries.forEach(resetTryEntry);
-
-      if (!skipTempReset) {
-        for (var name in this) {
-          // Not sure about the optimal order of these conditions:
-          if (name.charAt(0) === "t" &&
-              hasOwn.call(this, name) &&
-              !isNaN(+name.slice(1))) {
-            this[name] = undefined;
-          }
-        }
-      }
-    },
-
-    stop: function() {
-      this.done = true;
-
-      var rootEntry = this.tryEntries[0];
-      var rootRecord = rootEntry.completion;
-      if (rootRecord.type === "throw") {
-        throw rootRecord.arg;
-      }
-
-      return this.rval;
-    },
-
-    dispatchException: function(exception) {
-      if (this.done) {
-        throw exception;
-      }
-
-      var context = this;
-      function handle(loc, caught) {
-        record.type = "throw";
-        record.arg = exception;
-        context.next = loc;
-
-        if (caught) {
-          // If the dispatched exception was caught by a catch block,
-          // then let that catch block handle the exception normally.
-          context.method = "next";
-          context.arg = undefined;
-        }
-
-        return !! caught;
-      }
-
-      for (var i = this.tryEntries.length - 1; i >= 0; --i) {
-        var entry = this.tryEntries[i];
-        var record = entry.completion;
-
-        if (entry.tryLoc === "root") {
-          // Exception thrown outside of any try block that could handle
-          // it, so set the completion value of the entire function to
-          // throw the exception.
-          return handle("end");
-        }
-
-        if (entry.tryLoc <= this.prev) {
-          var hasCatch = hasOwn.call(entry, "catchLoc");
-          var hasFinally = hasOwn.call(entry, "finallyLoc");
-
-          if (hasCatch && hasFinally) {
-            if (this.prev < entry.catchLoc) {
-              return handle(entry.catchLoc, true);
-            } else if (this.prev < entry.finallyLoc) {
-              return handle(entry.finallyLoc);
-            }
-
-          } else if (hasCatch) {
-            if (this.prev < entry.catchLoc) {
-              return handle(entry.catchLoc, true);
-            }
-
-          } else if (hasFinally) {
-            if (this.prev < entry.finallyLoc) {
-              return handle(entry.finallyLoc);
-            }
-
-          } else {
-            throw new Error("try statement without catch or finally");
-          }
-        }
-      }
-    },
-
-    abrupt: function(type, arg) {
-      for (var i = this.tryEntries.length - 1; i >= 0; --i) {
-        var entry = this.tryEntries[i];
-        if (entry.tryLoc <= this.prev &&
-            hasOwn.call(entry, "finallyLoc") &&
-            this.prev < entry.finallyLoc) {
-          var finallyEntry = entry;
-          break;
-        }
-      }
-
-      if (finallyEntry &&
-          (type === "break" ||
-           type === "continue") &&
-          finallyEntry.tryLoc <= arg &&
-          arg <= finallyEntry.finallyLoc) {
-        // Ignore the finally entry if control is not jumping to a
-        // location outside the try/catch block.
-        finallyEntry = null;
-      }
-
-      var record = finallyEntry ? finallyEntry.completion : {};
-      record.type = type;
-      record.arg = arg;
-
-      if (finallyEntry) {
-        this.method = "next";
-        this.next = finallyEntry.finallyLoc;
-        return ContinueSentinel;
-      }
-
-      return this.complete(record);
-    },
-
-    complete: function(record, afterLoc) {
-      if (record.type === "throw") {
-        throw record.arg;
-      }
-
-      if (record.type === "break" ||
-          record.type === "continue") {
-        this.next = record.arg;
-      } else if (record.type === "return") {
-        this.rval = this.arg = record.arg;
-        this.method = "return";
-        this.next = "end";
-      } else if (record.type === "normal" && afterLoc) {
-        this.next = afterLoc;
-      }
-
-      return ContinueSentinel;
-    },
-
-    finish: function(finallyLoc) {
-      for (var i = this.tryEntries.length - 1; i >= 0; --i) {
-        var entry = this.tryEntries[i];
-        if (entry.finallyLoc === finallyLoc) {
-          this.complete(entry.completion, entry.afterLoc);
-          resetTryEntry(entry);
-          return ContinueSentinel;
-        }
-      }
-    },
-
-    "catch": function(tryLoc) {
-      for (var i = this.tryEntries.length - 1; i >= 0; --i) {
-        var entry = this.tryEntries[i];
-        if (entry.tryLoc === tryLoc) {
-          var record = entry.completion;
-          if (record.type === "throw") {
-            var thrown = record.arg;
-            resetTryEntry(entry);
-          }
-          return thrown;
-        }
-      }
-
-      // The context.catch method must only be called with a location
-      // argument that corresponds to a known catch block.
-      throw new Error("illegal catch attempt");
-    },
-
-    delegateYield: function(iterable, resultName, nextLoc) {
-      this.delegate = {
-        iterator: values(iterable),
-        resultName: resultName,
-        nextLoc: nextLoc
-      };
-
-      if (this.method === "next") {
-        // Deliberately forget the last sent value so that we don't
-        // accidentally pass it on to the delegate.
-        this.arg = undefined;
-      }
-
-      return ContinueSentinel;
-    }
-  };
-
-  // Regardless of whether this script is executing as a CommonJS module
-  // or not, return the runtime object so that we can declare the variable
-  // regeneratorRuntime in the outer scope, which allows this module to be
-  // injected easily by `bin/regenerator --include-runtime script.js`.
-  return exports;
-
-}(
-  // If this script is executing as a CommonJS module, use module.exports
-  // as the regeneratorRuntime namespace. Otherwise create a new empty
-  // object. Either way, the resulting object will be used to initialize
-  // the regeneratorRuntime variable at the top of this file.
-  typeof module === "object" ? module.exports : {}
-));
-
-try {
-  regeneratorRuntime = runtime;
-} catch (accidentalStrictMode) {
-  // This module should not be running in strict mode, so the above
-  // assignment should always work unless something is misconfigured. Just
-  // in case runtime.js accidentally runs in strict mode, we can escape
-  // strict mode using a global Function call. This could conceivably fail
-  // if a Content Security Policy forbids using Function, but in that case
-  // the proper solution is to fix the accidental strict mode problem. If
-  // you've misconfigured your bundler to force strict mode and applied a
-  // CSP to forbid Function, and you're not willing to fix either of those
-  // problems, please detail your unique predicament in a GitHub issue.
-  Function("r", "regeneratorRuntime = r")(runtime);
-}
-
-},{}],17:[function(require,module,exports){
-module.exports = require("regenerator-runtime");
-
-},{"regenerator-runtime":16}]},{},[1])(1)
+},{}]},{},[1])(1)
 });
