@@ -800,7 +800,7 @@ function () {
         var _ref3 = _asyncToGenerator(
         /*#__PURE__*/
         regeneratorRuntime.mark(function _callee14(resolve, reject) {
-          var results, keys, authParams, requestUrl, params;
+          var MinPasswordLength, message, results, keys, authParams, requestUrl, params;
           return regeneratorRuntime.wrap(function _callee14$(_context14) {
             while (1) {
               switch (_context14.prev = _context14.next) {
@@ -818,12 +818,28 @@ function () {
                   return _context14.abrupt("return");
 
                 case 3:
+                  MinPasswordLength = 8;
+
+                  if (!(password.length < MinPasswordLength)) {
+                    _context14.next = 8;
+                    break;
+                  }
+
+                  message = "Your password must be at least ".concat(MinPasswordLength, " characters in length. For your security, please choose a longer password or, ideally, a passphrase, and try again.");
+                  resolve({
+                    error: {
+                      message: message
+                    }
+                  });
+                  return _context14.abrupt("return");
+
+                case 8:
                   _this4.lock();
 
-                  _context14.next = 6;
+                  _context14.next = 11;
                   return SFJS.crypto.generateInitialKeysAndAuthParamsForUser(email, password);
 
-                case 6:
+                case 11:
                   results = _context14.sent;
                   keys = results.keys;
                   authParams = results.authParams;
@@ -875,7 +891,7 @@ function () {
                     _this4.unlockAndResolve(resolve, response);
                   });
 
-                case 13:
+                case 18:
                 case "end":
                   return _context14.stop();
               }

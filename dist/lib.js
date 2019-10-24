@@ -259,6 +259,14 @@ export class SFAlertManager {
         return;
       }
 
+      const MinPasswordLength = 8;
+
+      if(password.length < MinPasswordLength) {
+        let message = `Your password must be at least ${MinPasswordLength} characters in length. For your security, please choose a longer password or, ideally, a passphrase, and try again.`;
+        resolve({error: {message: message}});
+        return;
+      }
+
       this.lock();
 
       let results = await SFJS.crypto.generateInitialKeysAndAuthParamsForUser(email, password);
