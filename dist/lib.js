@@ -2508,6 +2508,10 @@ export class SFStorageManager {
 
       params['api'] = SFHttpManager.getApiVersion();
 
+      if(this.loggingEnabled)  {
+        console.log("Syncing with params", params);
+      }
+
       try {
         this.httpManager.postAuthenticatedAbsolute(await this.getSyncURL(), params, (response) => {
           this.handleSyncSuccess(subItems, response, options).then(() => {
@@ -3288,8 +3292,10 @@ export class SFItem {
   }
 
   potentialItemOfInterestHasChangedItsUUID(newItem, oldUUID, newUUID) {
-    // optional override
-    for(var reference of this.content.references) {
+    if(this.errorDecrypting) {
+      return;
+    }
+    for(let reference of this.content.references) {
       if(reference.uuid == oldUUID) {
         reference.uuid = newUUID;
         this.setDirty(true);
