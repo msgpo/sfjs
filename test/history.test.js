@@ -19,14 +19,6 @@ describe('session history', () => {
   var password = Factory.globalStandardFile().crypto.generateUUIDSync();
   var totalItemCount = 0;
 
-  before((done) => {
-    Factory.globalStorageManager().clearAllData().then(() => {
-      Factory.newRegisteredUser(email, password).then((user) => {
-        done();
-      })
-    })
-  })
-
   let authManager = Factory.globalAuthManager();
   let modelManager = Factory.createModelManager();
   let syncManager = new SFSyncManager(modelManager, Factory.globalStorageManager(), Factory.globalHttpManager());
@@ -39,6 +31,16 @@ describe('session history', () => {
   };
 
   syncManager.setKeyRequestHandler(keyRequestHandler)
+
+  before((done) => {
+    Factory.globalStorageManager().clearAllData().then(() => {
+      Factory.newRegisteredUser(email, password).then((user) => {
+        syncManager.loadLocalItems().then(() => {
+          done();
+        })
+      })
+    })
+  })
 
   let historyManager = new SFSessionHistoryManager(modelManager, Factory.globalStorageManager(), keyRequestHandler, "*");
   beforeEach((done) => {
@@ -63,7 +65,7 @@ describe('session history', () => {
     return s;
   }
 
-  it("should register and sync basic model online", async () => {
+  it("create basic history entries", async () => {
     var item = Factory.createItem();
     modelManager.setItemDirty(item, true);
     modelManager.addItem(item);
