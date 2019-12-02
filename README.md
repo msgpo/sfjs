@@ -35,7 +35,7 @@ let SFJS = new StandardFile();
 #### New user (registration):
 
 ```javascript
-SFJS.generateInitialKeysAndAuthParamsForUser(email, password).then((results) => {
+SFJS.crypto.generateInitialKeysAndAuthParamsForUser(email, password).then((results) => {
   let keys = results.keys;
   let authParams = results.authParams;
 
@@ -49,7 +49,7 @@ SFJS.generateInitialKeysAndAuthParamsForUser(email, password).then((results) => 
 
 ```javascript
 let authParams = getPreviouslyCreatedAuthParams();
-SFJS.computeEncryptionKeysForUser(password, authParams).then((keys) => {
+SFJS.crypto.computeEncryptionKeysForUser(password, authParams).then((keys) => {
   let serverPassword = keys.pw;
   let encryptionKey = keys.mk;
   let authenticationKey = keys.ak;
